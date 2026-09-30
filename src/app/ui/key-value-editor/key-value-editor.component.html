@@ -1,0 +1,22 @@
+<div class="rows">
+  @for (row of rows(); track $index; let i = $index) {
+    <div class="row">
+      <input
+        class="mono"
+        [value]="row.key"
+        [placeholder]="keyPlaceholder()"
+        (input)="edit(i, { key: text($event) })"
+        aria-label="Name"
+      />
+      <input
+        class="mono"
+        [value]="row.value"
+        [placeholder]="valuePlaceholder()"
+        (input)="edit(i, { value: text($event) })"
+        aria-label="Value"
+      />
+      <button type="button" class="ghost" (click)="remove(i)" aria-label="Remove row">×</button>
+    </div>
+  }
+  <button type="button" class="add" (click)="add()">+ Add</button>
+</div>

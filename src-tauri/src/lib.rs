@@ -1,14 +1,13 @@
-use mcp_studio_core::{db::Db, model::AppInfo};
+mod commands;
+mod error;
+
+use mcp_studio_core::{db::Db, registry::Registry};
 use tauri::Manager;
 
 /// Shared state managed by Tauri.
 pub struct AppState {
     pub db: Db,
-}
-
-#[tauri::command]
-fn app_info() -> AppInfo {
-    AppInfo::current()
+    pub registry: Registry,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -24,10 +23,18 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             let db = tauri::async_runtime::block_on(Db::open(&dir.join("mcp-studio.sqlite")))?;
-            app.manage(AppState { db });
+            let registry = Registry::new(db.clone());
+            app.manage(AppState { db, registry });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![app_info])
+        .invoke_handler(tauri::generate_handler![
+            commands::app_info,
+            commands::server_list,
+            commands::server_get,
+            commands::server_add,
+            commands::server_update,
+            commands::server_remove,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running MCP Studio");
 }
