@@ -19,6 +19,14 @@ export type CollectionTree = {
 	requests: SavedRequest[],
 };
 
+/**  A configuration file that may contain servers. */
+export type ConfigSource = {
+	/**  "Claude Desktop" or "Claude Code (user)". */
+	label: string,
+	path: string,
+	exists: boolean,
+};
+
 /**  Connection state of one server. */
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
@@ -63,6 +71,17 @@ export type HistoryFilter = {
 	limit?: number | null,
 };
 
+/**  One server found in a file, ready to be previewed. */
+export type ImportCandidate = {
+	input: ServerInput,
+	/**  Where it was defined, e.g. `Claude Code · project /home/me/app`. */
+	origin: string,
+	/**  The same name (or the same command/URL) already exists in MCP Studio. */
+	duplicate: boolean,
+	/**  Why it cannot be imported (e.g. legacy SSE transport); such entries are not selectable. */
+	unsupported: string | null,
+};
+
 /**  Result of importing a collection file. */
 export type ImportReport = {
 	/**  Id of the imported top-level folder. */
@@ -71,6 +90,15 @@ export type ImportReport = {
 	requestsCreated: number,
 	/**  Requests that could not be imported, with the reason (e.g. unknown server). */
 	skipped: string[],
+};
+
+/**  Result of an import. */
+export type ImportSummary = {
+	created: number,
+	renamed: number,
+	/**  Values (tokens, API keys) that were moved from the config into the OS keyring. */
+	secretsMoved: number,
+	failed: string[],
 };
 
 /**  `mcp://list-changed`: the server sent `notifications/*\/list_changed`. */

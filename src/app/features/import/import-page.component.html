@@ -1,0 +1,90 @@
+<section class="import">
+  <h2>Import servers</h2>
+  <p class="muted">
+    Pick the configuration of another MCP client. You see what will be imported before anything
+    changes. Tokens and keys in environment variables and headers are moved into your OS keyring.
+  </p>
+
+  <div class="sources">
+    @for (source of sources(); track source.path) {
+      <button
+        type="button"
+        [disabled]="!source.exists || loading()"
+        (click)="preview(source.path)"
+        [title]="source.path"
+      >
+        {{ source.label }}
+        @if (!source.exists) {
+          <span class="muted"> · not found</span>
+        }
+      </button>
+    }
+    <button type="button" (click)="choose()" [disabled]="loading()">Choose a file…</button>
+  </div>
+
+  @if (path(); as file) {
+    <p class="muted mono file">{{ file }}</p>
+    @if (rows().length === 0) {
+      <p class="muted">This file defines no servers.</p>
+    } @else {
+      <div class="bulk">
+        <button type="button" class="ghost" (click)="selectAll()">Select all</button>
+        <button type="button" class="ghost" (click)="selectNone()">Select none</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Name</th>
+            <th>Runs</th>
+            <th>From</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.index) {
+            <tr [class.disabled]="!!row.candidate.unsupported">
+              <td>
+                <input
+                  type="checkbox"
+                  [checked]="selected().has(row.index)"
+                  [disabled]="!!row.candidate.unsupported"
+                  (change)="toggle(row.index)"
+                  [attr.aria-label]="'Import ' + row.candidate.input.name"
+                />
+              </td>
+              <td class="name">{{ row.candidate.input.name }}</td>
+              <td class="mono summary" [title]="row.summary">{{ row.summary }}</td>
+              <td class="muted">{{ row.candidate.origin }}</td>
+              <td class="flags">
+                @if (row.candidate.duplicate) {
+                  <span class="badge dup" title="A server with this name or command already exists"
+                    >already exists</span
+                  >
+                }
+                @if (row.candidate.unsupported; as reason) {
+                  <span class="badge no" [title]="reason">not supported</span>
+                }
+                @if (row.secrets > 0) {
+                  <span class="badge" title="Moved to the OS keyring"
+                    >{{ row.secrets }} secret(s)</span
+                  >
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      <div class="actions">
+        <button
+          type="button"
+          class="primary"
+          [disabled]="selectedCount() === 0 || importing()"
+          (click)="run()"
+        >
+          Import {{ selectedCount() }} server(s)
+        </button>
+      </div>
+    }
+  }
+</section>

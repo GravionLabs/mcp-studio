@@ -3,9 +3,12 @@ import type {
   AppInfo,
   CollectionNode,
   CollectionTree,
+  ConfigSource,
   HistoryEntry,
   HistoryFilter,
+  ImportCandidate,
   ImportReport,
+  ImportSummary,
   SavedRequest,
   SavedRequestInput,
   Environment,
@@ -236,5 +239,17 @@ export class TauriIpcService {
 
   oauthStatus(id: string): Promise<boolean> {
     return this.call("oauth_status", { id });
+  }
+
+  importSources(): Promise<ConfigSource[]> {
+    return this.call("import_sources");
+  }
+
+  importPreview(path: string): Promise<ImportCandidate[]> {
+    return this.call("import_preview", { path });
+  }
+
+  importApply(servers: ServerInput[]): Promise<ImportSummary> {
+    return this.call("import_apply", { servers });
   }
 }
