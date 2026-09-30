@@ -20,6 +20,8 @@ pub enum DbError {
     NotFound(String),
     #[error("invalid input: {0}")]
     Invalid(String),
+    #[error("{0}")]
+    Connection(String),
 }
 
 pub type DbResult<T> = Result<T, DbError>;

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
+import { ConnectionEventsService } from "../../core/connection-events.service";
 import { ConnectionStatusService } from "../../core/connection-status.service";
 import { ToastService } from "../../core/toast.service";
 import { EnvironmentsStore } from "../environments/environments.store";
@@ -17,9 +18,13 @@ export class SidebarComponent implements OnInit {
   protected readonly store = inject(ServersStore);
   protected readonly status = inject(ConnectionStatusService);
   private readonly environments = inject(EnvironmentsStore);
+  private readonly events = inject(ConnectionEventsService);
   private readonly toasts = inject(ToastService);
 
   ngOnInit(): void {
+    this.events
+      .start()
+      .catch((error: unknown) => this.toasts.fail("Could not listen for connection events", error));
     this.store.load().catch((error: unknown) => this.toasts.fail("Could not load servers", error));
     this.environments
       .load()

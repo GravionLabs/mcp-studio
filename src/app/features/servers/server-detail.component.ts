@@ -1,6 +1,19 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from "@angular/core";
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
+import { ConnectionStatusService } from "../../core/connection-status.service";
+import type { LogEvent } from "../../core/bindings";
+import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
+import { EnvironmentsStore } from "../environments/environments.store";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { ServersStore } from "./servers.store";
 
@@ -19,11 +32,35 @@ export class ServerDetailComponent {
   private readonly router = inject(Router);
   private readonly toasts = inject(ToastService);
   private readonly tabs = inject(WorkspaceTabsService);
+  private readonly ipc = inject(TauriIpcService);
+  private readonly environments = inject(EnvironmentsStore);
+  private readonly destroyRef = inject(DestroyRef);
+  protected readonly status = inject(ConnectionStatusService);
+  protected readonly logs = signal<LogEvent[]>([]);
+  protected readonly busy = signal(false);
+  protected readonly state = computed(() => this.status.stateOf(this.id()));
+  protected readonly lastError = computed(
+    () =>
+      this.status.statuses().find((s) => s.serverId === this.id() && s.state === "error")?.message,
+  );
 
   protected readonly server = computed(() => this.store.byId().get(this.id()));
   protected readonly loaded = this.store.loaded;
 
   constructor() {
+    effect(() => {
+      const id = this.id();
+      this.logs.set([]);
+      this.ipc.serverLogs(id).then(
+        (lines) => this.logs.set(lines),
+        () => undefined,
+      );
+    });
+    void this.ipc
+      .listen<LogEvent>("mcp://log", (line) => {
+        if (line.serverId === this.id()) this.logs.update((all) => [...all, line].slice(-1000));
+      })
+      .then((stop) => this.destroyRef.onDestroy(stop));
     effect(() => {
       const server = this.server();
       if (server) {
@@ -38,6 +75,28 @@ export class ServerDetailComponent {
 
   protected entries(record: Record<string, string>): [string, string][] {
     return Object.entries(record);
+  }
+
+  protected async connect(): Promise<void> {
+    this.busy.set(true);
+    try {
+      await this.ipc.serverConnect(this.id(), this.environments.activeId());
+    } catch (error) {
+      this.toasts.fail("Could not connect", error);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async disconnect(): Promise<void> {
+    this.busy.set(true);
+    try {
+      await this.ipc.serverDisconnect(this.id());
+    } catch (error) {
+      this.toasts.fail("Could not disconnect", error);
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected async remove(): Promise<void> {

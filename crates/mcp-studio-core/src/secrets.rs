@@ -168,6 +168,20 @@ fn resolve_value(
     Ok(secret)
 }
 
+/// Resolves `keyring:` references in a name/value map. Returns the plain map and the secret values
+/// that were substituted (for redaction).
+pub fn resolve_values(
+    store: &dyn SecretStore,
+    values: &BTreeMap<String, String>,
+) -> DbResult<(BTreeMap<String, String>, Vec<String>)> {
+    let mut secrets = Vec::new();
+    let mut resolved = BTreeMap::new();
+    for (key, value) in values {
+        resolved.insert(key.clone(), resolve_value(store, value, &mut secrets)?);
+    }
+    Ok((resolved, secrets))
+}
+
 /// Resolves all `keyring:` references in a server's environment and headers.
 pub fn resolve(store: &dyn SecretStore, input: &ServerInput) -> DbResult<Resolved> {
     let mut secrets = Vec::new();
