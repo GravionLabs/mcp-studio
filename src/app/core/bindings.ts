@@ -6,6 +6,16 @@ export type AppInfo = {
 	version: string,
 };
 
+/**  Connection state of one server. */
+export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
+
+/**  Direction of a message relative to the party that owns the transport. */
+export type Direction = 
+/**  Sent by us to the peer. */
+"out" | 
+/**  Received from the peer. */
+"in";
+
 export type Environment = {
 	id: string,
 } & EnvironmentInput;
@@ -14,6 +24,63 @@ export type EnvironmentInput = {
 	name: string,
 	/**  Values are plain text or `keyring:` references. */
 	variables: { [key in string]: string },
+};
+
+/**  `mcp://log` */
+export type LogEvent = {
+	serverId: string,
+	source: LogSource,
+	/**  `debug` | `info` | `warning` | `error` (MCP levels are mapped onto these). */
+	level: string,
+	line: string,
+	ts: number,
+};
+
+/**  Where a log line came from. */
+export type LogSource = 
+/**  The server's stderr (stdio servers). */
+"stderr" | 
+/**  An MCP `notifications/message` log notification. */
+"server" | 
+/**  MCP Studio itself (spawn, reconnect, ...). */
+"studio";
+
+/**  Filters for [`query_messages`]. All fields are optional and combined with AND. */
+export type MessageFilter = {
+	sessionId?: string | null,
+	serverId?: string | null,
+	/**  Only messages with a larger id (used to catch up after a live subscription started). */
+	afterId?: number,
+	/**  Only messages with a smaller id (paging backwards). */
+	beforeId?: number,
+	/**  Exact JSON-RPC method, e.g. `tools/call`. Responses match through their request. */
+	method?: string | null,
+	direction?: Direction | null,
+	errorsOnly?: boolean,
+	/**  Case-insensitive text search over the raw payload. */
+	search?: string | null,
+	/**
+	 *  Maximum number of rows (default 500, max 5000). The newest matching rows are returned,
+	 *  oldest first.
+	 */
+	limit?: number | null,
+};
+
+/**  A recorded JSON-RPC message as stored, sent to the UI live and returned by queries. */
+export type MessageRecord = {
+	id: number,
+	sessionId: string,
+	direction: Direction,
+	jsonrpcId: string | null,
+	method: string | null,
+	/**  The JSON-RPC message as text. */
+	payload: string,
+	bytes: number,
+	isError: boolean,
+	/**  Unix milliseconds. */
+	ts: number,
+	/**  For responses: milliseconds since the matching request (filled by queries). */
+	durationMs: number,
 };
 
 /**  A stored server definition. */
@@ -35,6 +102,14 @@ export type ServerInput = {
 	url: string | null,
 	headers: { [key in string]: string },
 	tags: string[],
+};
+
+/**  `mcp://status` */
+export type StatusEvent = {
+	serverId: string,
+	sessionId: string | null,
+	state: ConnectionState,
+	message: string | null,
 };
 
 /**  How a server is reached. */

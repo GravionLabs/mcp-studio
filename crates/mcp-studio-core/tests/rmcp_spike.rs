@@ -144,3 +144,28 @@ async fn http_session_is_recorded() {
         .iter()
         .any(|m| m.direction == Direction::In && m.payload.get("result").is_some()));
 }
+
+#[tokio::test]
+async fn recording_does_not_change_what_the_client_sees() {
+    async fn tool_names(record: bool) -> Vec<String> {
+        let child =
+            TokioChildProcess::new(Command::new(server_binary()).configure(|_| {})).unwrap();
+        let mut names: Vec<String> = if record {
+            let (_, recorder) = collector();
+            let transport = RecordingTransport::<_, RoleClient>::new(child, recorder);
+            let client = ClientConfig::default().serve(transport).await.unwrap();
+            let tools = client.list_tools(None).await.unwrap();
+            client.cancel().await.ok();
+            tools.tools.iter().map(|t| t.name.to_string()).collect()
+        } else {
+            let client = ClientConfig::default().serve(child).await.unwrap();
+            let tools = client.list_tools(None).await.unwrap();
+            client.cancel().await.ok();
+            tools.tools.iter().map(|t| t.name.to_string()).collect()
+        };
+        names.sort();
+        names
+    }
+
+    assert_eq!(tool_names(true).await, tool_names(false).await);
+}

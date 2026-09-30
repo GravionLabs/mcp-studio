@@ -1,5 +1,7 @@
 use mcp_studio_core::{
     environments::{Environment, EnvironmentInput},
+    events::MessageRecord,
+    message_store::{query_messages, MessageFilter},
     model::AppInfo,
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
@@ -122,4 +124,12 @@ fn secret_names(input: &EnvironmentInput) -> Vec<String> {
         .values()
         .filter_map(|v| secrets::reference_name(v).map(str::to_owned))
         .collect()
+}
+
+#[tauri::command]
+pub async fn messages_query(
+    state: State<'_, AppState>,
+    filter: MessageFilter,
+) -> CommandResult<Vec<MessageRecord>> {
+    Ok(query_messages(&state.db, &filter).await?)
 }

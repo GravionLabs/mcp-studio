@@ -3,6 +3,8 @@
 pub mod bindings;
 pub mod db;
 pub mod environments;
+pub mod events;
+pub mod message_store;
 pub mod model;
 pub mod placeholders;
 pub mod recording;
