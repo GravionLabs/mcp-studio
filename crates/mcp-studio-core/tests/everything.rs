@@ -40,7 +40,12 @@ async fn harness() -> Harness {
     );
     // npx may have to download the package on first use.
     manager.set_connect_timeout(Duration::from_secs(120));
-    Harness { db, registry, manager, sink }
+    Harness {
+        db,
+        registry,
+        manager,
+        sink,
+    }
 }
 
 fn call(server_id: &str, tool: &str, arguments: serde_json::Value) -> ToolCallRequest {
@@ -54,28 +59,59 @@ fn call(server_id: &str, tool: &str, arguments: serde_json::Value) -> ToolCallRe
 }
 
 async fn exercise(h: &Harness, server_id: &str) {
-    let session = h.manager.connect(server_id, None).await.expect("connect to server-everything");
+    let session = h
+        .manager
+        .connect(server_id, None)
+        .await
+        .expect("connect to server-everything");
     let details = explorer::details(&session.peer).unwrap();
     assert!(details.has_tools);
 
     let tools = explorer::list_tools(&session.peer).await.unwrap();
-    assert!(tools.len() >= 5, "the reference server offers many tools: {}", tools.len());
+    assert!(
+        tools.len() >= 5,
+        "the reference server offers many tools: {}",
+        tools.len()
+    );
     let echo = tools.iter().find(|t| t.name == "echo").expect("echo tool");
-    assert_eq!(echo.input_schema.0["properties"]["message"]["type"], "string");
+    assert_eq!(
+        echo.input_schema.0["properties"]["message"]["type"],
+        "string"
+    );
 
-    let echoed = h.manager.call_tool(call(server_id, "echo", serde_json::json!({"message": "hi from MCP Studio"}))).await.unwrap();
+    let echoed = h
+        .manager
+        .call_tool(call(
+            server_id,
+            "echo",
+            serde_json::json!({"message": "hi from MCP Studio"}),
+        ))
+        .await
+        .unwrap();
     assert!(!echoed.is_error);
-    assert!(echoed.result.0["content"][0]["text"].as_str().unwrap().contains("hi from MCP Studio"));
+    assert!(echoed.result.0["content"][0]["text"]
+        .as_str()
+        .unwrap()
+        .contains("hi from MCP Studio"));
 
     if details.has_resources {
-        assert!(!explorer::list_resources(&session.peer).await.unwrap().is_empty());
+        assert!(!explorer::list_resources(&session.peer)
+            .await
+            .unwrap()
+            .is_empty());
     }
     if details.has_prompts {
-        assert!(!explorer::list_prompts(&session.peer).await.unwrap().is_empty());
+        assert!(!explorer::list_prompts(&session.peer)
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     h.manager.disconnect(server_id).await.unwrap();
-    assert_eq!(h.sink.statuses.lock().unwrap().last().map(|s| s.state), Some(ConnectionState::Disconnected));
+    assert_eq!(
+        h.sink.statuses.lock().unwrap().last().map(|s| s.state),
+        Some(ConnectionState::Disconnected)
+    );
 
     tokio::time::sleep(Duration::from_millis(500)).await;
     let recorded: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM messages WHERE session_id = ?")
@@ -99,7 +135,11 @@ async fn server_everything_over_stdio() {
             name: "everything-stdio".into(),
             transport: TransportKind::Stdio,
             command: Some("npx".into()),
-            args: vec!["-y".into(), "@modelcontextprotocol/server-everything".into(), "stdio".into()],
+            args: vec![
+                "-y".into(),
+                "@modelcontextprotocol/server-everything".into(),
+                "stdio".into(),
+            ],
             env: BTreeMap::new(),
             cwd: None,
             url: None,
@@ -123,7 +163,11 @@ async fn server_everything_over_streamable_http() {
         listener.local_addr().unwrap().port()
     };
     let _child = Command::new("npx")
-        .args(["-y", "@modelcontextprotocol/server-everything", "streamableHttp"])
+        .args([
+            "-y",
+            "@modelcontextprotocol/server-everything",
+            "streamableHttp",
+        ])
         .env("PORT", port.to_string())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -132,7 +176,10 @@ async fn server_everything_over_streamable_http() {
         .expect("npx");
     // Wait until the port accepts connections (the first start may download the package).
     tokio::time::timeout(Duration::from_secs(120), async {
-        while tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_err() {
+        while tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .is_err()
+        {
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
     })
