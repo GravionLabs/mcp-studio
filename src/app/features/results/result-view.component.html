@@ -1,0 +1,55 @@
+<div class="result" [class.is-error]="result().isError">
+  @for (block of result().blocks; track trackBlock($index, block)) {
+    @switch (block.kind) {
+      @case ("text") {
+        @if (block.json) {
+          <app-json-view [value]="pretty(block.text)" />
+        } @else {
+          <pre class="text">{{ block.text }}</pre>
+        }
+      }
+      @case ("image") {
+        <img class="media" [src]="block.src" alt="Image returned by the tool" />
+      }
+      @case ("audio") {
+        <audio class="media" controls [src]="block.src"></audio>
+      }
+      @case ("resource") {
+        <div class="resource">
+          <p class="mono muted">
+            {{ block.uri }}
+            @if (block.mimeType) {
+              · {{ block.mimeType }}
+            }
+          </p>
+          @if (block.text !== null) {
+            <pre class="text">{{ block.text }}</pre>
+          } @else if (block.blob) {
+            <p class="muted">Binary content, {{ size(block.blob) }}.</p>
+          }
+        </div>
+      }
+      @case ("resourceLink") {
+        <p class="link">
+          <strong>{{ block.name }}</strong>
+          <span class="mono muted">{{ block.uri }}</span>
+          @if (block.description) {
+            <span class="muted">— {{ block.description }}</span>
+          }
+        </p>
+      }
+      @default {
+        <app-json-view [value]="block.value" />
+      }
+    }
+  } @empty {
+    <p class="muted">The result has no content.</p>
+  }
+
+  @if (hasStructured()) {
+    <details open>
+      <summary>Structured content</summary>
+      <app-json-view [value]="result().structured" />
+    </details>
+  }
+</div>
