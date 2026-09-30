@@ -10,3 +10,14 @@
 .spacer {
   flex: 1;
 }
+
+.env {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.manage {
+  color: var(--accent);
+  text-decoration: none;
+}

@@ -6,6 +6,16 @@ export type AppInfo = {
 	version: string,
 };
 
+export type Environment = {
+	id: string,
+} & EnvironmentInput;
+
+export type EnvironmentInput = {
+	name: string,
+	/**  Values are plain text or `keyring:` references. */
+	variables: { [key in string]: string },
+};
+
 /**  A stored server definition. */
 export type ServerDefinition = {
 	id: string,

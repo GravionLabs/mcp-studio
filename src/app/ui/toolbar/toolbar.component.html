@@ -1,6 +1,18 @@
 <header class="toolbar">
   <strong class="brand">MCP Studio</strong>
   <span class="spacer"></span>
+  <label class="env">
+    <span class="muted">Environment</span>
+    <select [value]="environments.activeId() ?? ''" (change)="select($event)">
+      <option value="">None</option>
+      @for (environment of environments.environments(); track environment.id) {
+        <option [value]="environment.id" [selected]="environment.id === environments.activeId()">
+          {{ environment.name }}
+        </option>
+      }
+    </select>
+  </label>
+  <a class="manage" routerLink="/environments">Manage</a>
   <button type="button" class="ghost" (click)="layout.toggleInspector()">
     {{ layout.inspectorOpen() ? "Hide inspector" : "Show inspector" }}
   </button>

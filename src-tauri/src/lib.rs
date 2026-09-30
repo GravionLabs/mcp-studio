@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use mcp_studio_core::{
     db::Db,
+    environments::Environments,
     registry::Registry,
     secrets::{KeyringStore, SecretStore},
 };
@@ -14,6 +15,7 @@ use tauri::Manager;
 pub struct AppState {
     pub db: Db,
     pub registry: Registry,
+    pub environments: Environments,
     pub secrets: Arc<dyn SecretStore>,
 }
 
@@ -31,11 +33,13 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
             let db = tauri::async_runtime::block_on(Db::open(&dir.join("mcp-studio.sqlite")))?;
             let registry = Registry::new(db.clone());
+            let environments = Environments::new(db.clone());
             let secrets: Arc<dyn SecretStore> =
                 Arc::new(KeyringStore::new("dev.gravionlabs.mcp-studio"));
             app.manage(AppState {
                 db,
                 registry,
+                environments,
                 secrets,
             });
             Ok(())
@@ -47,6 +51,10 @@ pub fn run() {
             commands::server_add,
             commands::server_update,
             commands::server_remove,
+            commands::environment_list,
+            commands::environment_add,
+            commands::environment_update,
+            commands::environment_remove,
             commands::secret_set,
             commands::secret_delete,
         ])
