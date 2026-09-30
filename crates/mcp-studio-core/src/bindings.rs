@@ -7,6 +7,7 @@ use specta::Types;
 use specta_typescript::Typescript;
 
 use crate::{
+    client_import::{ConfigSource, ImportCandidate, ImportSummary},
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     environments::{Environment, EnvironmentInput},
     events::ProgressEvent,
@@ -57,6 +58,9 @@ pub fn ipc_types() -> Types {
         .register::<CollectionTree>()
         .register::<ImportReport>()
         .register::<ProxyInfo>()
+        .register::<ConfigSource>()
+        .register::<ImportCandidate>()
+        .register::<ImportSummary>()
         .register::<HistoryEntry>()
         .register::<HistoryFilter>()
 }

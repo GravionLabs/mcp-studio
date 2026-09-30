@@ -1,4 +1,5 @@
 use mcp_studio_core::{
+    client_import::{self, ConfigSource, ImportCandidate, ImportSummary},
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
@@ -14,7 +15,7 @@ use mcp_studio_core::{
 };
 use std::collections::BTreeMap;
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::{
     error::{CommandError, CommandResult},
@@ -375,4 +376,38 @@ pub async fn oauth_sign_out(state: State<'_, AppState>, id: String) -> CommandRe
 #[tauri::command]
 pub async fn oauth_status(state: State<'_, AppState>, id: String) -> CommandResult<bool> {
     Ok(state.sessions.is_signed_in(&id).await)
+}
+
+/// Well-known client configuration files of the current user.
+#[tauri::command]
+pub fn import_sources(app: AppHandle) -> Vec<ConfigSource> {
+    let home = app.path().home_dir().ok();
+    let app_data = app.path().data_dir().ok();
+    client_import::detect_sources(home.as_deref(), app_data.as_deref())
+}
+
+/// Lists the servers defined in a client configuration file.
+#[tauri::command]
+pub async fn import_preview(
+    state: State<'_, AppState>,
+    path: String,
+) -> CommandResult<Vec<ImportCandidate>> {
+    let json = std::fs::read_to_string(&path)
+        .map_err(|e| CommandError(format!("could not read {path}: {e}")))?;
+    let existing: Vec<ServerInput> = state
+        .registry
+        .list()
+        .await?
+        .into_iter()
+        .map(|s| s.input)
+        .collect();
+    Ok(client_import::parse_config(&json, &existing)?)
+}
+
+#[tauri::command]
+pub async fn import_apply(
+    state: State<'_, AppState>,
+    servers: Vec<ServerInput>,
+) -> CommandResult<ImportSummary> {
+    Ok(client_import::import_servers(&state.registry, state.secrets.as_ref(), servers).await)
 }

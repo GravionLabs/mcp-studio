@@ -1,11 +1,23 @@
 <nav class="sidebar">
   <header>
     <h3>Servers</h3>
-    <a class="add" routerLink="/servers/new" aria-label="Add server" title="Add server">+</a>
+    <span class="tools">
+      <a
+        class="add"
+        routerLink="/servers/import"
+        aria-label="Import servers"
+        title="Import from Claude Desktop or Claude Code"
+        >⇩</a
+      >
+      <a class="add" routerLink="/servers/new" aria-label="Add server" title="Add server">+</a>
+    </span>
   </header>
 
   @if (store.servers().length === 0 && store.loaded()) {
-    <p class="empty muted">No servers yet. <a routerLink="/servers/new">Add one</a>.</p>
+    <p class="empty muted">
+      No servers yet. <a routerLink="/servers/new">Add one</a> or
+      <a routerLink="/servers/import">import from Claude</a>.
+    </p>
   }
 
   <ul>
