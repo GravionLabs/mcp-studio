@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+rmcp = { version = "3.5", features = ["client", "server", "transport-child-process", "transport-streamable-http-client-reqwest", "reqwest"] }
 serde.workspace = true
 serde_json.workspace = true
 specta = { version = "2.0.0-rc.25", features = ["derive"] }
@@ -17,4 +18,5 @@ tokio.workspace = true
 uuid = { version = "1.26.1", features = ["v4"] }
 
 [dev-dependencies]
+mcp-studio-testserver = { path = "../mcp-studio-testserver" }
 tempfile = "3.27.0"
