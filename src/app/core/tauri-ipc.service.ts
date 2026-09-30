@@ -152,4 +152,12 @@ export class TauriIpcService {
   requestCancel(callId: string): Promise<boolean> {
     return this.call("request_cancel", { callId });
   }
+
+  resourceRead(id: string, uri: string): Promise<unknown> {
+    return this.call("resource_read", { id, uri });
+  }
+
+  promptGet(id: string, name: string, args: Record<string, string>): Promise<unknown> {
+    return this.call("prompt_get", { id, name, arguments: args });
+  }
 }

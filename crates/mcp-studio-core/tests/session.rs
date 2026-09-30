@@ -499,3 +499,38 @@ async fn running_calls_can_be_cancelled() {
     assert_eq!(sent, 1);
     h.manager.disconnect_all().await;
 }
+
+#[tokio::test]
+async fn reads_resources_and_gets_prompts() {
+    use mcp_studio_core::explorer;
+
+    let h = harness().await;
+    let server = h
+        .registry
+        .create(stdio_server(&server_binary(), &[]))
+        .await
+        .unwrap();
+    let session = h.manager.connect(&server.id, None).await.unwrap();
+
+    let resource = explorer::read_resource(&session.peer, "test://greeting")
+        .await
+        .unwrap();
+    assert_eq!(resource.0["contents"][0]["text"], "Hello from MCP Studio");
+    assert_eq!(resource.0["contents"][0]["mimeType"], "text/plain");
+    assert!(explorer::read_resource(&session.peer, "test://missing")
+        .await
+        .is_err());
+
+    let arguments = BTreeMap::from([("name".to_owned(), "Ada".to_owned())]);
+    let prompt = explorer::get_prompt(&session.peer, "greet", &arguments)
+        .await
+        .unwrap();
+    assert_eq!(prompt.0["messages"][0]["role"], "user");
+    assert_eq!(prompt.0["messages"][0]["content"]["text"], "Hello, Ada!");
+    assert!(
+        explorer::get_prompt(&session.peer, "nope", &BTreeMap::new())
+            .await
+            .is_err()
+    );
+    h.manager.disconnect_all().await;
+}
