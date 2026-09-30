@@ -1,5 +1,10 @@
-use mcp_studio_core::model::AppInfo;
+use mcp_studio_core::{db::Db, model::AppInfo};
 use tauri::Manager;
+
+/// Shared state managed by Tauri.
+pub struct AppState {
+    pub db: Db,
+}
 
 #[tauri::command]
 fn app_info() -> AppInfo {
@@ -16,6 +21,12 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .setup(|app| {
+            let dir = app.path().app_data_dir()?;
+            let db = tauri::async_runtime::block_on(Db::open(&dir.join("mcp-studio.sqlite")))?;
+            app.manage(AppState { db });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![app_info])
         .run(tauri::generate_context!())
         .expect("error while running MCP Studio");
