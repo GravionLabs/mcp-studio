@@ -7,6 +7,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import type { PromptInfo } from "../../core/bindings";
@@ -104,19 +105,26 @@ export class ExplorerComponent implements OnInit {
 
   constructor() {
     effect(() => {
-      // Switching the selection clears what was read for the previous item.
+      // Switching the selection clears what was read for the previous item. Only the selection is a
+      // dependency; reloaded lists must not clear a result the user is looking at.
       const name = this.selectedName();
-      this.resourceResult.set(null);
-      this.promptResult.set(null);
-      this.promptValues.set({});
-      const resource = this.resources().find((r) => r.key === name);
-      this.templateUri.set(resource?.template ? resource.key : "");
+      untracked(() => {
+        this.resourceResult.set(null);
+        this.promptResult.set(null);
+        this.promptValues.set({});
+        const resource = this.resources().find((r) => r.key === name);
+        this.templateUri.set(resource?.template ? resource.key : "");
+      });
     });
 
     effect(() => {
-      // Reload whenever another server is shown in this component.
-      void this.store.load(this.serverId());
-      this.selectedName.set(null);
+      // Reload whenever another server is shown in this component. `load` reads and writes the
+      // store's signals, so it must run untracked or the effect would trigger itself forever.
+      const id = this.serverId();
+      untracked(() => {
+        void this.store.load(id);
+        this.selectedName.set(null);
+      });
     });
   }
 
