@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   emptyForm,
   formToInput,
+  formToInputWithSecrets,
   formatArgs,
   inputToForm,
   parseArgs,
@@ -88,5 +89,59 @@ describe("validateForm", () => {
     expect(validateForm({ ...base, url: "ftp://x" })).toHaveLength(1);
     expect(validateForm({ ...base, url: "not a url" })).toHaveLength(1);
     expect(validateForm({ ...base, url: "http://localhost:3000/mcp" })).toEqual([]);
+  });
+});
+
+describe("secrets in the form", () => {
+  it("writes new secret values to the keyring and stores only references", () => {
+    const form = {
+      ...emptyForm(),
+      name: "s",
+      command: "x",
+      env: [
+        { key: "PLAIN", value: "visible" },
+        { key: "TOKEN", value: "s3cr3t", secret: true },
+      ],
+    };
+    const { input, writes } = formToInputWithSecrets(form, () => "generated");
+    expect(input.env).toEqual({ PLAIN: "visible", TOKEN: "keyring:generated" });
+    expect(writes).toEqual([{ name: "generated", value: "s3cr3t" }]);
+    expect(JSON.stringify(input)).not.toContain("s3cr3t");
+  });
+
+  it("keeps a stored secret when the value is left empty", () => {
+    const form = {
+      ...emptyForm("http"),
+      name: "r",
+      url: "https://x.test",
+      headers: [{ key: "Authorization", value: "", secret: true, stored: "keyring:abc" }],
+    };
+    const { input, writes } = formToInputWithSecrets(form);
+    expect(input.headers).toEqual({ Authorization: "keyring:abc" });
+    expect(writes).toEqual([]);
+  });
+
+  it("replaces a stored secret under the same name", () => {
+    const form = {
+      ...emptyForm("http"),
+      headers: [{ key: "A", value: "new", secret: true, stored: "keyring:abc" }],
+    };
+    expect(formToInputWithSecrets(form).writes).toEqual([{ name: "abc", value: "new" }]);
+  });
+
+  it("drops secret rows that have neither a value nor a stored secret", () => {
+    const form = { ...emptyForm(), env: [{ key: "EMPTY", value: "", secret: true }] };
+    expect(formToInput(form).env).toEqual({});
+  });
+
+  it("shows stored references as secret rows without exposing the reference as value", () => {
+    const form = inputToForm({
+      ...formToInput({ ...emptyForm(), name: "n", command: "c" }),
+      env: { TOKEN: "keyring:abc", PLAIN: "v" },
+    });
+    expect(form.env).toEqual([
+      { key: "TOKEN", value: "", secret: true, stored: "keyring:abc" },
+      { key: "PLAIN", value: "v" },
+    ]);
   });
 });

@@ -9,13 +9,14 @@ import {
 } from "@angular/core";
 import { Router } from "@angular/router";
 import type { TransportKind } from "../../core/bindings";
+import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { KeyValueEditorComponent } from "../../ui/key-value-editor/key-value-editor.component";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import {
   ServerFormState,
   emptyForm,
-  formToInput,
+  formToInputWithSecrets,
   inputToForm,
   validateForm,
 } from "./server-form.model";
@@ -36,6 +37,7 @@ export class ServerFormComponent {
   private readonly store = inject(ServersStore);
   private readonly router = inject(Router);
   private readonly toasts = inject(ToastService);
+  private readonly ipc = inject(TauriIpcService);
   private readonly tabs = inject(WorkspaceTabsService);
 
   protected readonly form = signal<ServerFormState>(emptyForm());
@@ -74,7 +76,8 @@ export class ServerFormComponent {
     if (this.problems().length > 0) return;
     this.saving.set(true);
     try {
-      const input = formToInput(this.form());
+      const { input, writes } = formToInputWithSecrets(this.form());
+      for (const write of writes) await this.ipc.secretSet(write.name, write.value);
       const id = this.id();
       const saved = id ? await this.store.update(id, input) : await this.store.add(input);
       this.toasts.success(`Saved ${saved.name}`);
