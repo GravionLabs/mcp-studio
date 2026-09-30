@@ -6,6 +6,7 @@ use std::sync::Arc;
 use mcp_studio_core::{
     db::Db,
     environments::Environments,
+    message_store::{self, RetentionPolicy},
     registry::Registry,
     secrets::{KeyringStore, SecretStore},
 };
@@ -32,6 +33,10 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             let db = tauri::async_runtime::block_on(Db::open(&dir.join("mcp-studio.sqlite")))?;
+            let cleanup_db = db.clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = message_store::cleanup(&cleanup_db, RetentionPolicy::default()).await;
+            });
             let registry = Registry::new(db.clone());
             let environments = Environments::new(db.clone());
             let secrets: Arc<dyn SecretStore> =
@@ -55,6 +60,7 @@ pub fn run() {
             commands::environment_add,
             commands::environment_update,
             commands::environment_remove,
+            commands::messages_query,
             commands::secret_set,
             commands::secret_delete,
         ])

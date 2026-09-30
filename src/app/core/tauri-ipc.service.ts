@@ -3,6 +3,8 @@ import type {
   AppInfo,
   Environment,
   EnvironmentInput,
+  MessageFilter,
+  MessageRecord,
   ServerDefinition,
   ServerInput,
 } from "./bindings";
@@ -91,5 +93,9 @@ export class TauriIpcService {
 
   environmentRemove(id: string): Promise<void> {
     return this.call("environment_remove", { id });
+  }
+
+  messagesQuery(filter: Partial<MessageFilter> = {}): Promise<MessageRecord[]> {
+    return this.call("messages_query", { filter });
   }
 }
