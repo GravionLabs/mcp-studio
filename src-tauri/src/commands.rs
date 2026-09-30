@@ -1,6 +1,7 @@
 use mcp_studio_core::{
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
+    explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
     message_store::{query_messages, MessageFilter},
     model::AppInfo,
     registry::{ServerDefinition, ServerInput},
@@ -156,4 +157,38 @@ pub async fn server_disconnect(state: State<'_, AppState>, id: String) -> Comman
 #[tauri::command]
 pub fn server_logs(state: State<'_, AppState>, id: String) -> Vec<LogEvent> {
     state.sessions.logs(&id)
+}
+
+#[tauri::command]
+pub fn server_details(state: State<'_, AppState>, id: String) -> CommandResult<ServerDetails> {
+    Ok(explorer::details(&state.sessions.peer(&id)?)?)
+}
+
+#[tauri::command]
+pub async fn tools_list(state: State<'_, AppState>, id: String) -> CommandResult<Vec<ToolInfo>> {
+    Ok(explorer::list_tools(&state.sessions.peer(&id)?).await?)
+}
+
+#[tauri::command]
+pub async fn resources_list(
+    state: State<'_, AppState>,
+    id: String,
+) -> CommandResult<Vec<ResourceInfo>> {
+    Ok(explorer::list_resources(&state.sessions.peer(&id)?).await?)
+}
+
+#[tauri::command]
+pub async fn resource_templates_list(
+    state: State<'_, AppState>,
+    id: String,
+) -> CommandResult<Vec<ResourceTemplateInfo>> {
+    Ok(explorer::list_resource_templates(&state.sessions.peer(&id)?).await?)
+}
+
+#[tauri::command]
+pub async fn prompts_list(
+    state: State<'_, AppState>,
+    id: String,
+) -> CommandResult<Vec<PromptInfo>> {
+    Ok(explorer::list_prompts(&state.sessions.peer(&id)?).await?)
 }

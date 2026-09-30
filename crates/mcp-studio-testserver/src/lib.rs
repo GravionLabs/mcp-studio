@@ -1,9 +1,18 @@
 //! A tiny deterministic MCP server for tests: `echo`, `add`, and `fail` tools.
 
+use std::future::Future;
+
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{ServerCapabilities, ServerConfig},
-    schemars, tool, tool_handler, tool_router, ServerHandler,
+    model::{
+        GetPromptRequestParams, GetPromptResponse, GetPromptResult, ListPromptsResult,
+        ListResourcesResult, PaginatedRequestParams, Prompt, PromptArgument, PromptMessage,
+        ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
+        ResourceContents, Role, ServerCapabilities, ServerConfig,
+    },
+    schemars,
+    service::{MaybeSendFuture, RequestContext, RoleServer},
+    tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler,
 };
 use serde::Deserialize;
 
@@ -59,7 +68,85 @@ impl TestServer {
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for TestServer {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
-            .with_instructions("MCP Studio reference server")
+        ServerConfig::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_resources()
+                .enable_prompts()
+                .build(),
+        )
+        .with_instructions("MCP Studio reference server")
+    }
+
+    fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourcesResult, McpError>> + MaybeSendFuture + '_ {
+        let resources = vec![Resource::new("test://greeting", "greeting")
+            .with_description("A friendly greeting")
+            .with_mime_type("text/plain")];
+        std::future::ready(Ok(ListResourcesResult::with_all_items(resources)))
+    }
+
+    fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ReadResourceResponse, McpError>> + MaybeSendFuture + '_ {
+        let result = match request.uri.as_str() {
+            "test://greeting" => Ok(ReadResourceResult::new(vec![ResourceContents::text(
+                "Hello from MCP Studio",
+                request.uri.clone(),
+            )
+            .with_mime_type("text/plain")])
+            .into()),
+            other => Err(McpError::invalid_params(
+                format!("unknown resource {other}"),
+                None,
+            )),
+        };
+        std::future::ready(result)
+    }
+
+    fn list_prompts(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListPromptsResult, McpError>> + MaybeSendFuture + '_ {
+        let prompt = Prompt::new(
+            "greet",
+            Some("Greets someone"),
+            Some(vec![PromptArgument::new("name").with_required(true)]),
+        );
+        std::future::ready(Ok(ListPromptsResult::with_all_items(vec![prompt])))
+    }
+
+    fn get_prompt(
+        &self,
+        request: GetPromptRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<GetPromptResponse, McpError>> + MaybeSendFuture + '_ {
+        let result = if request.name == "greet" {
+            let name = request
+                .arguments
+                .as_ref()
+                .and_then(|a| a.get("name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("world")
+                .to_owned();
+            Ok(GetPromptResult::new(vec![PromptMessage::new_text(
+                Role::User,
+                format!("Hello, {name}!"),
+            )])
+            .with_description("A greeting")
+            .into())
+        } else {
+            Err(McpError::invalid_params(
+                format!("unknown prompt {}", request.name),
+                None,
+            ))
+        };
+        std::future::ready(result)
     }
 }

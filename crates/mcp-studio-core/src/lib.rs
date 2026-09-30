@@ -4,6 +4,7 @@ pub mod bindings;
 pub mod db;
 pub mod environments;
 pub mod events;
+pub mod explorer;
 pub mod message_store;
 pub mod model;
 pub mod path_env;

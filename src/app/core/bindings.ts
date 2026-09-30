@@ -26,6 +26,15 @@ export type EnvironmentInput = {
 	variables: { [key in string]: string },
 };
 
+/**  `mcp://list-changed`: the server sent `notifications/*\/list_changed`. */
+export type ListChangedEvent = {
+	serverId: string,
+	kind: ListKind,
+};
+
+/**  Which list of a server changed. */
+export type ListKind = "tools" | "resources" | "prompts";
+
 /**  `mcp://log` */
 export type LogEvent = {
 	serverId: string,
@@ -83,6 +92,35 @@ export type MessageRecord = {
 	durationMs: number,
 };
 
+export type PromptArgumentInfo = {
+	name: string,
+	description?: string | null,
+	required?: boolean,
+};
+
+export type PromptInfo = {
+	name: string,
+	title?: string | null,
+	description?: string | null,
+	arguments?: PromptArgumentInfo[],
+};
+
+export type ResourceInfo = {
+	uri: string,
+	name: string,
+	title?: string | null,
+	description?: string | null,
+	mimeType?: string | null,
+};
+
+export type ResourceTemplateInfo = {
+	uriTemplate: string,
+	name: string,
+	title?: string | null,
+	description?: string | null,
+	mimeType?: string | null,
+};
+
 /**  A stored server definition. */
 export type ServerDefinition = {
 	id: string,
@@ -90,6 +128,18 @@ export type ServerDefinition = {
 	createdAt: number,
 	updatedAt: number,
 } & ServerInput;
+
+/**  What the server told us during `initialize`. */
+export type ServerDetails = {
+	protocolVersion: string,
+	name: string,
+	version: string,
+	instructions: string | null,
+	capabilities: unknown,
+	hasTools: boolean,
+	hasResources: boolean,
+	hasPrompts: boolean,
+};
 
 /**  What the user edits: everything except identity and timestamps. */
 export type ServerInput = {
@@ -110,6 +160,16 @@ export type StatusEvent = {
 	sessionId: string | null,
 	state: ConnectionState,
 	message: string | null,
+};
+
+export type ToolInfo = {
+	name: string,
+	title?: string | null,
+	description?: string | null,
+	/**  JSON Schema of the arguments. */
+	inputSchema?: unknown,
+	outputSchema?: unknown | null,
+	annotations?: unknown | null,
 };
 
 /**  How a server is reached. */

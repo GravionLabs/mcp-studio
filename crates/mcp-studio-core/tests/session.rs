@@ -303,3 +303,43 @@ async fn unexpected_exit_is_reported_as_error_and_reconnects() {
     assert!(states(&h.sink).contains(&ConnectionState::Error));
     h.manager.disconnect_all().await;
 }
+
+#[tokio::test]
+async fn explorer_lists_tools_resources_prompts_and_details() {
+    use mcp_studio_core::explorer;
+
+    let h = harness().await;
+    let server = h
+        .registry
+        .create(stdio_server(&server_binary(), &[]))
+        .await
+        .unwrap();
+    let session = h.manager.connect(&server.id, None).await.unwrap();
+
+    let details = explorer::details(&session.peer).unwrap();
+    assert!(details.has_tools && details.has_resources && details.has_prompts);
+    assert!(!details.protocol_version.is_empty());
+    assert_eq!(
+        details.instructions.as_deref(),
+        Some("MCP Studio reference server")
+    );
+
+    let tools = explorer::list_tools(&session.peer).await.unwrap();
+    let add = tools.iter().find(|t| t.name == "add").expect("add tool");
+    assert_eq!(add.description.as_deref(), Some("Add two integers"));
+    assert_eq!(add.input_schema.0["properties"]["a"]["type"], "integer");
+
+    let resources = explorer::list_resources(&session.peer).await.unwrap();
+    assert_eq!(resources[0].uri, "test://greeting");
+    assert_eq!(resources[0].mime_type.as_deref(), Some("text/plain"));
+
+    let prompts = explorer::list_prompts(&session.peer).await.unwrap();
+    assert_eq!(prompts[0].name, "greet");
+    assert!(prompts[0].arguments[0].required);
+
+    assert!(explorer::list_resource_templates(&session.peer)
+        .await
+        .unwrap()
+        .is_empty());
+    h.manager.disconnect_all().await;
+}
