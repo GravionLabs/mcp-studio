@@ -8,5 +8,8 @@ license.workspace = true
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
+specta = { version = "2.0.0-rc.25", features = ["derive"] }
+specta-serde = "0.0.12"
+specta-typescript = "0.0.12"
 thiserror.workspace = true
 tokio.workspace = true
