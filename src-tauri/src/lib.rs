@@ -1,5 +1,6 @@
 mod commands;
 mod error;
+mod sink;
 
 use std::sync::Arc;
 
@@ -9,6 +10,7 @@ use mcp_studio_core::{
     message_store::{self, RetentionPolicy},
     registry::Registry,
     secrets::{KeyringStore, SecretStore},
+    session::SessionManager,
 };
 use tauri::Manager;
 
@@ -18,6 +20,7 @@ pub struct AppState {
     pub registry: Registry,
     pub environments: Environments,
     pub secrets: Arc<dyn SecretStore>,
+    pub sessions: Arc<SessionManager>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -41,11 +44,21 @@ pub fn run() {
             let environments = Environments::new(db.clone());
             let secrets: Arc<dyn SecretStore> =
                 Arc::new(KeyringStore::new("dev.gravionlabs.mcp-studio"));
+            let sessions = SessionManager::new(
+                db.clone(),
+                registry.clone(),
+                environments.clone(),
+                secrets.clone(),
+                Arc::new(sink::TauriSink {
+                    app: app.handle().clone(),
+                }),
+            );
             app.manage(AppState {
                 db,
                 registry,
                 environments,
                 secrets,
+                sessions,
             });
             Ok(())
         })
@@ -60,10 +73,20 @@ pub fn run() {
             commands::environment_add,
             commands::environment_update,
             commands::environment_remove,
+            commands::server_connect,
+            commands::server_disconnect,
+            commands::server_logs,
             commands::messages_query,
             commands::secret_set,
             commands::secret_delete,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running MCP Studio");
+        .build(tauri::generate_context!())
+        .expect("error while building MCP Studio")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                if let Some(state) = app.try_state::<AppState>() {
+                    tauri::async_runtime::block_on(state.sessions.disconnect_all());
+                }
+            }
+        });
 }

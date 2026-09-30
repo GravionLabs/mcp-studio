@@ -3,6 +3,7 @@ import type {
   AppInfo,
   Environment,
   EnvironmentInput,
+  LogEvent,
   MessageFilter,
   MessageRecord,
   ServerDefinition,
@@ -45,6 +46,11 @@ export class TauriIpcService {
         unlisten?.();
       },
     };
+  }
+
+  /** Subscribes to a Tauri event for the lifetime of the app (or until the returned function is called). */
+  listen<T>(event: string, handler: (payload: T) => void): Promise<() => void> {
+    return this.listenFn<T>(event, handler);
   }
 
   appInfo(): Promise<AppInfo> {
@@ -97,5 +103,17 @@ export class TauriIpcService {
 
   messagesQuery(filter: Partial<MessageFilter> = {}): Promise<MessageRecord[]> {
     return this.call("messages_query", { filter });
+  }
+
+  serverConnect(id: string, environmentId: string | null): Promise<void> {
+    return this.call("server_connect", { id, environmentId });
+  }
+
+  serverDisconnect(id: string): Promise<void> {
+    return this.call("server_disconnect", { id });
+  }
+
+  serverLogs(id: string): Promise<LogEvent[]> {
+    return this.call("server_logs", { id });
   }
 }

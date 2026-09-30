@@ -41,3 +41,57 @@ dd {
 .missing {
   padding: 20px;
 }
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  &.connected .dot {
+    background: var(--ok);
+  }
+
+  &.connecting .dot {
+    background: var(--warn);
+  }
+
+  &.error .dot {
+    background: var(--danger);
+  }
+
+  .error {
+    color: var(--danger);
+  }
+}
+
+.logs {
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+  margin: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  .src {
+    color: var(--text-muted);
+  }
+
+  .warning {
+    color: var(--warn);
+  }
+
+  .error {
+    color: var(--danger);
+  }
+}

@@ -3,10 +3,29 @@
     <header>
       <h2>{{ s.name }}</h2>
       <div class="actions">
+        @if (state() === "connected") {
+          <button type="button" [disabled]="busy()" (click)="disconnect()">Disconnect</button>
+        } @else {
+          <button
+            type="button"
+            class="primary"
+            [disabled]="busy() || state() === 'connecting'"
+            (click)="connect()"
+          >
+            {{ state() === "connecting" ? "Connecting…" : "Connect" }}
+          </button>
+        }
         <a class="button" [routerLink]="['/servers', s.id, 'edit']">Edit</a>
         <button type="button" class="danger" (click)="remove()">Delete</button>
       </div>
     </header>
+
+    <p class="state" [class]="state()">
+      <span class="dot"></span> {{ state() }}
+      @if (lastError(); as message) {
+        <span class="error">— {{ message }}</span>
+      }
+    </p>
 
     <dl>
       <dt>Transport</dt>
@@ -35,6 +54,16 @@
         <dd>{{ s.tags.join(", ") }}</dd>
       }
     </dl>
+
+    <h3>Logs</h3>
+    @if (logs().length === 0) {
+      <p class="muted">No log output yet.</p>
+    } @else {
+      <pre
+        class="logs mono"
+      >@for (line of logs(); track $index) {<span class="line" [class]="line.level"><span class="src">[{{ line.source }}]</span> {{ line.line }}
+</span>}</pre>
+    }
   </section>
 } @else if (loaded()) {
   <p class="missing muted">This server no longer exists.</p>

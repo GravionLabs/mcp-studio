@@ -2497,6 +2497,7 @@ dependencies = [
 name = "mcp-studio-core"
 version = "0.1.0"
 dependencies = [
+ "http",
  "keyring",
  "mcp-studio-testserver",
  "rmcp",

@@ -1,6 +1,6 @@
 use mcp_studio_core::{
     environments::{Environment, EnvironmentInput},
-    events::MessageRecord,
+    events::{LogEvent, MessageRecord},
     message_store::{query_messages, MessageFilter},
     model::AppInfo,
     registry::{ServerDefinition, ServerInput},
@@ -132,4 +132,28 @@ pub async fn messages_query(
     filter: MessageFilter,
 ) -> CommandResult<Vec<MessageRecord>> {
     Ok(query_messages(&state.db, &filter).await?)
+}
+
+#[tauri::command]
+pub async fn server_connect(
+    state: State<'_, AppState>,
+    id: String,
+    environment_id: Option<String>,
+) -> CommandResult<()> {
+    state
+        .sessions
+        .connect(&id, environment_id.as_deref())
+        .await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn server_disconnect(state: State<'_, AppState>, id: String) -> CommandResult<()> {
+    Ok(state.sessions.disconnect(&id).await?)
+}
+
+/// Buffered log lines (stderr and MCP log notifications) of a server.
+#[tauri::command]
+pub fn server_logs(state: State<'_, AppState>, id: String) -> Vec<LogEvent> {
+    state.sessions.logs(&id)
 }

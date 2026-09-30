@@ -6,10 +6,12 @@ pub mod environments;
 pub mod events;
 pub mod message_store;
 pub mod model;
+pub mod path_env;
 pub mod placeholders;
 pub mod recording;
 pub mod registry;
 pub mod secrets;
+pub mod session;
 
 /// Returns the crate version, used by the app shell and smoke tests.
 pub fn version() -> &'static str {
