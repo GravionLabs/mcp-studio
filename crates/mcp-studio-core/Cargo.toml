@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+tokio-util = "0.7"
 http = "1"
 keyring = "4"
 rmcp = { version = "3.5", features = ["client", "server", "transport-child-process", "transport-streamable-http-client-reqwest", "reqwest"] }

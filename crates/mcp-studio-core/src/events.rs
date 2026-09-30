@@ -90,12 +90,24 @@ pub struct ListChangedEvent {
     pub kind: ListKind,
 }
 
+/// `mcp://progress`: progress of a running tool call.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgressEvent {
+    pub server_id: String,
+    pub call_id: String,
+    pub progress: f64,
+    pub total: Option<f64>,
+    pub message: Option<String>,
+}
+
 /// Receiver of core events.
 pub trait EventSink: Send + Sync + 'static {
     fn status(&self, event: StatusEvent);
     fn message(&self, event: MessageRecord);
     fn log(&self, event: LogEvent);
     fn list_changed(&self, event: ListChangedEvent);
+    fn progress(&self, event: ProgressEvent);
 }
 
 /// Ignores everything.
@@ -106,6 +118,7 @@ impl EventSink for NullSink {
     fn message(&self, _: MessageRecord) {}
     fn log(&self, _: LogEvent) {}
     fn list_changed(&self, _: ListChangedEvent) {}
+    fn progress(&self, _: ProgressEvent) {}
 }
 
 /// Collects events in memory (tests).
@@ -115,6 +128,7 @@ pub struct CollectingSink {
     pub messages: std::sync::Mutex<Vec<MessageRecord>>,
     pub logs: std::sync::Mutex<Vec<LogEvent>>,
     pub list_changes: std::sync::Mutex<Vec<ListChangedEvent>>,
+    pub progress: std::sync::Mutex<Vec<ProgressEvent>>,
 }
 
 impl EventSink for CollectingSink {
@@ -129,5 +143,8 @@ impl EventSink for CollectingSink {
     }
     fn list_changed(&self, event: ListChangedEvent) {
         self.list_changes.lock().unwrap().push(event);
+    }
+    fn progress(&self, event: ProgressEvent) {
+        self.progress.lock().unwrap().push(event);
     }
 }

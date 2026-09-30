@@ -28,6 +28,12 @@ pub struct AddRequest {
     pub b: i64,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SleepRequest {
+    #[schemars(description = "Milliseconds to wait")]
+    pub ms: u64,
+}
+
 #[derive(Debug, Clone)]
 pub struct TestServer {
     tool_router: ToolRouter<Self>,
@@ -57,6 +63,12 @@ impl TestServer {
     #[tool(description = "Add two integers")]
     fn add(&self, Parameters(AddRequest { a, b }): Parameters<AddRequest>) -> String {
         (a + b).to_string()
+    }
+
+    #[tool(description = "Wait for the given number of milliseconds, then answer \"done\"")]
+    async fn sleep(&self, Parameters(SleepRequest { ms }): Parameters<SleepRequest>) -> String {
+        tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+        "done".to_owned()
     }
 
     #[tool(description = "Always fails with a tool error")]

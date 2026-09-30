@@ -8,6 +8,7 @@ use specta_typescript::Typescript;
 
 use crate::{
     environments::{Environment, EnvironmentInput},
+    events::ProgressEvent,
     events::{
         ConnectionState, ListChangedEvent, ListKind, LogEvent, LogSource, MessageRecord,
         StatusEvent,
@@ -18,6 +19,7 @@ use crate::{
     message_store::MessageFilter,
     model::AppInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
+    session::{ToolCallRequest, ToolCallResult},
 };
 
 /// All types exposed to the frontend.
@@ -43,6 +45,9 @@ pub fn ipc_types() -> Types {
         .register::<PromptArgumentInfo>()
         .register::<PromptInfo>()
         .register::<ServerDetails>()
+        .register::<ProgressEvent>()
+        .register::<ToolCallRequest>()
+        .register::<ToolCallResult>()
 }
 
 /// Renders the TypeScript bindings file.

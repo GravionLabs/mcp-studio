@@ -1,0 +1,85 @@
+.playground {
+  padding: 20px;
+  max-width: 900px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+
+  h2 {
+    margin: 0;
+  }
+
+  p {
+    margin: 2px 0;
+  }
+}
+
+.crumb a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.modes {
+  display: flex;
+  align-self: flex-start;
+
+  .active {
+    background: var(--bg-active);
+  }
+}
+
+.input {
+  margin: 12px 0;
+}
+
+.problems {
+  margin: 0 0 8px;
+  padding-left: 20px;
+  color: var(--warn);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.failure {
+  color: var(--danger);
+}
+
+.result {
+  margin-top: 16px;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+
+  &.ok {
+    color: var(--ok);
+  }
+
+  &.error {
+    color: var(--danger);
+  }
+
+  &.cancelled {
+    color: var(--warn);
+  }
+}
+
+.empty {
+  padding: 20px;
+}

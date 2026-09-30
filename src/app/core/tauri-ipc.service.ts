@@ -12,6 +12,8 @@ import type {
   ServerDefinition,
   ServerDetails,
   ServerInput,
+  ToolCallRequest,
+  ToolCallResult,
   ToolInfo,
 } from "./bindings";
 import { IpcError, describeError } from "./ipc-error";
@@ -140,5 +142,14 @@ export class TauriIpcService {
 
   promptsList(id: string): Promise<PromptInfo[]> {
     return this.call("prompts_list", { id });
+  }
+
+  toolCall(request: ToolCallRequest): Promise<ToolCallResult> {
+    return this.call("tool_call", { request });
+  }
+
+  /** Cancels a running call; resolves to whether it was still running. */
+  requestCancel(callId: string): Promise<boolean> {
+    return this.call("request_cancel", { callId });
   }
 }

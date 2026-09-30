@@ -1,0 +1,105 @@
+@if (tool(); as tool) {
+  <section class="playground">
+    <header>
+      <div>
+        <p class="crumb muted">
+          <a [routerLink]="['/servers', id()]">{{ server()?.name ?? "Server" }}</a> / tools
+        </p>
+        <h2>{{ tool.title || tool.name }}</h2>
+        <p class="mono muted">{{ tool.name }}</p>
+        @if (tool.description) {
+          <p>{{ tool.description }}</p>
+        }
+      </div>
+      <div class="modes" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="ghost"
+          [class.active]="mode() === 'form'"
+          (click)="setMode('form')"
+        >
+          Form
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="ghost"
+          [class.active]="mode() === 'json'"
+          (click)="setMode('json')"
+        >
+          JSON
+        </button>
+      </div>
+    </header>
+
+    <div class="input">
+      @if (mode() === "form") {
+        <app-schema-form
+          [schema]="schema()"
+          [root]="schema()"
+          [value]="value()"
+          (valueChange)="onForm($event)"
+        />
+      } @else {
+        <app-json-editor [value]="rawText()" (valueChange)="onRaw($event)" />
+      }
+    </div>
+
+    @if (!readiness().ready) {
+      <ul class="problems" role="status">
+        @for (problem of readiness().problems; track problem) {
+          <li>{{ problem }}</li>
+        }
+      </ul>
+    }
+
+    <div class="actions">
+      @if (running()) {
+        <button type="button" class="danger" (click)="cancel()">Cancel</button>
+        <span class="muted">
+          Running…
+          @if (progress(); as p) {
+            {{ p.message || "" }}
+            @if (progressPercent() !== null) {
+              <progress max="100" [value]="progressPercent()"></progress> {{ progressPercent() }}%
+            } @else {
+              ({{ p.progress }})
+            }
+          }
+        </span>
+      } @else {
+        <button type="button" class="primary" [disabled]="!readiness().ready" (click)="run()">
+          Run
+        </button>
+      }
+    </div>
+
+    @if (failure(); as message) {
+      <p class="failure" role="alert">{{ message }}</p>
+    }
+
+    @if (result(); as r) {
+      <div class="result">
+        <p class="summary">
+          @if (r.cancelled) {
+            <span class="badge cancelled">cancelled</span>
+          } @else if (r.isError) {
+            <span class="badge error">tool error</span>
+          } @else {
+            <span class="badge ok">ok</span>
+          }
+          <span class="muted">{{ r.durationMs }} ms</span>
+        </p>
+        @if (!r.cancelled) {
+          <app-json-view [value]="r.result" />
+        }
+      </div>
+    }
+  </section>
+} @else {
+  <p class="empty muted">
+    Tool "{{ name() }}" is not available. Connect the server first, then open the tool from its
+    explorer.
+  </p>
+}
