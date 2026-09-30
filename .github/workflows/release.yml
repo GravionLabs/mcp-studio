@@ -1,0 +1,128 @@
+name: Build & Release
+
+# Installer bundling for all platforms is slow, so pull requests only run it when packaging files
+# change. Run it manually (workflow_dispatch) to validate packaging on any branch.
+on:
+  push:
+    branches: [main]
+  # Changes to packaging validate themselves on the pull request that makes them.
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - scripts/build-proxy-sidecar.mjs
+      - src-tauri/tauri.conf.json
+      - src-tauri/tauri.bundle.conf.json
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  determine-version:
+    runs-on: ubuntu-latest
+    outputs:
+      semver: ${{ steps.version.outputs.semver }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        uses: GravionLabs/ci/versioning/determine-version@main
+        with:
+          gitversion-config-file: GitVersion.yml
+
+  build:
+    needs: [determine-version]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: write
+    env:
+      # MSI requires a numeric-only version, so builds from other branches use 0.0.<run number>
+      # instead of GitVersion's branch-named pre-release versions.
+      VERSION: ${{ github.ref == 'refs/heads/main' && needs.determine-version.outputs.semver || format('0.0.{0}', github.run_number) }}
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Set release version
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.VERSION;
+            for (const file of ['package.json', 'src-tauri/tauri.conf.json']) {
+              const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+              json.version = version;
+              fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n');
+            }
+            const cargo = fs.readFileSync('Cargo.toml', 'utf8');
+            fs.writeFileSync('Cargo.toml', cargo.replace(/^version = \".*\"/m, \`version = \"\${version}\"\`));
+          "
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libdbus-1-dev
+
+      - run: pnpm install --frozen-lockfile
+
+      # The proxy program ships next to the app (Tauri sidecar); see tauri.bundle.conf.json.
+      - name: Build proxy sidecar
+        run: node scripts/build-proxy-sidecar.mjs ${{ matrix.target }}
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Only builds from main create/update a GitHub release; manual runs on other branches just
+          # build. The release stays a draft until every platform has finished (see publish-release).
+          tagName: ${{ github.ref == 'refs/heads/main' && format('v{0}', env.VERSION) || '' }}
+          releaseName: ${{ github.ref == 'refs/heads/main' && format('MCP Studio v{0}', env.VERSION) || '' }}
+          releaseDraft: true
+          args: --target ${{ matrix.target }} --config src-tauri/tauri.bundle.conf.json
+
+  publish-release:
+    needs: [determine-version, build]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "v${{ needs.determine-version.outputs.semver }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false
