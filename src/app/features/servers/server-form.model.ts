@@ -1,9 +1,8 @@
 import type { ServerInput, TransportKind } from "../../core/bindings";
 import type { KeyValueRow } from "../../ui/key-value-editor/key-value-row";
+import { SecretWrite, recordToRows, rowsToRecord } from "../../ui/key-value-editor/key-value-rows";
 
-export type { KeyValueRow };
-
-const REFERENCE_PREFIX = "keyring:";
+export type { KeyValueRow, SecretWrite };
 
 /** Editable form state; text areas hold raw strings until submit. */
 export interface ServerFormState {
@@ -75,43 +74,6 @@ export function formatArgs(args: string[]): string {
     .join(" ");
 }
 
-/** A secret value that must be written to the keyring before the server is saved. */
-export interface SecretWrite {
-  /** Name inside the reference, i.e. the part after `keyring:`. */
-  name: string;
-  value: string;
-}
-
-function toRecord(
-  rows: KeyValueRow[],
-  newSecretName: () => string,
-  writes: SecretWrite[],
-): Record<string, string> {
-  const record: Record<string, string> = {};
-  for (const row of rows) {
-    const key = row.key.trim();
-    if (key === "") continue;
-    if (!row.secret) {
-      record[key] = row.value;
-    } else if (row.value !== "") {
-      const name = row.stored ? row.stored.slice(REFERENCE_PREFIX.length) : newSecretName();
-      writes.push({ name, value: row.value });
-      record[key] = REFERENCE_PREFIX + name;
-    } else if (row.stored) {
-      record[key] = row.stored;
-    }
-  }
-  return record;
-}
-
-function toRows(record: Record<string, string>): KeyValueRow[] {
-  return Object.entries(record).map(([key, value]) =>
-    value.startsWith(REFERENCE_PREFIX)
-      ? { key, value: "", secret: true, stored: value }
-      : { key, value },
-  );
-}
-
 /** Converts the form to a server input plus the secret writes needed before saving it. */
 export function formToInputWithSecrets(
   form: ServerFormState,
@@ -135,10 +97,10 @@ function buildInput(
     transport: form.transport,
     command: form.command.trim() || null,
     args: parseArgs(form.args),
-    env: toRecord(form.env, newSecretName, writes),
+    env: rowsToRecord(form.env, newSecretName, writes),
     cwd: form.cwd.trim() || null,
     url: form.url.trim() || null,
-    headers: toRecord(form.headers, newSecretName, writes),
+    headers: rowsToRecord(form.headers, newSecretName, writes),
     tags: form.tags
       .split(",")
       .map((t) => t.trim())
@@ -153,9 +115,9 @@ export function inputToForm(input: ServerInput): ServerFormState {
     command: input.command ?? "",
     args: formatArgs(input.args),
     cwd: input.cwd ?? "",
-    env: toRows(input.env),
+    env: recordToRows(input.env),
     url: input.url ?? "",
-    headers: toRows(input.headers),
+    headers: recordToRows(input.headers),
     tags: input.tags.join(", "),
   };
 }

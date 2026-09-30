@@ -7,6 +7,7 @@ use specta::Types;
 use specta_typescript::Typescript;
 
 use crate::{
+    environments::{Environment, EnvironmentInput},
     model::AppInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
 };
@@ -18,6 +19,8 @@ pub fn ipc_types() -> Types {
         .register::<TransportKind>()
         .register::<ServerInput>()
         .register::<ServerDefinition>()
+        .register::<EnvironmentInput>()
+        .register::<Environment>()
 }
 
 /// Renders the TypeScript bindings file.

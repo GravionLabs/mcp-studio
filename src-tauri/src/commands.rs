@@ -1,4 +1,5 @@
 use mcp_studio_core::{
+    environments::{Environment, EnvironmentInput},
     model::AppInfo,
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
@@ -73,4 +74,52 @@ pub fn secret_set(state: State<'_, AppState>, name: String, value: String) -> Co
 #[tauri::command]
 pub fn secret_delete(state: State<'_, AppState>, name: String) -> CommandResult<()> {
     Ok(state.secrets.delete(&name)?)
+}
+
+#[tauri::command]
+pub async fn environment_list(state: State<'_, AppState>) -> CommandResult<Vec<Environment>> {
+    Ok(state.environments.list().await?)
+}
+
+#[tauri::command]
+pub async fn environment_add(
+    state: State<'_, AppState>,
+    input: EnvironmentInput,
+) -> CommandResult<Environment> {
+    Ok(state.environments.create(input).await?)
+}
+
+#[tauri::command]
+pub async fn environment_update(
+    state: State<'_, AppState>,
+    id: String,
+    input: EnvironmentInput,
+) -> CommandResult<Environment> {
+    let previous = state.environments.get(&id).await?;
+    let updated = state.environments.update(&id, input).await?;
+    let still_used = secret_names(&updated.input);
+    for name in secret_names(&previous.input) {
+        if !still_used.contains(&name) {
+            state.secrets.delete(&name)?;
+        }
+    }
+    Ok(updated)
+}
+
+#[tauri::command]
+pub async fn environment_remove(state: State<'_, AppState>, id: String) -> CommandResult<()> {
+    let existing = state.environments.get(&id).await?;
+    state.environments.delete(&id).await?;
+    for name in secret_names(&existing.input) {
+        state.secrets.delete(&name)?;
+    }
+    Ok(())
+}
+
+fn secret_names(input: &EnvironmentInput) -> Vec<String> {
+    input
+        .variables
+        .values()
+        .filter_map(|v| secrets::reference_name(v).map(str::to_owned))
+        .collect()
 }

@@ -2,7 +2,9 @@
 
 pub mod bindings;
 pub mod db;
+pub mod environments;
 pub mod model;
+pub mod placeholders;
 pub mod recording;
 pub mod registry;
 pub mod secrets;

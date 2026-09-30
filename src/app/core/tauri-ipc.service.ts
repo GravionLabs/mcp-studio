@@ -1,5 +1,11 @@
 import { Injectable, Signal, inject, signal } from "@angular/core";
-import type { AppInfo, ServerDefinition, ServerInput } from "./bindings";
+import type {
+  AppInfo,
+  Environment,
+  EnvironmentInput,
+  ServerDefinition,
+  ServerInput,
+} from "./bindings";
 import { IpcError, describeError } from "./ipc-error";
 import { IPC_INVOKE, IPC_LISTEN } from "./ipc.tokens";
 
@@ -69,5 +75,21 @@ export class TauriIpcService {
 
   secretDelete(name: string): Promise<void> {
     return this.call("secret_delete", { name });
+  }
+
+  environmentList(): Promise<Environment[]> {
+    return this.call("environment_list");
+  }
+
+  environmentAdd(input: EnvironmentInput): Promise<Environment> {
+    return this.call("environment_add", { input });
+  }
+
+  environmentUpdate(id: string, input: EnvironmentInput): Promise<Environment> {
+    return this.call("environment_update", { id, input });
+  }
+
+  environmentRemove(id: string): Promise<void> {
+    return this.call("environment_remove", { id });
   }
 }

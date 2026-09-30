@@ -1,0 +1,61 @@
+.page {
+  display: flex;
+  height: 100%;
+}
+
+.list {
+  width: 220px;
+  flex: none;
+  padding: 12px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+
+  &.selected {
+    background: var(--bg-active);
+  }
+}
+
+.badge {
+  color: var(--ok);
+  font-size: 11px;
+}
+
+.editor {
+  flex: 1;
+  max-width: 640px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+label,
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  > span {
+    color: var(--text-muted);
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
