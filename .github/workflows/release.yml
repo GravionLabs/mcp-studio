@@ -52,7 +52,9 @@ jobs:
     permissions:
       contents: write
     env:
-      VERSION: ${{ needs.determine-version.outputs.semver }}
+      # MSI requires a numeric-only version, so builds from other branches use 0.0.<run number>
+      # instead of GitVersion's branch-named pre-release versions.
+      VERSION: ${{ github.ref == 'refs/heads/main' && needs.determine-version.outputs.semver || format('0.0.{0}', github.run_number) }}
       CARGO_INCREMENTAL: 0
     steps:
       - uses: actions/checkout@v4
