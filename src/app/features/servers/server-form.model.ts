@@ -1,4 +1,9 @@
 import type { ServerInput, TransportKind } from "../../core/bindings";
+import type { KeyValueRow } from "../../ui/key-value-editor/key-value-row";
+
+export type { KeyValueRow };
+
+const REFERENCE_PREFIX = "keyring:";
 
 /** Editable form state; text areas hold raw strings until submit. */
 export interface ServerFormState {
@@ -11,11 +16,6 @@ export interface ServerFormState {
   url: string;
   headers: KeyValueRow[];
   tags: string;
-}
-
-export interface KeyValueRow {
-  key: string;
-  value: string;
 }
 
 export function emptyForm(transport: TransportKind = "stdio"): ServerFormState {
@@ -75,28 +75,70 @@ export function formatArgs(args: string[]): string {
     .join(" ");
 }
 
-function toRecord(rows: KeyValueRow[]): Record<string, string> {
+/** A secret value that must be written to the keyring before the server is saved. */
+export interface SecretWrite {
+  /** Name inside the reference, i.e. the part after `keyring:`. */
+  name: string;
+  value: string;
+}
+
+function toRecord(
+  rows: KeyValueRow[],
+  newSecretName: () => string,
+  writes: SecretWrite[],
+): Record<string, string> {
   const record: Record<string, string> = {};
-  for (const { key, value } of rows) {
-    if (key.trim() !== "") record[key.trim()] = value;
+  for (const row of rows) {
+    const key = row.key.trim();
+    if (key === "") continue;
+    if (!row.secret) {
+      record[key] = row.value;
+    } else if (row.value !== "") {
+      const name = row.stored ? row.stored.slice(REFERENCE_PREFIX.length) : newSecretName();
+      writes.push({ name, value: row.value });
+      record[key] = REFERENCE_PREFIX + name;
+    } else if (row.stored) {
+      record[key] = row.stored;
+    }
   }
   return record;
 }
 
 function toRows(record: Record<string, string>): KeyValueRow[] {
-  return Object.entries(record).map(([key, value]) => ({ key, value }));
+  return Object.entries(record).map(([key, value]) =>
+    value.startsWith(REFERENCE_PREFIX)
+      ? { key, value: "", secret: true, stored: value }
+      : { key, value },
+  );
+}
+
+/** Converts the form to a server input plus the secret writes needed before saving it. */
+export function formToInputWithSecrets(
+  form: ServerFormState,
+  newSecretName: () => string = () => crypto.randomUUID(),
+): { input: ServerInput; writes: SecretWrite[] } {
+  const writes: SecretWrite[] = [];
+  return { input: buildInput(form, newSecretName, writes), writes };
 }
 
 export function formToInput(form: ServerFormState): ServerInput {
+  return formToInputWithSecrets(form).input;
+}
+
+function buildInput(
+  form: ServerFormState,
+  newSecretName: () => string,
+  writes: SecretWrite[],
+): ServerInput {
   return {
     name: form.name.trim(),
     transport: form.transport,
     command: form.command.trim() || null,
     args: parseArgs(form.args),
-    env: toRecord(form.env),
+    env: toRecord(form.env, newSecretName, writes),
     cwd: form.cwd.trim() || null,
     url: form.url.trim() || null,
-    headers: toRecord(form.headers),
+    headers: toRecord(form.headers, newSecretName, writes),
     tags: form.tags
       .split(",")
       .map((t) => t.trim())

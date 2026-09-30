@@ -1,10 +1,14 @@
 use mcp_studio_core::{
     model::AppInfo,
     registry::{ServerDefinition, ServerInput},
+    secrets::{self, references_in},
 };
 use tauri::State;
 
-use crate::{error::CommandResult, AppState};
+use crate::{
+    error::{CommandError, CommandResult},
+    AppState,
+};
 
 #[tauri::command]
 pub fn app_info() -> AppInfo {
@@ -35,10 +39,38 @@ pub async fn server_update(
     id: String,
     input: ServerInput,
 ) -> CommandResult<ServerDefinition> {
-    Ok(state.registry.update(&id, input).await?)
+    let previous = state.registry.get(&id).await?;
+    let updated = state.registry.update(&id, input).await?;
+    // Drop secrets the edited definition no longer references.
+    let still_used = references_in(&updated.input);
+    for name in references_in(&previous.input) {
+        if !still_used.contains(&name) {
+            state.secrets.delete(&name)?;
+        }
+    }
+    Ok(updated)
 }
 
 #[tauri::command]
 pub async fn server_remove(state: State<'_, AppState>, id: String) -> CommandResult<()> {
-    Ok(state.registry.delete(&id).await?)
+    let existing = state.registry.get(&id).await?;
+    state.registry.delete(&id).await?;
+    for name in references_in(&existing.input) {
+        state.secrets.delete(&name)?;
+    }
+    Ok(())
+}
+
+/// Stores a secret value in the OS keyring under `name` (the part after `keyring:`).
+#[tauri::command]
+pub fn secret_set(state: State<'_, AppState>, name: String, value: String) -> CommandResult<()> {
+    if secrets::reference_name(&secrets::reference(&name)).is_none() {
+        return Err(CommandError("secret name must not be empty".into()));
+    }
+    Ok(state.secrets.set(&name, &value)?)
+}
+
+#[tauri::command]
+pub fn secret_delete(state: State<'_, AppState>, name: String) -> CommandResult<()> {
+    Ok(state.secrets.delete(&name)?)
 }

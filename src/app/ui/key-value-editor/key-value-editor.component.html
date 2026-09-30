@@ -10,11 +10,21 @@
       />
       <input
         class="mono"
+        [type]="row.secret ? 'password' : 'text'"
         [value]="row.value"
-        [placeholder]="valuePlaceholder()"
+        [placeholder]="row.stored ? 'stored in keyring – type to replace' : valuePlaceholder()"
         (input)="edit(i, { value: text($event) })"
+        autocomplete="off"
         aria-label="Value"
       />
+      <label class="secret" title="Store the value in the OS keyring">
+        <input
+          type="checkbox"
+          [checked]="!!row.secret"
+          (change)="edit(i, { secret: checked($event) })"
+        />
+        secret
+      </label>
       <button type="button" class="ghost" (click)="remove(i)" aria-label="Remove row">×</button>
     </div>
   }

@@ -62,4 +62,12 @@ export class TauriIpcService {
   serverRemove(id: string): Promise<void> {
     return this.call("server_remove", { id });
   }
+
+  secretSet(name: string, value: string): Promise<void> {
+    return this.call("secret_set", { name, value });
+  }
+
+  secretDelete(name: string): Promise<void> {
+    return this.call("secret_delete", { name });
+  }
 }

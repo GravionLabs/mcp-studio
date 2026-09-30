@@ -1,13 +1,20 @@
 mod commands;
 mod error;
 
-use mcp_studio_core::{db::Db, registry::Registry};
+use std::sync::Arc;
+
+use mcp_studio_core::{
+    db::Db,
+    registry::Registry,
+    secrets::{KeyringStore, SecretStore},
+};
 use tauri::Manager;
 
 /// Shared state managed by Tauri.
 pub struct AppState {
     pub db: Db,
     pub registry: Registry,
+    pub secrets: Arc<dyn SecretStore>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -24,7 +31,13 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
             let db = tauri::async_runtime::block_on(Db::open(&dir.join("mcp-studio.sqlite")))?;
             let registry = Registry::new(db.clone());
-            app.manage(AppState { db, registry });
+            let secrets: Arc<dyn SecretStore> =
+                Arc::new(KeyringStore::new("dev.gravionlabs.mcp-studio"));
+            app.manage(AppState {
+                db,
+                registry,
+                secrets,
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -34,6 +47,8 @@ pub fn run() {
             commands::server_add,
             commands::server_update,
             commands::server_remove,
+            commands::secret_set,
+            commands::secret_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MCP Studio");
