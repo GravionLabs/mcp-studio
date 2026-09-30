@@ -77,20 +77,27 @@ export class ToolPlaygroundComponent {
     readiness(this.schema(), this.value(), this.rawError()),
   );
 
-  protected readonly savedRequest = computed(() => {
-    const id = this.request();
-    const saved = id ? this.collections.requestById(id) : undefined;
-    return saved && saved.serverId === this.id() && saved.toolName === this.name()
-      ? saved
-      : undefined;
-  });
-  protected readonly historyEntry = computed(() => {
-    const id = Number(this.history());
-    const entry = Number.isNaN(id) ? undefined : this.historyStore.entryById(id);
-    return entry && entry.serverId === this.id() && entry.target === this.name()
-      ? entry
-      : undefined;
-  });
+  // Compared by id so that saving or reloading does not reset what the user is editing.
+  protected readonly savedRequest = computed(
+    () => {
+      const id = this.request();
+      const saved = id ? this.collections.requestById(id) : undefined;
+      return saved && saved.serverId === this.id() && saved.toolName === this.name()
+        ? saved
+        : undefined;
+    },
+    { equal: (x, y) => x?.id === y?.id },
+  );
+  protected readonly historyEntry = computed(
+    () => {
+      const id = Number(this.history());
+      const entry = Number.isNaN(id) ? undefined : this.historyStore.entryById(id);
+      return entry && entry.serverId === this.id() && entry.target === this.name()
+        ? entry
+        : undefined;
+    },
+    { equal: (x, y) => x?.id === y?.id },
+  );
   protected readonly saveOpen = signal(false);
   protected readonly saveName = signal("");
   protected readonly saveFolder = signal("");
