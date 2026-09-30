@@ -42,6 +42,9 @@ pub fn run() {
             let cleanup_db = db.clone();
             tauri::async_runtime::spawn(async move {
                 let _ = message_store::cleanup(&cleanup_db, RetentionPolicy::default()).await;
+                let _ = mcp_studio_core::history::History::new(cleanup_db)
+                    .cleanup(5000, 30)
+                    .await;
             });
             let registry = Registry::new(db.clone());
             let environments = Environments::new(db.clone());
@@ -98,6 +101,8 @@ pub fn run() {
             commands::request_delete,
             commands::collection_export,
             commands::collection_import,
+            commands::history_list,
+            commands::history_clear,
             commands::tool_call,
             commands::request_cancel,
             commands::messages_query,

@@ -20,6 +20,7 @@ import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { CollectionsStore } from "../collections/collections.store";
 import { EnvironmentsStore } from "../environments/environments.store";
 import { ExplorerStore } from "../explorer/explorer.store";
+import { HistoryStore } from "../history/history.store";
 import { ResultViewComponent } from "../results/result-view.component";
 import { parseToolResult } from "../results/result.model";
 import { ServersStore } from "../servers/servers.store";
@@ -46,6 +47,8 @@ export class ToolPlaygroundComponent {
   readonly name = input.required<string>();
   /** Id of a saved request whose arguments are loaded (query parameter `request`). */
   readonly request = input<string>();
+  /** Id of a history entry whose arguments are loaded (query parameter `history`). */
+  readonly history = input<string>();
 
   private readonly explorer = inject(ExplorerStore);
   private readonly servers = inject(ServersStore);
@@ -56,6 +59,7 @@ export class ToolPlaygroundComponent {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly collections = inject(CollectionsStore);
   private readonly dialogs = inject(DialogService);
+  private readonly historyStore = inject(HistoryStore);
 
   protected readonly server = computed(() => this.servers.byId().get(this.id()));
   protected readonly tool = computed(() =>
@@ -78,6 +82,13 @@ export class ToolPlaygroundComponent {
     const saved = id ? this.collections.requestById(id) : undefined;
     return saved && saved.serverId === this.id() && saved.toolName === this.name()
       ? saved
+      : undefined;
+  });
+  protected readonly historyEntry = computed(() => {
+    const id = Number(this.history());
+    const entry = Number.isNaN(id) ? undefined : this.historyStore.entryById(id);
+    return entry && entry.serverId === this.id() && entry.target === this.name()
+      ? entry
       : undefined;
   });
   protected readonly saveOpen = signal(false);
@@ -110,6 +121,9 @@ export class ToolPlaygroundComponent {
       });
       untracked(() => {
         if (!this.explorer.snapshot(id).details) void this.explorer.load(id);
+        if (this.history() && !this.historyStore.entries().length) {
+          void this.historyStore.load({ serverId: id, limit: 500 }).catch(() => undefined);
+        }
       });
     });
 
@@ -232,6 +246,7 @@ export class ToolPlaygroundComponent {
       this.failure.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.callId.set(null);
+      void this.historyStore.reload().catch(() => undefined);
     }
   }
 
