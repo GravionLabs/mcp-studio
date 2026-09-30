@@ -126,6 +126,7 @@ export type MessageFilter = {
 export type MessageRecord = {
 	id: number,
 	sessionId: string,
+	serverId: string,
 	direction: Direction,
 	jsonrpcId: string | null,
 	method: string | null,

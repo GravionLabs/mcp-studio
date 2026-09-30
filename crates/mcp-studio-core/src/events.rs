@@ -32,6 +32,7 @@ pub struct MessageRecord {
     #[specta(type = u32)]
     pub id: i64,
     pub session_id: String,
+    pub server_id: String,
     pub direction: Direction,
     pub jsonrpc_id: Option<String>,
     pub method: Option<String>,

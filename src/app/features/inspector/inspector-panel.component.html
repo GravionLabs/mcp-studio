@@ -1,0 +1,105 @@
+<section class="inspector">
+  <div class="filters">
+    <select aria-label="Server" (change)="setFilter({ serverId: value($event) })">
+      <option value="">All servers</option>
+      @for (server of servers.servers(); track server.id) {
+        <option [value]="server.id" [selected]="store.filter().serverId === server.id">
+          {{ server.name }}
+        </option>
+      }
+    </select>
+    <select aria-label="Method" (change)="setFilter({ method: value($event) })">
+      <option value="">Any method</option>
+      @for (method of methods; track method) {
+        <option [value]="method" [selected]="store.filter().method === method">{{ method }}</option>
+      }
+    </select>
+    <select aria-label="Direction" (change)="setFilter({ direction: $any(value($event)) })">
+      <option value="">Both directions</option>
+      <option value="out" [selected]="store.filter().direction === 'out'">Requests we send</option>
+      <option value="in" [selected]="store.filter().direction === 'in'">Received</option>
+    </select>
+    <label class="check"
+      ><input
+        type="checkbox"
+        [checked]="store.filter().errorsOnly"
+        (change)="setFilter({ errorsOnly: !store.filter().errorsOnly })"
+      />
+      Errors</label
+    >
+    <input
+      type="search"
+      placeholder="Search payloads"
+      aria-label="Search payloads"
+      [value]="store.filter().search"
+      (change)="setFilter({ search: value($event) })"
+    />
+    <button
+      type="button"
+      class="ghost"
+      (click)="store.clearView()"
+      title="Empty the view (recorded data is kept)"
+    >
+      Clear
+    </button>
+  </div>
+
+  <div class="count muted">
+    {{ store.messages().length }} messages
+    @if (!follow()) {
+      <button type="button" class="ghost" (click)="jumpToEnd()">↓ Follow</button>
+    }
+  </div>
+
+  <app-virtual-list
+    class="list"
+    [items]="store.messages()"
+    [rowHeight]="26"
+    [follow]="follow()"
+    [trackBy]="trackById"
+    (atBottomChange)="onBottom($event)"
+  >
+    <ng-template #row let-message>
+      @let info = label(message);
+      <div
+        class="msg"
+        [class.selected]="selectedIds().has(message.id)"
+        [class.error]="message.isError"
+        [class.out]="message.direction === 'out'"
+        (click)="click(message, $event)"
+        (keydown.enter)="store.select(message.id, false)"
+        tabindex="0"
+        role="button"
+      >
+        <span class="time mono muted">{{ clock(message.ts) }}</span>
+        <span class="dir" [title]="message.direction === 'out' ? 'sent' : 'received'">{{
+          message.direction === "out" ? "→" : "←"
+        }}</span>
+        <span class="text" [class]="info.kind" [title]="info.text">{{ info.text }}</span>
+        @if (message.durationMs !== null) {
+          <span class="meta muted">{{ message.durationMs }} ms</span>
+        }
+        <span class="meta muted">{{ bytes(message.bytes) }}</span>
+      </div>
+    </ng-template>
+  </app-virtual-list>
+
+  <div class="detail">
+    @if (detail(); as d) {
+      <div class="detail-head">
+        <span class="mono"
+          >{{ d.message.method ?? "response" }}
+          <span class="muted">#{{ d.message.jsonrpcId ?? "–" }}</span></span
+        >
+        <span class="muted"
+          >{{ serverName(d.message.serverId) }} · {{ clock(d.message.ts) }} ·
+          {{ bytes(d.message.bytes) }}</span
+        >
+        <button type="button" class="ghost" (click)="copy(d.text)">Copy JSON</button>
+      </div>
+      <app-json-view class="json" [value]="d.text" />
+    } @else {
+      <p class="muted pad">Select a message to see its JSON.</p>
+    }
+  </div>
+</section>
