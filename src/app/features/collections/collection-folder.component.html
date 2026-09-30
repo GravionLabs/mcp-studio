@@ -1,0 +1,83 @@
+@let f = folder();
+<li class="folder">
+  <div class="row">
+    <button
+      type="button"
+      class="ghost toggle"
+      (click)="store.toggle(f.node.id)"
+      [attr.aria-expanded]="store.expanded().has(f.node.id)"
+    >
+      {{ store.expanded().has(f.node.id) ? "▾" : "▸" }}
+    </button>
+    <span class="name" (dblclick)="rename()" [title]="f.node.name">{{ f.node.name }}</span>
+    <span class="count muted">{{ count(f) }}</span>
+    <span class="actions">
+      <button
+        type="button"
+        class="ghost"
+        (click)="addFolder()"
+        title="New subfolder"
+        aria-label="New subfolder"
+      >
+        ＋
+      </button>
+      <button
+        type="button"
+        class="ghost"
+        (click)="rename()"
+        title="Rename"
+        aria-label="Rename folder"
+      >
+        ✎
+      </button>
+      <button
+        type="button"
+        class="ghost"
+        (click)="export()"
+        title="Export as JSON"
+        aria-label="Export folder"
+      >
+        ⇪
+      </button>
+      <button
+        type="button"
+        class="ghost"
+        (click)="remove()"
+        title="Delete"
+        aria-label="Delete folder"
+      >
+        ✕
+      </button>
+    </span>
+  </div>
+  @if (store.expanded().has(f.node.id)) {
+    <ul class="children">
+      @for (child of f.folders; track child.node.id) {
+        <app-collection-folder [folder]="child" />
+      }
+      @for (request of f.requests; track request.id) {
+        <li class="request">
+          <button
+            type="button"
+            class="ghost open"
+            (click)="open(request)"
+            [title]="request.notes || request.name"
+          >
+            <span class="method mono">{{
+              request.method === "tools/call" ? "call" : request.method
+            }}</span>
+            {{ request.name }}
+          </button>
+          <button
+            type="button"
+            class="ghost del"
+            (click)="removeRequest(request)"
+            aria-label="Delete request"
+          >
+            ✕
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</li>

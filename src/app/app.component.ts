@@ -3,6 +3,7 @@ import { RouterOutlet } from "@angular/router";
 import { ThemeService } from "./core/theme.service";
 import { PaneLayoutService } from "./ui/pane-layout.service";
 import { ResizeHandleDirective } from "./ui/resize-handle.directive";
+import { DialogHostComponent } from "./ui/dialog/dialog-host.component";
 import { StatusBarComponent } from "./ui/status-bar/status-bar.component";
 import { TabsComponent } from "./ui/tabs/tabs.component";
 import { ToastsComponent } from "./ui/toasts/toasts.component";
@@ -15,6 +16,7 @@ import { InspectorPanelComponent } from "./features/inspector/inspector-panel.co
   imports: [
     RouterOutlet,
     ResizeHandleDirective,
+    DialogHostComponent,
     StatusBarComponent,
     TabsComponent,
     ToastsComponent,

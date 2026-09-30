@@ -5,6 +5,7 @@ mod sink;
 use std::sync::Arc;
 
 use mcp_studio_core::{
+    collections::Collections,
     db::Db,
     environments::Environments,
     message_store::{self, RetentionPolicy},
@@ -19,6 +20,7 @@ pub struct AppState {
     pub db: Db,
     pub registry: Registry,
     pub environments: Environments,
+    pub collections: Collections,
     pub secrets: Arc<dyn SecretStore>,
     pub sessions: Arc<SessionManager>,
 }
@@ -27,6 +29,7 @@ pub struct AppState {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -42,6 +45,7 @@ pub fn run() {
             });
             let registry = Registry::new(db.clone());
             let environments = Environments::new(db.clone());
+            let collections = Collections::new(db.clone());
             let secrets: Arc<dyn SecretStore> =
                 Arc::new(KeyringStore::new("dev.gravionlabs.mcp-studio"));
             let sessions = SessionManager::new(
@@ -57,6 +61,7 @@ pub fn run() {
                 db,
                 registry,
                 environments,
+                collections,
                 secrets,
                 sessions,
             });
@@ -83,6 +88,16 @@ pub fn run() {
             commands::prompts_list,
             commands::resource_read,
             commands::prompt_get,
+            commands::collections_tree,
+            commands::collection_create,
+            commands::collection_rename,
+            commands::collection_move,
+            commands::collection_delete,
+            commands::request_save,
+            commands::request_update,
+            commands::request_delete,
+            commands::collection_export,
+            commands::collection_import,
             commands::tool_call,
             commands::request_cancel,
             commands::messages_query,

@@ -1,4 +1,5 @@
 use mcp_studio_core::{
+    collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
@@ -227,4 +228,95 @@ pub async fn prompt_get(
     arguments: BTreeMap<String, String>,
 ) -> CommandResult<JsonValue> {
     Ok(explorer::get_prompt(&state.sessions.peer(&id)?, &name, &arguments).await?)
+}
+
+#[tauri::command]
+pub async fn collections_tree(state: State<'_, AppState>) -> CommandResult<CollectionTree> {
+    Ok(state.collections.tree().await?)
+}
+
+#[tauri::command]
+pub async fn collection_create(
+    state: State<'_, AppState>,
+    parent_id: Option<String>,
+    name: String,
+) -> CommandResult<CollectionNode> {
+    Ok(state
+        .collections
+        .create_collection(parent_id.as_deref(), &name)
+        .await?)
+}
+
+#[tauri::command]
+pub async fn collection_rename(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+) -> CommandResult<()> {
+    Ok(state.collections.rename_collection(&id, &name).await?)
+}
+
+#[tauri::command]
+pub async fn collection_move(
+    state: State<'_, AppState>,
+    id: String,
+    parent_id: Option<String>,
+) -> CommandResult<()> {
+    Ok(state
+        .collections
+        .move_collection(&id, parent_id.as_deref())
+        .await?)
+}
+
+#[tauri::command]
+pub async fn collection_delete(state: State<'_, AppState>, id: String) -> CommandResult<()> {
+    Ok(state.collections.delete_collection(&id).await?)
+}
+
+#[tauri::command]
+pub async fn request_save(
+    state: State<'_, AppState>,
+    input: SavedRequestInput,
+) -> CommandResult<SavedRequest> {
+    Ok(state.collections.save_request(input).await?)
+}
+
+#[tauri::command]
+pub async fn request_update(
+    state: State<'_, AppState>,
+    id: String,
+    input: SavedRequestInput,
+) -> CommandResult<()> {
+    Ok(state.collections.update_request(&id, input).await?)
+}
+
+#[tauri::command]
+pub async fn request_delete(state: State<'_, AppState>, id: String) -> CommandResult<()> {
+    Ok(state.collections.delete_request(&id).await?)
+}
+
+/// Writes a collection (folder with subfolders and requests) to a JSON file.
+#[tauri::command]
+pub async fn collection_export(
+    state: State<'_, AppState>,
+    id: String,
+    path: String,
+) -> CommandResult<()> {
+    let json = state.collections.export_collection(&id).await?;
+    std::fs::write(&path, json).map_err(|e| CommandError(format!("could not write {path}: {e}")))
+}
+
+/// Imports a collection file under `parent_id` (or at the top level).
+#[tauri::command]
+pub async fn collection_import(
+    state: State<'_, AppState>,
+    path: String,
+    parent_id: Option<String>,
+) -> CommandResult<ImportReport> {
+    let json = std::fs::read_to_string(&path)
+        .map_err(|e| CommandError(format!("could not read {path}: {e}")))?;
+    Ok(state
+        .collections
+        .import_collection(&json, parent_id.as_deref())
+        .await?)
 }

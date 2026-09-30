@@ -7,6 +7,7 @@ import {
   signal,
 } from "@angular/core";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
+import { DialogService } from "../../core/dialog.service";
 import { ToastService } from "../../core/toast.service";
 import { KeyValueEditorComponent } from "../../ui/key-value-editor/key-value-editor.component";
 import type { KeyValueRow } from "../../ui/key-value-editor/key-value-row";
@@ -26,6 +27,7 @@ export class EnvironmentsPageComponent {
   protected readonly store = inject(EnvironmentsStore);
   private readonly ipc = inject(TauriIpcService);
   private readonly toasts = inject(ToastService);
+  private readonly dialogs = inject(DialogService);
   private readonly tabs = inject(WorkspaceTabsService);
 
   /** Id of the environment being edited, or null for a new one. */
@@ -70,7 +72,15 @@ export class EnvironmentsPageComponent {
 
   protected async remove(): Promise<void> {
     const id = this.selectedId();
-    if (!id || !window.confirm("Delete this environment?")) return;
+    if (
+      !id ||
+      !(await this.dialogs.confirm("Delete this environment?", {
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     try {
       await this.store.remove(id);
       this.select(null);

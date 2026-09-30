@@ -1,6 +1,11 @@
 import { Injectable, Signal, inject, signal } from "@angular/core";
 import type {
   AppInfo,
+  CollectionNode,
+  CollectionTree,
+  ImportReport,
+  SavedRequest,
+  SavedRequestInput,
   Environment,
   EnvironmentInput,
   LogEvent,
@@ -159,5 +164,45 @@ export class TauriIpcService {
 
   promptGet(id: string, name: string, args: Record<string, string>): Promise<unknown> {
     return this.call("prompt_get", { id, name, arguments: args });
+  }
+
+  collectionsTree(): Promise<CollectionTree> {
+    return this.call("collections_tree");
+  }
+
+  collectionCreate(parentId: string | null, name: string): Promise<CollectionNode> {
+    return this.call("collection_create", { parentId, name });
+  }
+
+  collectionRename(id: string, name: string): Promise<void> {
+    return this.call("collection_rename", { id, name });
+  }
+
+  collectionMove(id: string, parentId: string | null): Promise<void> {
+    return this.call("collection_move", { id, parentId });
+  }
+
+  collectionDelete(id: string): Promise<void> {
+    return this.call("collection_delete", { id });
+  }
+
+  requestSave(input: SavedRequestInput): Promise<SavedRequest> {
+    return this.call("request_save", { input });
+  }
+
+  requestUpdate(id: string, input: SavedRequestInput): Promise<void> {
+    return this.call("request_update", { id, input });
+  }
+
+  requestDelete(id: string): Promise<void> {
+    return this.call("request_delete", { id });
+  }
+
+  collectionExport(id: string, path: string): Promise<void> {
+    return this.call("collection_export", { id, path });
+  }
+
+  collectionImport(path: string, parentId: string | null): Promise<ImportReport> {
+    return this.call("collection_import", { path, parentId });
   }
 }

@@ -22,4 +22,36 @@
       </li>
     }
   </ul>
+
+  <header>
+    <h3>Collections</h3>
+    <span class="tools">
+      <button
+        type="button"
+        class="ghost"
+        (click)="importCollection()"
+        title="Import a collection file"
+        aria-label="Import collection"
+      >
+        ⇩
+      </button>
+      <button
+        type="button"
+        class="ghost"
+        (click)="newFolder()"
+        title="New collection"
+        aria-label="New collection"
+      >
+        ＋
+      </button>
+    </span>
+  </header>
+
+  <ul class="tree">
+    @for (folder of collections.roots(); track folder.node.id) {
+      <app-collection-folder [folder]="folder" />
+    } @empty {
+      <li class="empty muted">No collections yet.</li>
+    }
+  </ul>
 </nav>

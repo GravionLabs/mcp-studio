@@ -11,11 +11,13 @@ import {
 } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import type { ProgressEvent, ToolCallResult } from "../../core/bindings";
+import { DialogService } from "../../core/dialog.service";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { JsonEditorComponent } from "../../ui/json-editor/json-editor.component";
 import { JsonViewComponent } from "../../ui/json-view/json-view.component";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
+import { CollectionsStore } from "../collections/collections.store";
 import { EnvironmentsStore } from "../environments/environments.store";
 import { ExplorerStore } from "../explorer/explorer.store";
 import { ResultViewComponent } from "../results/result-view.component";
@@ -42,6 +44,8 @@ import { JsonSchema, defaultValue } from "./schema-form.model";
 export class ToolPlaygroundComponent {
   readonly id = input.required<string>();
   readonly name = input.required<string>();
+  /** Id of a saved request whose arguments are loaded (query parameter `request`). */
+  readonly request = input<string>();
 
   private readonly explorer = inject(ExplorerStore);
   private readonly servers = inject(ServersStore);
@@ -50,6 +54,8 @@ export class ToolPlaygroundComponent {
   private readonly toasts = inject(ToastService);
   private readonly tabs = inject(WorkspaceTabsService);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly collections = inject(CollectionsStore);
+  private readonly dialogs = inject(DialogService);
 
   protected readonly server = computed(() => this.servers.byId().get(this.id()));
   protected readonly tool = computed(() =>
@@ -66,6 +72,17 @@ export class ToolPlaygroundComponent {
   protected readonly readiness = computed(() =>
     readiness(this.schema(), this.value(), this.rawError()),
   );
+
+  protected readonly savedRequest = computed(() => {
+    const id = this.request();
+    const saved = id ? this.collections.requestById(id) : undefined;
+    return saved && saved.serverId === this.id() && saved.toolName === this.name()
+      ? saved
+      : undefined;
+  });
+  protected readonly saveOpen = signal(false);
+  protected readonly saveName = signal("");
+  protected readonly saveFolder = signal("");
 
   protected readonly callId = signal<string | null>(null);
   protected readonly progress = signal<ProgressEvent | null>(null);
@@ -100,8 +117,11 @@ export class ToolPlaygroundComponent {
     effect(() => {
       const tool = this.tool();
       if (!tool) return;
+      const saved = this.savedRequest();
       untracked(() => {
-        const initial = defaultValue(this.schema(), this.schema()) ?? {};
+        const initial = saved
+          ? saved.arguments
+          : (defaultValue(this.schema(), this.schema()) ?? {});
         this.value.set(initial);
         this.rawText.set(toRawText(initial));
         this.rawError.set(null);
@@ -115,6 +135,59 @@ export class ToolPlaygroundComponent {
         if (event.callId === this.callId()) this.progress.set(event);
       })
       .then((stop) => this.destroyRef.onDestroy(stop));
+  }
+
+  protected openSave(): void {
+    this.saveName.set(this.savedRequest()?.name ?? this.tool()?.title ?? this.name());
+    this.saveFolder.set(
+      this.savedRequest()?.collectionId ?? this.collections.options()[0]?.id ?? "",
+    );
+    this.saveOpen.set(true);
+  }
+
+  protected text(event: Event): string {
+    return (event.target as HTMLInputElement | HTMLSelectElement).value;
+  }
+
+  protected async newFolder(): Promise<void> {
+    const name = await this.dialogs.prompt("Name of the new collection", "", "Create");
+    if (!name) return;
+    try {
+      this.saveFolder.set((await this.collections.createFolder(null, name)).id);
+    } catch (error) {
+      this.toasts.fail("Could not create the collection", error);
+    }
+  }
+
+  /** Saves the current input; with `replace` the loaded request is updated instead of duplicated. */
+  protected async save(replace: boolean): Promise<void> {
+    const collectionId = this.saveFolder();
+    const name = this.saveName().trim();
+    if (!collectionId || !name) {
+      this.toasts.error("Choose a collection and give the request a name.");
+      return;
+    }
+    const input = {
+      collectionId,
+      serverId: this.id(),
+      method: "tools/call",
+      name,
+      toolName: this.name(),
+      arguments: toArguments(this.schema(), this.value()),
+      notes: this.savedRequest()?.notes ?? "",
+    };
+    try {
+      const existing = this.savedRequest();
+      if (replace && existing) {
+        await this.collections.updateRequest(existing.id, input);
+      } else {
+        await this.collections.saveRequest(input);
+      }
+      this.saveOpen.set(false);
+      this.toasts.success(`Saved "${name}"`);
+    } catch (error) {
+      this.toasts.fail("Could not save the request", error);
+    }
   }
 
   protected setMode(mode: "form" | "json"): void {
