@@ -1,18 +1,38 @@
 <section class="proxy">
   <h3>Record a real client</h3>
   <p class="muted">
-    Start this server through MCP Studio from Claude Code, Claude Desktop, or an IDE. Every message
+    Use this server through MCP Studio from Claude Code, Claude Desktop, or an IDE. Every message
     shows up in the inspector while the client works.
   </p>
   @if (info(); as i) {
-    @if (command(); as cmd) {
-      <p class="muted">Configure the client to run:</p>
-      <div class="command">
-        <code class="mono">{{ cmd }}</code>
-        <button type="button" (click)="copy(cmd)">Copy</button>
+    @if (snippets().length > 0) {
+      <div class="tabs" role="tablist">
+        @for (snippet of snippets(); track snippet.title; let index = $index) {
+          <button
+            type="button"
+            role="tab"
+            class="ghost"
+            [class.active]="index === selected()"
+            (click)="selected.set(index)"
+          >
+            {{ snippet.title }}
+          </button>
+        }
       </div>
+      @if (current(); as snippet) {
+        <p class="muted hint">{{ snippet.hint }}</p>
+        <div class="command">
+          <pre class="mono">{{ snippet.text }}</pre>
+          <button type="button" (click)="copy(snippet.text)">Copy</button>
+        </div>
+      }
       <p class="muted status">
-        Proxy is listening on 127.0.0.1:{{ i.controlPort }}. MCP Studio must be running.
+        @if (transport() === "stdio") {
+          Proxy is listening on 127.0.0.1:{{ i.controlPort }}.
+        } @else {
+          Proxy is listening on 127.0.0.1:{{ i.httpPort }}; MCP Studio adds this server's headers.
+        }
+        MCP Studio must be running while the client works.
       </p>
     } @else {
       <p class="warn" role="status">

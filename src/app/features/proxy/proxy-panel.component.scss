@@ -9,20 +9,34 @@
   }
 }
 
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 6px;
+
+  .active {
+    background: var(--bg-active);
+  }
+}
+
+.hint {
+  margin: 4px 0;
+}
+
 .command {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 
-  code {
+  pre {
     flex: 1;
     min-width: 0;
+    margin: 0;
     padding: 6px 8px;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow-x: auto;
-    white-space: nowrap;
   }
 }
 

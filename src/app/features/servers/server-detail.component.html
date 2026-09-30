@@ -59,9 +59,7 @@
       }
     </dl>
 
-    @if (s.transport === "stdio") {
-      <app-proxy-panel [serverName]="s.name" />
-    }
+    <app-proxy-panel [serverName]="s.name" [transport]="s.transport" />
 
     <h3>Logs</h3>
     @if (logs().length === 0) {

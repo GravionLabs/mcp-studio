@@ -11,6 +11,7 @@ import type { ProxyInfo } from "../../core/bindings";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { proxyCommand } from "./proxy.model";
+import { Snippet, snippetsFor } from "./snippets";
 
 /** Explains how to route a real client through MCP Studio so its traffic shows up in the inspector. */
 @Component({
@@ -21,6 +22,7 @@ import { proxyCommand } from "./proxy.model";
 })
 export class ProxyPanelComponent implements OnInit {
   readonly serverName = input.required<string>();
+  readonly transport = input.required<"stdio" | "http">();
 
   private readonly ipc = inject(TauriIpcService);
   private readonly toasts = inject(ToastService);
@@ -30,6 +32,24 @@ export class ProxyPanelComponent implements OnInit {
     const binary = this.info()?.proxyBinary;
     return binary ? proxyCommand(binary, this.serverName()) : null;
   });
+  protected readonly url = computed(() => {
+    const info = this.info();
+    return info
+      ? `http://127.0.0.1:${info.httpPort}/mcp/${encodeURIComponent(this.serverName())}`
+      : null;
+  });
+  protected readonly snippets = computed<Snippet[]>(() =>
+    snippetsFor({
+      serverName: this.serverName(),
+      transport: this.transport(),
+      proxyBinary: this.info()?.proxyBinary ?? null,
+      proxyUrl: this.url(),
+    }),
+  );
+  protected readonly selected = signal(0);
+  protected readonly current = computed(
+    () => this.snippets()[this.selected()] ?? this.snippets()[0],
+  );
 
   ngOnInit(): void {
     this.ipc.proxyInfo().then(
