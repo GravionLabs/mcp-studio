@@ -13,7 +13,7 @@ versioned migrations. Secrets are stored only as keyring references.
 | `requests`     | id, collection_id, server_id, method, tool_name, arguments (JSON), notes                                                                                            |
 | `sessions`     | id, server_id, origin (`studio` \| `proxy`), started_at, ended_at, protocol_version, server_info (JSON), capabilities (JSON)                                        |
 | `messages`     | id, session_id, span_id, direction (`out` \| `in`), jsonrpc_id, method, payload (JSON), bytes, tokens, token_source (`estimate` \| `exact`), ts                     |
-| `spans`        | id, trace_id, parent_id, kind (`session` \| `flow` \| `step` \| `llm` \| `tool`), name, start, end, status, attributes (JSON)                                       |
+| `spans`        | id, trace_id, parent_id, kind (`session` \| `flow` \| `step` \| `llm` \| `tool`), name, started_at, ended_at, status, attributes (JSON)                             |
 | `flows`        | id, name, graph (JSON), version, updated_at                                                                                                                         |
 | `prices`       | model, input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_per_mtok, currency                                                                         |
 
