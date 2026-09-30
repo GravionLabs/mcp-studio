@@ -81,6 +81,8 @@ pub fn run() {
             commands::resources_list,
             commands::resource_templates_list,
             commands::prompts_list,
+            commands::resource_read,
+            commands::prompt_get,
             commands::tool_call,
             commands::request_cancel,
             commands::messages_query,

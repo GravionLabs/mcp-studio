@@ -125,3 +125,23 @@ details {
   color: var(--accent);
   text-decoration: none;
 }
+
+.uri {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.message {
+  margin-top: 8px;
+
+  .role {
+    display: inline-block;
+    margin-bottom: 4px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--accent);
+  }
+}

@@ -9,7 +9,11 @@ import {
   signal,
 } from "@angular/core";
 import { RouterLink } from "@angular/router";
+import type { PromptInfo } from "../../core/bindings";
+import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
+import { ResultViewComponent } from "../results/result-view.component";
+import { missingArguments, promptMessages, resourceBlocks } from "../results/mcp-content";
 import { JsonViewComponent } from "../../ui/json-view/json-view.component";
 import { describeParameters, matches } from "./explorer.model";
 import { ExplorerStore } from "./explorer.store";
@@ -19,7 +23,7 @@ type Section = "tools" | "resources" | "prompts";
 /** Browse what a connected server offers: tools, resources, and prompts. */
 @Component({
   selector: "app-explorer",
-  imports: [JsonViewComponent, RouterLink],
+  imports: [JsonViewComponent, RouterLink, ResultViewComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./explorer.component.html",
   styleUrl: "./explorer.component.scss",
@@ -29,6 +33,7 @@ export class ExplorerComponent implements OnInit {
 
   private readonly store = inject(ExplorerStore);
   private readonly toasts = inject(ToastService);
+  private readonly ipc = inject(TauriIpcService);
 
   protected readonly section = signal<Section>("tools");
   protected readonly query = signal("");
@@ -75,7 +80,39 @@ export class ExplorerComponent implements OnInit {
     describeParameters(this.selectedTool()?.inputSchema),
   );
 
+  /** Result of reading the selected resource. */
+  protected readonly resourceResult = signal<unknown>(null);
+  protected readonly templateUri = signal("");
+  protected readonly promptValues = signal<Record<string, string>>({});
+  protected readonly promptResult = signal<unknown>(null);
+  protected readonly busy = signal(false);
+
+  protected readonly resourceView = computed(() => {
+    const result = this.resourceResult();
+    return result === null
+      ? null
+      : { blocks: resourceBlocks(result), structured: undefined, isError: false };
+  });
+  protected readonly promptView = computed(() => {
+    const result = this.promptResult();
+    return result === null ? null : promptMessages(result);
+  });
+  protected readonly promptMissing = computed(() => {
+    const prompt = this.selectedPrompt();
+    return prompt ? missingArguments(prompt.arguments ?? [], this.promptValues()) : [];
+  });
+
   constructor() {
+    effect(() => {
+      // Switching the selection clears what was read for the previous item.
+      const name = this.selectedName();
+      this.resourceResult.set(null);
+      this.promptResult.set(null);
+      this.promptValues.set({});
+      const resource = this.resources().find((r) => r.key === name);
+      this.templateUri.set(resource?.template ? resource.key : "");
+    });
+
     effect(() => {
       // Reload whenever another server is shown in this component.
       void this.store.load(this.serverId());
@@ -97,6 +134,35 @@ export class ExplorerComponent implements OnInit {
 
   protected text(event: Event): string {
     return (event.target as HTMLInputElement).value;
+  }
+
+  protected async readResource(uri: string): Promise<void> {
+    this.busy.set(true);
+    try {
+      this.resourceResult.set(await this.ipc.resourceRead(this.serverId(), uri));
+    } catch (error) {
+      this.toasts.fail("Could not read the resource", error);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected setPromptValue(name: string, value: string): void {
+    this.promptValues.update((all) => ({ ...all, [name]: value }));
+  }
+
+  protected async getPrompt(prompt: PromptInfo): Promise<void> {
+    this.busy.set(true);
+    try {
+      const values = Object.fromEntries(
+        Object.entries(this.promptValues()).filter(([, v]) => v.trim() !== ""),
+      );
+      this.promptResult.set(await this.ipc.promptGet(this.serverId(), prompt.name, values));
+    } catch (error) {
+      this.toasts.fail("Could not get the prompt", error);
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected reload(): void {

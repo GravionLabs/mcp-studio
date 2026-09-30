@@ -3,11 +3,13 @@ use mcp_studio_core::{
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
     message_store::{query_messages, MessageFilter},
-    model::AppInfo,
+    model::{AppInfo, JsonValue},
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
 };
+use std::collections::BTreeMap;
+
 use tauri::State;
 
 use crate::{
@@ -206,4 +208,23 @@ pub async fn tool_call(
 #[tauri::command]
 pub fn request_cancel(state: State<'_, AppState>, call_id: String) -> bool {
     state.sessions.cancel_call(&call_id)
+}
+
+#[tauri::command]
+pub async fn resource_read(
+    state: State<'_, AppState>,
+    id: String,
+    uri: String,
+) -> CommandResult<JsonValue> {
+    Ok(explorer::read_resource(&state.sessions.peer(&id)?, &uri).await?)
+}
+
+#[tauri::command]
+pub async fn prompt_get(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+    arguments: BTreeMap<String, String>,
+) -> CommandResult<JsonValue> {
+    Ok(explorer::get_prompt(&state.sessions.peer(&id)?, &name, &arguments).await?)
 }

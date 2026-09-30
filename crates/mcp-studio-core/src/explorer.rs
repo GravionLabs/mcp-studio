@@ -3,7 +3,13 @@
 //! The DTOs are deliberately flat and permissive: they are built by re-reading the JSON that `rmcp`
 //! serializes for each MCP type, so new optional fields in the spec never break the explorer.
 
-use rmcp::{service::Peer, RoleClient};
+use std::collections::BTreeMap;
+
+use rmcp::{
+    model::{GetPromptRequestParams, ReadResourceRequestParams},
+    service::Peer,
+    RoleClient,
+};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use specta::Type;
@@ -171,6 +177,39 @@ pub async fn list_prompts(peer: &Peer<RoleClient>) -> DbResult<Vec<PromptInfo>> 
         return Ok(vec![]);
     }
     convert_all(&peer.list_all_prompts().await.map_err(service_error)?)
+}
+
+/// Reads a resource. Returns the MCP `ReadResourceResult` (`contents: [{uri, mimeType, text|blob}]`).
+pub async fn read_resource(peer: &Peer<RoleClient>, uri: &str) -> DbResult<JsonValue> {
+    let result = peer
+        .read_resource(ReadResourceRequestParams::new(uri))
+        .await
+        .map_err(service_error)?;
+    Ok(JsonValue(
+        serde_json::to_value(result).map_err(|e| DbError::Connection(e.to_string()))?,
+    ))
+}
+
+/// Gets a prompt with the given arguments. Returns the MCP `GetPromptResult`
+/// (`description`, `messages: [{role, content}]`).
+pub async fn get_prompt(
+    peer: &Peer<RoleClient>,
+    name: &str,
+    arguments: &BTreeMap<String, String>,
+) -> DbResult<JsonValue> {
+    let mut params = GetPromptRequestParams::new(name);
+    if !arguments.is_empty() {
+        params = params.with_arguments(
+            arguments
+                .iter()
+                .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+                .collect(),
+        );
+    }
+    let result = peer.get_prompt(params).await.map_err(service_error)?;
+    Ok(JsonValue(
+        serde_json::to_value(result).map_err(|e| DbError::Connection(e.to_string()))?,
+    ))
 }
 
 #[cfg(test)]

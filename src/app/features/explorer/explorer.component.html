@@ -180,6 +180,27 @@
         <h3>{{ resource.label }}</h3>
         <p class="mono muted">{{ resource.sub }}</p>
         <app-json-view [value]="resource.item" />
+        <h4>Content</h4>
+        @if (resource.template) {
+          <label class="uri">
+            <span class="muted">Fill in the template and read it</span>
+            <input class="mono" [value]="templateUri()" (input)="templateUri.set(text($event))" />
+          </label>
+          <button
+            type="button"
+            [disabled]="busy() || !templateUri()"
+            (click)="readResource(templateUri())"
+          >
+            Read
+          </button>
+        } @else {
+          <button type="button" [disabled]="busy()" (click)="readResource(resource.key)">
+            Read
+          </button>
+        }
+        @if (resourceView(); as view) {
+          <app-result-view [result]="view" />
+        }
       } @else if (section() === "prompts" && selectedPrompt(); as prompt) {
         <h3>{{ prompt.title || prompt.name }}</h3>
         <p class="mono muted">{{ prompt.name }}</p>
