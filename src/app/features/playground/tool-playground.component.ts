@@ -18,6 +18,8 @@ import { JsonViewComponent } from "../../ui/json-view/json-view.component";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { EnvironmentsStore } from "../environments/environments.store";
 import { ExplorerStore } from "../explorer/explorer.store";
+import { ResultViewComponent } from "../results/result-view.component";
+import { parseToolResult } from "../results/result.model";
 import { ServersStore } from "../servers/servers.store";
 import { parseRaw, readiness, toArguments, toRawText } from "./playground.model";
 import { SchemaFormComponent } from "./schema-form.component";
@@ -26,7 +28,13 @@ import { JsonSchema, defaultValue } from "./schema-form.model";
 /** Call one tool: fill the generated form (or edit raw JSON), run it, inspect the result. */
 @Component({
   selector: "app-tool-playground",
-  imports: [RouterLink, SchemaFormComponent, JsonEditorComponent, JsonViewComponent],
+  imports: [
+    RouterLink,
+    SchemaFormComponent,
+    JsonEditorComponent,
+    JsonViewComponent,
+    ResultViewComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./tool-playground.component.html",
   styleUrl: "./tool-playground.component.scss",
@@ -63,6 +71,11 @@ export class ToolPlaygroundComponent {
   protected readonly progress = signal<ProgressEvent | null>(null);
   protected readonly result = signal<ToolCallResult | null>(null);
   protected readonly failure = signal<string | null>(null);
+  protected readonly showRaw = signal(false);
+  protected readonly parsedResult = computed(() => {
+    const r = this.result();
+    return r && !r.cancelled ? parseToolResult(r.result) : null;
+  });
   protected readonly running = computed(() => this.callId() !== null);
   protected readonly progressPercent = computed(() => {
     const p = this.progress();

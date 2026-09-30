@@ -91,8 +91,16 @@
           }
           <span class="muted">{{ r.durationMs }} ms</span>
         </p>
-        @if (!r.cancelled) {
-          <app-json-view [value]="r.result" />
+        @if (parsedResult(); as parsed) {
+          <label class="raw muted">
+            <input type="checkbox" [checked]="showRaw()" (change)="showRaw.set(!showRaw())" /> Raw
+            result
+          </label>
+          @if (showRaw()) {
+            <app-json-view [value]="r.result" />
+          } @else {
+            <app-result-view [result]="parsed" />
+          }
         }
       </div>
     }
