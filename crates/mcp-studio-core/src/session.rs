@@ -971,19 +971,45 @@ where
 /// The command line of a stdio server, with environment, working directory, and the login-shell
 /// `PATH` applied.
 pub(crate) fn build_command(prepared: &Prepared) -> tokio::process::Command {
-    let mut command = tokio::process::Command::new(&prepared.command);
+    // Search path for the child: the server's own PATH, else the login shell's merged with ours.
+    let search_path = prepared.env.get("PATH").cloned().or_else(|| {
+        path_env::login_shell_path()
+            .map(|login| path_env::merge_paths(login, &std::env::var("PATH").unwrap_or_default()))
+    });
+    let program = resolve_program(
+        &prepared.command,
+        search_path.as_deref(),
+        prepared.cwd.as_deref(),
+    );
+    let mut command = tokio::process::Command::new(program);
     command.args(&prepared.args);
     command.envs(&prepared.env);
     if let Some(cwd) = &prepared.cwd {
         command.current_dir(cwd);
     }
-    if !prepared.env.contains_key("PATH") {
-        if let Some(login) = path_env::login_shell_path() {
-            let current = std::env::var("PATH").unwrap_or_default();
-            command.env("PATH", path_env::merge_paths(login, &current));
-        }
+    if let Some(path) = search_path {
+        command.env("PATH", path);
     }
     command
+}
+
+/// Finds the executable the way a shell would (including `PATHEXT`, so `npx` finds `npx.cmd` on
+/// Windows, which `CreateProcess` cannot do by itself). Falls back to the plain name so that the
+/// spawn error names what the user typed.
+fn resolve_program(
+    command: &str,
+    search_path: Option<&str>,
+    cwd: Option<&str>,
+) -> std::path::PathBuf {
+    let cwd = cwd
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_default();
+    let found = match search_path {
+        Some(path) => which::which_in(command, Some(path), &cwd),
+        None => which::which_in(command, std::env::var_os("PATH"), &cwd),
+    };
+    found.unwrap_or_else(|_| std::path::PathBuf::from(command))
 }
 
 fn spawn_stdio(
@@ -1045,6 +1071,25 @@ mod tests {
             ("port".into(), "3000".into()),
             ("host".into(), "example.com".into()),
         ])
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn programs_are_found_on_the_given_search_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let tool = dir.path().join("my-mcp-tool");
+        std::fs::write(&tool, "#!/bin/sh\n").unwrap();
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&tool, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let path = dir.path().to_string_lossy().into_owned();
+        assert_eq!(resolve_program("my-mcp-tool", Some(&path), None), tool);
+        // Unknown programs keep their name so the spawn error is understandable.
+        assert_eq!(
+            resolve_program("nope-nope", Some(&path), None),
+            std::path::PathBuf::from("nope-nope")
+        );
     }
 
     #[test]
