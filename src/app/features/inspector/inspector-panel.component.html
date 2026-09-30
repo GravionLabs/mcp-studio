@@ -49,6 +49,13 @@
     @if (!follow()) {
       <button type="button" class="ghost" (click)="jumpToEnd()">↓ Follow</button>
     }
+    @if (store.comparison()) {
+      <button type="button" class="primary" (click)="compareOpen.set(true)">
+        Compare 2 messages
+      </button>
+    } @else if (store.selectedIds().length === 1) {
+      <span>Ctrl-click a second message to compare</span>
+    }
   </div>
 
   <app-virtual-list
@@ -85,7 +92,22 @@
   </app-virtual-list>
 
   <div class="detail">
-    @if (detail(); as d) {
+    @if (compareOpen() && compared(); as c) {
+      <div class="detail-head">
+        <strong>Comparison</strong>
+        <span class="muted">{{ clock(c.left.ts) }} ↔ {{ clock(c.right.ts) }}</span>
+        <label class="check"
+          ><input type="checkbox" [checked]="ignoreId()" (change)="ignoreId.set(!ignoreId())" />
+          Ignore request id</label
+        >
+        <button type="button" class="ghost" (click)="closeCompare()">Close</button>
+      </div>
+      <app-json-diff
+        [before]="c.leftJson"
+        [after]="c.rightJson"
+        [ignoreTopLevel]="ignoreId() ? ['id'] : []"
+      />
+    } @else if (detail(); as d) {
       <div class="detail-head">
         <span class="mono"
           >{{ d.message.method ?? "response" }}

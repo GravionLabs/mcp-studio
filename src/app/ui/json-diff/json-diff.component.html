@@ -1,0 +1,25 @@
+@if (entries().length === 0) {
+  <p class="same muted">No differences.</p>
+} @else {
+  <p class="summary muted">
+    {{ summary().changed }} changed · {{ summary().added }} added · {{ summary().removed }} removed
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Path</th>
+        <th>Left</th>
+        <th>Right</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (entry of entries(); track entry.path) {
+        <tr [class]="entry.kind">
+          <td class="mono path">{{ entry.path || "(root)" }}</td>
+          <td class="mono before">{{ entry.kind === "added" ? "" : show(entry.before) }}</td>
+          <td class="mono after">{{ entry.kind === "removed" ? "" : show(entry.after) }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
