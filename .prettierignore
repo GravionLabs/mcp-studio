@@ -7,3 +7,4 @@ src-tauri/icons
 pnpm-lock.yaml
 Cargo.lock
 CHANGELOG.md
+src/app/core/bindings.ts

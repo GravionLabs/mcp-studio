@@ -1,4 +1,10 @@
+use mcp_studio_core::model::AppInfo;
 use tauri::Manager;
+
+#[tauri::command]
+fn app_info() -> AppInfo {
+    AppInfo::current()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -10,6 +16,7 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .invoke_handler(tauri::generate_handler![app_info])
         .run(tauri::generate_context!())
         .expect("error while running MCP Studio");
 }
