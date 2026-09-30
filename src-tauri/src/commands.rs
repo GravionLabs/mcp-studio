@@ -6,6 +6,7 @@ use mcp_studio_core::{
     model::AppInfo,
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
+    session::{ToolCallRequest, ToolCallResult},
 };
 use tauri::State;
 
@@ -191,4 +192,18 @@ pub async fn prompts_list(
     id: String,
 ) -> CommandResult<Vec<PromptInfo>> {
     Ok(explorer::list_prompts(&state.sessions.peer(&id)?).await?)
+}
+
+#[tauri::command]
+pub async fn tool_call(
+    state: State<'_, AppState>,
+    request: ToolCallRequest,
+) -> CommandResult<ToolCallResult> {
+    Ok(state.sessions.call_tool(request).await?)
+}
+
+/// Cancels a running tool call; returns whether a call with this id was still running.
+#[tauri::command]
+pub fn request_cancel(state: State<'_, AppState>, call_id: String) -> bool {
+    state.sessions.cancel_call(&call_id)
 }

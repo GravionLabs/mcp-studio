@@ -8,6 +8,7 @@ import {
   input,
   signal,
 } from "@angular/core";
+import { RouterLink } from "@angular/router";
 import { ToastService } from "../../core/toast.service";
 import { JsonViewComponent } from "../../ui/json-view/json-view.component";
 import { describeParameters, matches } from "./explorer.model";
@@ -18,7 +19,7 @@ type Section = "tools" | "resources" | "prompts";
 /** Browse what a connected server offers: tools, resources, and prompts. */
 @Component({
   selector: "app-explorer",
-  imports: [JsonViewComponent],
+  imports: [JsonViewComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./explorer.component.html",
   styleUrl: "./explorer.component.scss",

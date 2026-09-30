@@ -343,3 +343,159 @@ async fn explorer_lists_tools_resources_prompts_and_details() {
         .is_empty());
     h.manager.disconnect_all().await;
 }
+
+fn call(
+    server_id: &str,
+    tool: &str,
+    arguments: serde_json::Value,
+) -> mcp_studio_core::session::ToolCallRequest {
+    mcp_studio_core::session::ToolCallRequest {
+        server_id: server_id.to_owned(),
+        tool_name: tool.to_owned(),
+        arguments: mcp_studio_core::model::JsonValue(arguments),
+        environment_id: None,
+        call_id: mcp_studio_core::db::new_id(),
+    }
+}
+
+#[tokio::test]
+async fn calls_tools_and_reports_results_and_tool_errors() {
+    let h = harness().await;
+    let server = h
+        .registry
+        .create(stdio_server(&server_binary(), &[]))
+        .await
+        .unwrap();
+    h.manager.connect(&server.id, None).await.unwrap();
+
+    let sum = h
+        .manager
+        .call_tool(call(&server.id, "add", serde_json::json!({"a": 2, "b": 3})))
+        .await
+        .unwrap();
+    assert!(!sum.is_error && !sum.cancelled);
+    assert_eq!(sum.result.0["content"][0]["text"], "5");
+
+    let failed = h
+        .manager
+        .call_tool(call(&server.id, "fail", serde_json::json!(null)))
+        .await
+        .unwrap();
+    assert!(failed.is_error);
+
+    // Wrong argument types are a protocol error, not a tool result.
+    let invalid = h
+        .manager
+        .call_tool(call(&server.id, "add", serde_json::json!({"a": "x"})))
+        .await;
+    assert!(invalid.is_err() || invalid.unwrap().is_error);
+    let unknown = h
+        .manager
+        .call_tool(call(&server.id, "nope", serde_json::json!({})))
+        .await;
+    assert!(unknown.is_err() || unknown.unwrap().is_error);
+
+    let not_object = h
+        .manager
+        .call_tool(call(&server.id, "add", serde_json::json!([1, 2])))
+        .await;
+    assert!(not_object.unwrap_err().to_string().contains("JSON object"));
+    h.manager.disconnect_all().await;
+}
+
+#[tokio::test]
+async fn call_requires_a_connection() {
+    let h = harness().await;
+    let error = h
+        .manager
+        .call_tool(call("missing", "add", serde_json::json!({})))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("not connected"), "{error}");
+}
+
+#[tokio::test]
+async fn tool_arguments_use_environment_variables() {
+    let h = harness().await;
+    let environment = h
+        .environments
+        .create(EnvironmentInput {
+            name: "dev".into(),
+            variables: BTreeMap::from([("greeting".into(), "hello there".into())]),
+        })
+        .await
+        .unwrap();
+    let server = h
+        .registry
+        .create(stdio_server(&server_binary(), &[]))
+        .await
+        .unwrap();
+    h.manager.connect(&server.id, None).await.unwrap();
+
+    let mut request = call(
+        &server.id,
+        "echo",
+        serde_json::json!({"message": "{{greeting}}!"}),
+    );
+    request.environment_id = Some(environment.id.clone());
+    let echoed = h.manager.call_tool(request).await.unwrap();
+    assert_eq!(echoed.result.0["content"][0]["text"], "hello there!");
+
+    let missing = h
+        .manager
+        .call_tool(call(
+            &server.id,
+            "echo",
+            serde_json::json!({"message": "{{nope}}"}),
+        ))
+        .await;
+    assert!(missing.unwrap_err().to_string().contains("nope"));
+    h.manager.disconnect_all().await;
+}
+
+#[tokio::test]
+async fn running_calls_can_be_cancelled() {
+    let h = harness().await;
+    let server = h
+        .registry
+        .create(stdio_server(&server_binary(), &[]))
+        .await
+        .unwrap();
+    h.manager.connect(&server.id, None).await.unwrap();
+
+    let request = call(&server.id, "sleep", serde_json::json!({"ms": 20_000}));
+    let call_id = request.call_id.clone();
+    let manager = h.manager.clone();
+    let running = tokio::spawn(async move { manager.call_tool(request).await });
+
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(h.manager.cancel_call(&call_id));
+    let outcome = tokio::time::timeout(Duration::from_secs(5), running)
+        .await
+        .expect("returns quickly")
+        .unwrap()
+        .unwrap();
+    assert!(outcome.cancelled);
+    assert!(outcome.duration_ms < 5_000);
+    assert!(
+        !h.manager.cancel_call(&call_id),
+        "finished calls are unknown"
+    );
+
+    // The connection is still usable, and the cancellation was sent to the server.
+    let sum = h
+        .manager
+        .call_tool(call(&server.id, "add", serde_json::json!({"a": 1, "b": 1})))
+        .await
+        .unwrap();
+    assert_eq!(sum.result.0["content"][0]["text"], "2");
+    settle().await;
+    let sent: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM messages WHERE method = 'notifications/cancelled'",
+    )
+    .fetch_one(h.db.pool())
+    .await
+    .unwrap();
+    assert_eq!(sent, 1);
+    h.manager.disconnect_all().await;
+}

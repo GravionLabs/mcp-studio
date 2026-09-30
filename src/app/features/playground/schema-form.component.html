@@ -1,0 +1,160 @@
+<div class="field" [class.nested]="kind() === 'object' || kind() === 'array'">
+  @switch (kind()) {
+    @case ("string") {
+      <label>
+        <span class="label"
+          >{{ title() }}
+          @if (required()) {
+            <span class="req" title="required">*</span>
+          }
+        </span>
+        <input
+          [value]="value() ?? ''"
+          [placeholder]="resolved().format ?? ''"
+          (input)="valueChange.emit(text($event))"
+        />
+        @if (resolved().description) {
+          <small class="muted">{{ resolved().description }}</small>
+        }
+      </label>
+    }
+    @case ("number") {
+      <label>
+        <span class="label"
+          >{{ title() }}
+          @if (required()) {
+            <span class="req" title="required">*</span>
+          }
+        </span>
+        <input
+          type="number"
+          step="any"
+          [value]="value() ?? ''"
+          (input)="valueChange.emit(numberValue($event))"
+        />
+        @if (resolved().description) {
+          <small class="muted">{{ resolved().description }}</small>
+        }
+      </label>
+    }
+    @case ("integer") {
+      <label>
+        <span class="label"
+          >{{ title() }}
+          @if (required()) {
+            <span class="req" title="required">*</span>
+          }
+        </span>
+        <input
+          type="number"
+          step="1"
+          [value]="value() ?? ''"
+          (input)="valueChange.emit(numberValue($event))"
+        />
+        @if (resolved().description) {
+          <small class="muted">{{ resolved().description }}</small>
+        }
+      </label>
+    }
+    @case ("boolean") {
+      <label class="inline">
+        <input
+          type="checkbox"
+          [checked]="value() === true"
+          (change)="valueChange.emit($any($event.target).checked)"
+        />
+        <span class="label"
+          >{{ title() }}
+          @if (required()) {
+            <span class="req" title="required">*</span>
+          }
+        </span>
+        @if (resolved().description) {
+          <small class="muted">{{ resolved().description }}</small>
+        }
+      </label>
+    }
+    @case ("enum") {
+      <label>
+        <span class="label"
+          >{{ title() }}
+          @if (required()) {
+            <span class="req" title="required">*</span>
+          }
+        </span>
+        <select (change)="selectEnum($event)">
+          @if (!required()) {
+            <option value="" [selected]="enumIndex() === -1">—</option>
+          }
+          @for (option of enumOptions(); track $index) {
+            <option [value]="$index" [selected]="enumIndex() === $index">{{ option }}</option>
+          }
+        </select>
+        @if (resolved().description) {
+          <small class="muted">{{ resolved().description }}</small>
+        }
+      </label>
+    }
+    @case ("object") {
+      <fieldset>
+        @if (title()) {
+          <legend>{{ title() }}</legend>
+        }
+        @if (resolved().description) {
+          <small class="muted">{{ resolved().description }}</small>
+        }
+        @for (property of properties(); track property.name) {
+          <app-schema-form
+            [schema]="property.schema"
+            [root]="root()"
+            [label]="property.name"
+            [required]="property.required"
+            [value]="record()[property.name]"
+            (valueChange)="field(property.name, $event)"
+          />
+        }
+      </fieldset>
+    }
+    @case ("array") {
+      <fieldset>
+        <legend>{{ title() }}</legend>
+        @if (resolved().description) {
+          <small class="muted">{{ resolved().description }}</small>
+        }
+        @for (item of items(); track $index; let i = $index) {
+          <div class="item">
+            <app-schema-form
+              [schema]="resolved().items!"
+              [root]="root()"
+              [label]="'#' + (i + 1)"
+              [value]="item"
+              (valueChange)="this.item(i, $event)"
+            />
+            <button type="button" class="ghost" (click)="removeItem(i)" aria-label="Remove item">
+              ×
+            </button>
+          </div>
+        }
+        <button type="button" (click)="addItem()">+ Add item</button>
+      </fieldset>
+    }
+    @default {
+      <label>
+        <span class="label"
+          >{{ title() }}
+          @if (required()) {
+            <span class="req" title="required">*</span>
+          }
+          <span class="muted">(JSON)</span></span
+        >
+        <textarea class="mono" rows="3" [value]="jsonText()" (input)="setJson($event)"></textarea>
+        @if (jsonInvalid) {
+          <small class="invalid">Not valid JSON yet.</small>
+        }
+        @if (resolved().description) {
+          <small class="muted">{{ resolved().description }}</small>
+        }
+      </label>
+    }
+  }
+</div>

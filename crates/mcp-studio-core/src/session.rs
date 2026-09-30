@@ -15,9 +15,12 @@ use std::{
 #[allow(deprecated)]
 use rmcp::model::{LoggingLevel, LoggingMessageNotificationParam};
 use rmcp::{
-    model::{ClientConfig, Implementation},
+    model::{
+        CallToolRequest, CallToolRequestParams, CancelledNotificationParam, ClientConfig,
+        ClientRequest, Implementation, ProgressNotificationParam, ServerResult,
+    },
     service::{
-        MaybeSendFuture, NotificationContext, Peer, QuitReason, RunningService,
+        MaybeSendFuture, NotificationContext, Peer, PeerRequestOptions, QuitReason, RunningService,
         RunningServiceCancellationToken,
     },
     transport::{
@@ -26,20 +29,25 @@ use rmcp::{
     },
     ClientHandler, RoleClient, ServiceExt,
 };
+use serde::{Deserialize, Serialize};
+use specta::Type;
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     sync::watch,
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     db::{new_id, now_ms, Db, DbError, DbResult},
     environments::Environments,
     events::{
-        ConnectionState, EventSink, ListChangedEvent, ListKind, LogEvent, LogSource, StatusEvent,
+        ConnectionState, EventSink, ListChangedEvent, ListKind, LogEvent, LogSource, ProgressEvent,
+        StatusEvent,
     },
     message_store::MessageWriter,
+    model::JsonValue,
     path_env,
-    placeholders::{placeholders_in, resolve_str},
+    placeholders::{placeholders_in, resolve_json, resolve_str},
     recording::RecordingTransport,
     registry::{Registry, ServerDefinition, TransportKind},
     secrets::{resolve_values, Redactor, SecretStore},
@@ -47,6 +55,33 @@ use crate::{
 
 /// Log lines kept per server for the log view.
 const LOG_CAPACITY: usize = 1000;
+/// A tool call to run.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolCallRequest {
+    pub server_id: String,
+    pub tool_name: String,
+    /// Arguments; `{{variables}}` are resolved from the environment.
+    pub arguments: JsonValue,
+    pub environment_id: Option<String>,
+    /// Chosen by the caller; identifies the call for progress events and cancellation.
+    pub call_id: String,
+}
+
+/// The outcome of a tool call.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolCallResult {
+    pub call_id: String,
+    /// The MCP `CallToolResult` (content, structuredContent, isError, ...). Null if cancelled.
+    pub result: JsonValue,
+    /// The tool reported an error (`isError`).
+    pub is_error: bool,
+    pub cancelled: bool,
+    #[specta(type = u32)]
+    pub duration_ms: i64,
+}
+
 /// How long a server may take to answer `initialize` before the attempt is abandoned.
 pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 /// Delays before automatic reconnect attempts after an unexpected disconnect.
@@ -169,6 +204,8 @@ impl LogBuffer {
 struct StudioClient {
     server_id: String,
     logs: Arc<Logger>,
+    /// rmcp progress token (as text) -> caller-chosen call id.
+    progress: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl StudioClient {
@@ -186,6 +223,25 @@ impl ClientHandler for StudioClient {
         let mut config = ClientConfig::default();
         config.client_info = Implementation::new("mcp-studio", env!("CARGO_PKG_VERSION"));
         config
+    }
+
+    fn on_progress(
+        &self,
+        params: ProgressNotificationParam,
+        _context: NotificationContext<RoleClient>,
+    ) -> impl Future<Output = ()> + MaybeSendFuture + '_ {
+        let token = token_text(&params.progress_token);
+        let call_id = self.progress.lock().unwrap().get(&token).cloned();
+        if let Some(call_id) = call_id {
+            self.logs.sink.progress(ProgressEvent {
+                server_id: self.server_id.clone(),
+                call_id,
+                progress: params.progress,
+                total: params.total,
+                message: params.message.clone(),
+            });
+        }
+        std::future::ready(())
     }
 
     fn on_tool_list_changed(
@@ -230,6 +286,14 @@ impl ClientHandler for StudioClient {
         self.logs
             .log(&self.server_id, LogSource::Server, level, &line);
         std::future::ready(())
+    }
+}
+
+fn token_text(token: &rmcp::model::ProgressToken) -> String {
+    match serde_json::to_value(token) {
+        Ok(serde_json::Value::String(s)) => s,
+        Ok(other) => other.to_string(),
+        Err(_) => String::new(),
     }
 }
 
@@ -285,6 +349,8 @@ pub struct SessionManager {
     logger: Arc<Logger>,
     live: Mutex<HashMap<String, Arc<LiveSession>>>,
     connect_timeout: Mutex<Duration>,
+    progress: Arc<Mutex<HashMap<String, String>>>,
+    calls: Mutex<HashMap<String, CancellationToken>>,
 }
 
 impl SessionManager {
@@ -309,6 +375,8 @@ impl SessionManager {
             logger,
             live: Mutex::default(),
             connect_timeout: Mutex::new(DEFAULT_CONNECT_TIMEOUT),
+            progress: Arc::default(),
+            calls: Mutex::default(),
         })
     }
 
@@ -409,6 +477,7 @@ impl SessionManager {
         let handler = StudioClient {
             server_id: server_id.to_owned(),
             logs: self.logger.clone(),
+            progress: self.progress.clone(),
         };
 
         let timeout = *self.connect_timeout.lock().unwrap();
@@ -551,6 +620,99 @@ impl SessionManager {
                 "giving up reconnecting",
             );
         });
+    }
+
+    /// Calls a tool. Protocol errors (unknown tool, invalid params) are `Err`; a tool that ran and
+    /// failed is `Ok` with `is_error` set.
+    pub async fn call_tool(&self, request: ToolCallRequest) -> DbResult<ToolCallResult> {
+        let peer = self.peer(&request.server_id)?;
+        let variables = match request.environment_id.as_deref() {
+            Some(id) => {
+                let env = self.environments.get(id).await?;
+                resolve_values(self.secrets.as_ref(), &env.input.variables)?.0
+            }
+            None => BTreeMap::new(),
+        };
+        let arguments = match resolve_json(&request.arguments.0, &variables)? {
+            serde_json::Value::Null => None,
+            serde_json::Value::Object(map) => Some(map),
+            _ => {
+                return Err(DbError::Invalid(
+                    "tool arguments must be a JSON object".into(),
+                ))
+            }
+        };
+        let mut params = CallToolRequestParams::new(request.tool_name.clone());
+        params.arguments = arguments;
+
+        let started = std::time::Instant::now();
+        let handle = peer
+            .send_cancellable_request(
+                ClientRequest::CallToolRequest(CallToolRequest::new(params)),
+                PeerRequestOptions::no_options(),
+            )
+            .await
+            .map_err(|e| DbError::Connection(e.to_string()))?;
+
+        let token = token_text(&handle.progress_token);
+        let cancel = CancellationToken::new();
+        self.progress
+            .lock()
+            .unwrap()
+            .insert(token.clone(), request.call_id.clone());
+        self.calls
+            .lock()
+            .unwrap()
+            .insert(request.call_id.clone(), cancel.clone());
+
+        let request_id = handle.id.clone();
+        let outcome = tokio::select! {
+            response = handle.await_response() => Some(response),
+            () = cancel.cancelled() => None,
+        };
+        self.progress.lock().unwrap().remove(&token);
+        self.calls.lock().unwrap().remove(&request.call_id);
+        let duration_ms = started.elapsed().as_millis() as i64;
+
+        match outcome {
+            None => {
+                let _ = peer
+                    .notify_cancelled(CancelledNotificationParam::new(
+                        Some(request_id),
+                        Some("cancelled by the user".into()),
+                    ))
+                    .await;
+                Ok(ToolCallResult {
+                    call_id: request.call_id,
+                    result: JsonValue::default(),
+                    is_error: false,
+                    cancelled: true,
+                    duration_ms,
+                })
+            }
+            Some(Err(error)) => Err(DbError::Connection(error.to_string())),
+            Some(Ok(ServerResult::CallToolResult(result))) => Ok(ToolCallResult {
+                call_id: request.call_id,
+                is_error: result.is_error.unwrap_or(false),
+                result: JsonValue(serde_json::to_value(&result).unwrap_or_default()),
+                cancelled: false,
+                duration_ms,
+            }),
+            Some(Ok(_)) => Err(DbError::Connection(
+                "the server answered with an unexpected result type".into(),
+            )),
+        }
+    }
+
+    /// Cancels a running tool call. Returns false if the call is unknown or already finished.
+    pub fn cancel_call(&self, call_id: &str) -> bool {
+        match self.calls.lock().unwrap().get(call_id) {
+            Some(token) => {
+                token.cancel();
+                true
+            }
+            None => false,
+        }
     }
 
     /// Closes the connection and waits until it is gone.

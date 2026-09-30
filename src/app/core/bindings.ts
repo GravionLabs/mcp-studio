@@ -92,6 +92,15 @@ export type MessageRecord = {
 	durationMs: number,
 };
 
+/**  `mcp://progress`: progress of a running tool call. */
+export type ProgressEvent = {
+	serverId: string,
+	callId: string,
+	progress: number | null,
+	total: number | null,
+	message: string | null,
+};
+
 export type PromptArgumentInfo = {
 	name: string,
 	description?: string | null,
@@ -160,6 +169,28 @@ export type StatusEvent = {
 	sessionId: string | null,
 	state: ConnectionState,
 	message: string | null,
+};
+
+/**  A tool call to run. */
+export type ToolCallRequest = {
+	serverId: string,
+	toolName: string,
+	/**  Arguments; `{{variables}}` are resolved from the environment. */
+	arguments: unknown,
+	environmentId: string | null,
+	/**  Chosen by the caller; identifies the call for progress events and cancellation. */
+	callId: string,
+};
+
+/**  The outcome of a tool call. */
+export type ToolCallResult = {
+	callId: string,
+	/**  The MCP `CallToolResult` (content, structuredContent, isError, ...). Null if cancelled. */
+	result: unknown,
+	/**  The tool reported an error (`isError`). */
+	isError: boolean,
+	cancelled: boolean,
+	durationMs: number,
 };
 
 export type ToolInfo = {

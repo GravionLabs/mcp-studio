@@ -1,0 +1,51 @@
+.field {
+  margin: 6px 0;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  &.inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+}
+
+.label {
+  font-weight: 600;
+}
+
+.req {
+  color: var(--danger);
+  margin-left: 2px;
+}
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 10px 8px;
+  margin: 0;
+}
+
+legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+
+  app-schema-form {
+    flex: 1;
+  }
+}
+
+.invalid {
+  color: var(--danger);
+}
