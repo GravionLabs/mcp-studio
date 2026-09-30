@@ -1,6 +1,7 @@
 //! MCP Studio core. Must never depend on Tauri.
 
 pub mod bindings;
+pub mod collections;
 pub mod db;
 pub mod environments;
 pub mod events;

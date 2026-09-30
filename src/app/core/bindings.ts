@@ -6,6 +6,19 @@ export type AppInfo = {
 	version: string,
 };
 
+export type CollectionNode = {
+	id: string,
+	parentId: string | null,
+	name: string,
+	sortOrder: number,
+};
+
+/**  All folders and requests; the UI builds the tree from `parentId` / `collectionId`. */
+export type CollectionTree = {
+	collections: CollectionNode[],
+	requests: SavedRequest[],
+};
+
 /**  Connection state of one server. */
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
@@ -24,6 +37,16 @@ export type EnvironmentInput = {
 	name: string,
 	/**  Values are plain text or `keyring:` references. */
 	variables: { [key in string]: string },
+};
+
+/**  Result of importing a collection file. */
+export type ImportReport = {
+	/**  Id of the imported top-level folder. */
+	collectionId: string,
+	collectionsCreated: number,
+	requestsCreated: number,
+	/**  Requests that could not be imported, with the reason (e.g. unknown server). */
+	skipped: string[],
 };
 
 /**  `mcp://list-changed`: the server sent `notifications/*\/list_changed`. */
@@ -128,6 +151,24 @@ export type ResourceTemplateInfo = {
 	title?: string | null,
 	description?: string | null,
 	mimeType?: string | null,
+};
+
+export type SavedRequest = {
+	id: string,
+	sortOrder: number,
+	updatedAt: number,
+} & SavedRequestInput;
+
+/**  What the user edits about a saved request. */
+export type SavedRequestInput = {
+	collectionId: string,
+	serverId: string,
+	/**  MCP method, e.g. `tools/call`. */
+	method: string,
+	name: string,
+	toolName: string | null,
+	arguments: unknown,
+	notes: string,
 };
 
 /**  A stored server definition. */

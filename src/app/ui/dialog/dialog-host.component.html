@@ -1,0 +1,31 @@
+@if (dialogs.current(); as dialog) {
+  <div class="backdrop" (click)="cancel()" (keydown.escape)="cancel()" role="presentation">
+    <div
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="dialog.message"
+      (click)="$event.stopPropagation()"
+      (keydown.escape)="cancel()"
+      (keydown.enter)="dialog.kind === 'prompt' ? accept() : null"
+      tabindex="-1"
+    >
+      <p class="message">{{ dialog.message }}</p>
+      @if (dialog.kind === "prompt") {
+        <input #input [value]="dialog.initial" aria-label="Value" />
+      }
+      <div class="actions">
+        <button type="button" (click)="cancel()">Cancel</button>
+        <button
+          #confirmButton
+          type="button"
+          [class.primary]="!dialog.danger"
+          [class.danger]="dialog.danger"
+          (click)="accept()"
+        >
+          {{ dialog.confirmLabel }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -54,6 +54,33 @@
       </ul>
     }
 
+    @if (saveOpen()) {
+      <div class="save">
+        <label>
+          <span class="muted">Name</span>
+          <input [value]="saveName()" (input)="saveName.set(text($event))" />
+        </label>
+        <label>
+          <span class="muted">Collection</span>
+          <select (change)="saveFolder.set(text($event))">
+            @for (option of collections.options(); track option.id) {
+              <option [value]="option.id" [selected]="option.id === saveFolder()">
+                {{ option.label }}
+              </option>
+            }
+          </select>
+        </label>
+        <button type="button" (click)="newFolder()">New collection…</button>
+        @if (savedRequest()) {
+          <button type="button" class="primary" (click)="save(true)">Update saved request</button>
+          <button type="button" (click)="save(false)">Save as new</button>
+        } @else {
+          <button type="button" class="primary" (click)="save(false)">Save</button>
+        }
+        <button type="button" class="ghost" (click)="saveOpen.set(false)">Cancel</button>
+      </div>
+    }
+
     <div class="actions">
       @if (running()) {
         <button type="button" class="danger" (click)="cancel()">Cancel</button>

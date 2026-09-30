@@ -12,6 +12,7 @@ import { Router, RouterLink } from "@angular/router";
 import { ConnectionStatusService } from "../../core/connection-status.service";
 import type { LogEvent } from "../../core/bindings";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
+import { DialogService } from "../../core/dialog.service";
 import { ToastService } from "../../core/toast.service";
 import { EnvironmentsStore } from "../environments/environments.store";
 import { ExplorerComponent } from "../explorer/explorer.component";
@@ -32,6 +33,7 @@ export class ServerDetailComponent {
   private readonly store = inject(ServersStore);
   private readonly router = inject(Router);
   private readonly toasts = inject(ToastService);
+  private readonly dialogs = inject(DialogService);
   private readonly tabs = inject(WorkspaceTabsService);
   private readonly ipc = inject(TauriIpcService);
   private readonly environments = inject(EnvironmentsStore);
@@ -104,7 +106,10 @@ export class ServerDetailComponent {
     const server = this.server();
     if (
       !server ||
-      !window.confirm(`Delete "${server.name}"? Its history and saved requests are deleted too.`)
+      !(await this.dialogs.confirm(
+        `Delete "${server.name}"? Its history and saved requests are deleted too.`,
+        { confirmLabel: "Delete", danger: true },
+      ))
     ) {
       return;
     }

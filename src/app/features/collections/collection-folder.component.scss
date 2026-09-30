@@ -1,0 +1,86 @@
+:host {
+  display: block;
+}
+
+.folder,
+.request {
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+
+  &:hover {
+    background: var(--bg-hover);
+
+    .actions {
+      visibility: visible;
+    }
+  }
+}
+
+.toggle {
+  padding: 0 6px;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  font-size: 11px;
+}
+
+.actions {
+  visibility: hidden;
+  display: flex;
+
+  button {
+    padding: 0 4px;
+  }
+}
+
+.children {
+  margin: 0;
+  padding: 0 0 0 14px;
+}
+
+.request {
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  .open {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .method {
+    font-size: 10px;
+    color: var(--accent);
+    margin-right: 4px;
+  }
+
+  .del {
+    visibility: hidden;
+    padding: 0 6px;
+  }
+
+  &:hover .del {
+    visibility: visible;
+  }
+}

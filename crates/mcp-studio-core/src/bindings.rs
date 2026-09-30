@@ -7,6 +7,7 @@ use specta::Types;
 use specta_typescript::Typescript;
 
 use crate::{
+    collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     environments::{Environment, EnvironmentInput},
     events::ProgressEvent,
     events::{
@@ -48,6 +49,11 @@ pub fn ipc_types() -> Types {
         .register::<ProgressEvent>()
         .register::<ToolCallRequest>()
         .register::<ToolCallResult>()
+        .register::<CollectionNode>()
+        .register::<SavedRequestInput>()
+        .register::<SavedRequest>()
+        .register::<CollectionTree>()
+        .register::<ImportReport>()
 }
 
 /// Renders the TypeScript bindings file.
