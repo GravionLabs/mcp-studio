@@ -73,11 +73,29 @@ pub struct LogEvent {
     pub ts: i64,
 }
 
+/// Which list of a server changed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum ListKind {
+    Tools,
+    Resources,
+    Prompts,
+}
+
+/// `mcp://list-changed`: the server sent `notifications/*/list_changed`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ListChangedEvent {
+    pub server_id: String,
+    pub kind: ListKind,
+}
+
 /// Receiver of core events.
 pub trait EventSink: Send + Sync + 'static {
     fn status(&self, event: StatusEvent);
     fn message(&self, event: MessageRecord);
     fn log(&self, event: LogEvent);
+    fn list_changed(&self, event: ListChangedEvent);
 }
 
 /// Ignores everything.
@@ -87,6 +105,7 @@ impl EventSink for NullSink {
     fn status(&self, _: StatusEvent) {}
     fn message(&self, _: MessageRecord) {}
     fn log(&self, _: LogEvent) {}
+    fn list_changed(&self, _: ListChangedEvent) {}
 }
 
 /// Collects events in memory (tests).
@@ -95,6 +114,7 @@ pub struct CollectingSink {
     pub statuses: std::sync::Mutex<Vec<StatusEvent>>,
     pub messages: std::sync::Mutex<Vec<MessageRecord>>,
     pub logs: std::sync::Mutex<Vec<LogEvent>>,
+    pub list_changes: std::sync::Mutex<Vec<ListChangedEvent>>,
 }
 
 impl EventSink for CollectingSink {
@@ -106,5 +126,8 @@ impl EventSink for CollectingSink {
     }
     fn log(&self, event: LogEvent) {
         self.logs.lock().unwrap().push(event);
+    }
+    fn list_changed(&self, event: ListChangedEvent) {
+        self.list_changes.lock().unwrap().push(event);
     }
 }

@@ -1,4 +1,4 @@
-use mcp_studio_core::events::{EventSink, LogEvent, MessageRecord, StatusEvent};
+use mcp_studio_core::events::{EventSink, ListChangedEvent, LogEvent, MessageRecord, StatusEvent};
 use tauri::{AppHandle, Emitter};
 
 /// Forwards core events to the webview.
@@ -17,5 +17,9 @@ impl EventSink for TauriSink {
 
     fn log(&self, event: LogEvent) {
         let _ = self.app.emit("mcp://log", event);
+    }
+
+    fn list_changed(&self, event: ListChangedEvent) {
+        let _ = self.app.emit("mcp://list-changed", event);
     }
 }

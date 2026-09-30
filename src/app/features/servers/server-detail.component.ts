@@ -14,13 +14,14 @@ import type { LogEvent } from "../../core/bindings";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { EnvironmentsStore } from "../environments/environments.store";
+import { ExplorerComponent } from "../explorer/explorer.component";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { ServersStore } from "./servers.store";
 
 /** Summary of one server. The explorer takes over this page in a later PBI. */
 @Component({
   selector: "app-server-detail",
-  imports: [RouterLink],
+  imports: [RouterLink, ExplorerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./server-detail.component.html",
   styleUrl: "./server-detail.component.scss",

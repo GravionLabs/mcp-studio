@@ -1,0 +1,118 @@
+.explorer {
+  margin: 16px 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+
+  .active {
+    background: var(--bg-active);
+  }
+}
+
+.count {
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.filter {
+  flex: 1;
+}
+
+.meta,
+.error {
+  margin: 8px 0;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  border-radius: 0;
+
+  &.selected {
+    background: var(--bg-active);
+  }
+}
+
+.name {
+  font-weight: 600;
+}
+
+.sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  padding: 8px 12px;
+}
+
+.badge {
+  font-weight: 400;
+  color: var(--accent);
+  margin-left: 6px;
+}
+
+.detail {
+  min-width: 0;
+
+  h3,
+  h4 {
+    margin: 8px 0 4px;
+  }
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    text-align: left;
+    padding: 3px 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+}
+
+.req {
+  color: var(--danger);
+  margin-left: 2px;
+}
+
+details {
+  margin-top: 8px;
+}

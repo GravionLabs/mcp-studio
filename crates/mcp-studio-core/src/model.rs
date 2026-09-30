@@ -3,6 +3,18 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+/// Arbitrary JSON. Exported to TypeScript as `unknown` (specta rejects `serde_json::Value` because
+/// its numbers include `i64`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct JsonValue(pub serde_json::Value);
+
+impl Type for JsonValue {
+    fn definition(_types: &mut specta::Types) -> specta::datatype::DataType {
+        specta::datatype::DataType::Reference(specta_typescript::define("unknown"))
+    }
+}
+
 /// Basic information about the running app.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct AppInfo {

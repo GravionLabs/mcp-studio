@@ -27,6 +27,10 @@
       }
     </p>
 
+    @if (state() === "connected") {
+      <app-explorer [serverId]="s.id" />
+    }
+
     <dl>
       <dt>Transport</dt>
       <dd>{{ s.transport === "stdio" ? "stdio" : "Streamable HTTP" }}</dd>

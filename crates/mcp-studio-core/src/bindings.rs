@@ -8,7 +8,13 @@ use specta_typescript::Typescript;
 
 use crate::{
     environments::{Environment, EnvironmentInput},
-    events::{ConnectionState, LogEvent, LogSource, MessageRecord, StatusEvent},
+    events::{
+        ConnectionState, ListChangedEvent, ListKind, LogEvent, LogSource, MessageRecord,
+        StatusEvent,
+    },
+    explorer::{
+        PromptArgumentInfo, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo,
+    },
     message_store::MessageFilter,
     model::AppInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
@@ -29,6 +35,14 @@ pub fn ipc_types() -> Types {
         .register::<LogSource>()
         .register::<LogEvent>()
         .register::<MessageFilter>()
+        .register::<ListKind>()
+        .register::<ListChangedEvent>()
+        .register::<ToolInfo>()
+        .register::<ResourceInfo>()
+        .register::<ResourceTemplateInfo>()
+        .register::<PromptArgumentInfo>()
+        .register::<PromptInfo>()
+        .register::<ServerDetails>()
 }
 
 /// Renders the TypeScript bindings file.

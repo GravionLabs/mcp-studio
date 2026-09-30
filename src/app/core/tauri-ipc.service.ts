@@ -6,8 +6,13 @@ import type {
   LogEvent,
   MessageFilter,
   MessageRecord,
+  PromptInfo,
+  ResourceInfo,
+  ResourceTemplateInfo,
   ServerDefinition,
+  ServerDetails,
   ServerInput,
+  ToolInfo,
 } from "./bindings";
 import { IpcError, describeError } from "./ipc-error";
 import { IPC_INVOKE, IPC_LISTEN } from "./ipc.tokens";
@@ -115,5 +120,25 @@ export class TauriIpcService {
 
   serverLogs(id: string): Promise<LogEvent[]> {
     return this.call("server_logs", { id });
+  }
+
+  serverDetails(id: string): Promise<ServerDetails> {
+    return this.call("server_details", { id });
+  }
+
+  toolsList(id: string): Promise<ToolInfo[]> {
+    return this.call("tools_list", { id });
+  }
+
+  resourcesList(id: string): Promise<ResourceInfo[]> {
+    return this.call("resources_list", { id });
+  }
+
+  resourceTemplatesList(id: string): Promise<ResourceTemplateInfo[]> {
+    return this.call("resource_templates_list", { id });
+  }
+
+  promptsList(id: string): Promise<PromptInfo[]> {
+    return this.call("prompts_list", { id });
   }
 }

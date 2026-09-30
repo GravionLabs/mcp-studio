@@ -34,7 +34,9 @@ use tokio::{
 use crate::{
     db::{new_id, now_ms, Db, DbError, DbResult},
     environments::Environments,
-    events::{ConnectionState, EventSink, LogEvent, LogSource, StatusEvent},
+    events::{
+        ConnectionState, EventSink, ListChangedEvent, ListKind, LogEvent, LogSource, StatusEvent,
+    },
     message_store::MessageWriter,
     path_env,
     placeholders::{placeholders_in, resolve_str},
@@ -169,12 +171,45 @@ struct StudioClient {
     logs: Arc<Logger>,
 }
 
+impl StudioClient {
+    fn changed(&self, kind: ListKind) {
+        self.logs.sink.list_changed(ListChangedEvent {
+            server_id: self.server_id.clone(),
+            kind,
+        });
+    }
+}
+
 #[allow(deprecated)]
 impl ClientHandler for StudioClient {
     fn get_info(&self) -> ClientConfig {
         let mut config = ClientConfig::default();
         config.client_info = Implementation::new("mcp-studio", env!("CARGO_PKG_VERSION"));
         config
+    }
+
+    fn on_tool_list_changed(
+        &self,
+        _context: NotificationContext<RoleClient>,
+    ) -> impl Future<Output = ()> + MaybeSendFuture + '_ {
+        self.changed(ListKind::Tools);
+        std::future::ready(())
+    }
+
+    fn on_resource_list_changed(
+        &self,
+        _context: NotificationContext<RoleClient>,
+    ) -> impl Future<Output = ()> + MaybeSendFuture + '_ {
+        self.changed(ListKind::Resources);
+        std::future::ready(())
+    }
+
+    fn on_prompt_list_changed(
+        &self,
+        _context: NotificationContext<RoleClient>,
+    ) -> impl Future<Output = ()> + MaybeSendFuture + '_ {
+        self.changed(ListKind::Prompts);
+        std::future::ready(())
     }
 
     fn on_logging_message(
