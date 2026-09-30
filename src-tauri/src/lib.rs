@@ -8,6 +8,7 @@ use mcp_studio_core::{
     collections::Collections,
     db::Db,
     environments::Environments,
+    http_proxy::{self, HttpProxy},
     message_store::{self, RetentionPolicy},
     proxy::{discovery_path, ProxyService},
     registry::Registry,
@@ -25,6 +26,7 @@ pub struct AppState {
     pub secrets: Arc<dyn SecretStore>,
     pub sessions: Arc<SessionManager>,
     pub proxy: ProxyService,
+    pub http_proxy: HttpProxy,
     pub discovery_file: PathBuf,
 }
 
@@ -70,8 +72,16 @@ pub fn run() {
                 registry.clone(),
                 environments.clone(),
                 secrets.clone(),
-                sink,
+                sink.clone(),
                 &discovery_file,
+            ))?;
+            let http_proxy = tauri::async_runtime::block_on(HttpProxy::start(
+                db.clone(),
+                registry.clone(),
+                environments.clone(),
+                secrets.clone(),
+                sink,
+                http_proxy::DEFAULT_PORT,
             ))?;
             app.manage(AppState {
                 db,
@@ -81,6 +91,7 @@ pub fn run() {
                 secrets,
                 sessions,
                 proxy,
+                http_proxy,
                 discovery_file,
             });
             Ok(())
@@ -131,7 +142,10 @@ pub fn run() {
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 if let Some(state) = app.try_state::<AppState>() {
-                    tauri::async_runtime::block_on(state.sessions.disconnect_all());
+                    tauri::async_runtime::block_on(async {
+                        state.sessions.disconnect_all().await;
+                        state.http_proxy.shutdown().await;
+                    });
                 }
             }
         });

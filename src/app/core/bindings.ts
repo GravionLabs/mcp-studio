@@ -169,6 +169,8 @@ export type ProxyInfo = {
 	/**  Absolute path of the `mcp-studio-proxy` program, if it was found. */
 	proxyBinary: string | null,
 	discoveryFile: string,
+	/**  Port of the local HTTP proxy for HTTP servers (`http://127.0.0.1:<port>/mcp/<server>`). */
+	httpPort: number,
 };
 
 export type ResourceInfo = {

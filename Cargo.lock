@@ -2507,9 +2507,13 @@ dependencies = [
 name = "mcp-studio-core"
 version = "0.1.0"
 dependencies = [
+ "axum",
+ "bytes",
+ "futures-util",
  "http",
  "keyring",
  "mcp-studio-testserver",
+ "reqwest",
  "rmcp",
  "serde",
  "serde_json",

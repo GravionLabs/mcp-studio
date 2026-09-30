@@ -342,11 +342,14 @@ pub async fn history_clear(
 
 #[tauri::command]
 pub fn proxy_info(state: State<'_, AppState>) -> ProxyInfo {
-    state.proxy.info(&state.discovery_file)
+    state
+        .proxy
+        .info(&state.discovery_file, state.http_proxy.port())
 }
 
 /// The environment whose variables apply to sessions started through the proxy.
 #[tauri::command]
 pub fn proxy_set_environment(state: State<'_, AppState>, id: Option<String>) {
-    state.proxy.set_environment(id);
+    state.proxy.set_environment(id.clone());
+    state.http_proxy.set_environment(id);
 }

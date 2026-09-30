@@ -7,6 +7,7 @@ pub mod environments;
 pub mod events;
 pub mod explorer;
 pub mod history;
+pub mod http_proxy;
 pub mod message_store;
 pub mod model;
 pub mod path_env;
