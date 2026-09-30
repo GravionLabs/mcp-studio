@@ -9,11 +9,13 @@ const env = (id: string, name: string): Environment => ({ id, name, variables: {
 
 function create(initial: Environment[], stored: Record<string, string> = {}) {
   const storage = memoryStore(stored);
+  const proxyCalls: (string | null)[] = [];
   const ipc = {
     environmentList: async () => initial,
     environmentAdd: async (i: EnvironmentInput) => env(`id-${i.name}`, i.name),
     environmentUpdate: async (id: string, i: EnvironmentInput) => env(id, i.name),
     environmentRemove: async () => undefined,
+    proxySetEnvironment: async (id: string | null) => void proxyCalls.push(id),
   };
   const injector = Injector.create({
     providers: [
@@ -21,7 +23,11 @@ function create(initial: Environment[], stored: Record<string, string> = {}) {
       { provide: KEY_VALUE_STORE, useValue: storage },
     ],
   });
-  return { store: runInInjectionContext(injector, () => new EnvironmentsStore()), storage };
+  return {
+    store: runInInjectionContext(injector, () => new EnvironmentsStore()),
+    storage,
+    proxyCalls,
+  };
 }
 
 describe("EnvironmentsStore", () => {
@@ -65,5 +71,13 @@ describe("EnvironmentsStore", () => {
     await store.add({ name: "Alpha", variables: {} });
     await store.update("b", { name: "zeta", variables: {} });
     expect(store.environments().map((e) => e.name)).toEqual(["Alpha", "zeta"]);
+  });
+
+  it("tells the proxy which environment is active", async () => {
+    const { store, proxyCalls } = create([env("a", "dev")]);
+    await store.load();
+    store.setActive("a");
+    store.setActive(null);
+    expect(proxyCalls).toEqual([null, "a", null]);
   });
 });

@@ -11,6 +11,7 @@ pub mod message_store;
 pub mod model;
 pub mod path_env;
 pub mod placeholders;
+pub mod proxy;
 pub mod recording;
 pub mod registry;
 pub mod secrets;

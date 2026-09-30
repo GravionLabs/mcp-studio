@@ -162,6 +162,15 @@ export type PromptInfo = {
 	arguments?: PromptArgumentInfo[],
 };
 
+/**  What the UI needs to help the user configure a client. */
+export type ProxyInfo = {
+	/**  Loopback port the stdio proxy program connects to. */
+	controlPort: number,
+	/**  Absolute path of the `mcp-studio-proxy` program, if it was found. */
+	proxyBinary: string | null,
+	discoveryFile: string,
+};
+
 export type ResourceInfo = {
 	uri: string,
 	name: string,

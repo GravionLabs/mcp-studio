@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "crates/mcp-studio-core",
   "crates/mcp-studio-llm",
+  "crates/mcp-studio-proxy",
   "crates/mcp-studio-testserver",
   "src-tauri",
 ]

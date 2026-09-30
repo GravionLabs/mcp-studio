@@ -20,6 +20,7 @@ use crate::{
     history::{HistoryEntry, HistoryFilter},
     message_store::MessageFilter,
     model::AppInfo,
+    proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
 };
@@ -55,6 +56,7 @@ pub fn ipc_types() -> Types {
         .register::<SavedRequest>()
         .register::<CollectionTree>()
         .register::<ImportReport>()
+        .register::<ProxyInfo>()
         .register::<HistoryEntry>()
         .register::<HistoryFilter>()
 }

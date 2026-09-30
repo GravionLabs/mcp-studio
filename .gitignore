@@ -48,3 +48,6 @@ Thumbs.db
 # Local data
 *.sqlite
 *.sqlite-journal
+
+# Tauri sidecar binaries are built by scripts/build-proxy-sidecar.mjs
+/src-tauri/binaries/

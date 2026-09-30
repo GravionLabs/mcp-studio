@@ -917,9 +917,9 @@ where
     }
 }
 
-fn spawn_stdio(
-    prepared: &Prepared,
-) -> DbResult<(TokioChildProcess, Option<tokio::process::ChildStderr>)> {
+/// The command line of a stdio server, with environment, working directory, and the login-shell
+/// `PATH` applied.
+pub(crate) fn build_command(prepared: &Prepared) -> tokio::process::Command {
     let mut command = tokio::process::Command::new(&prepared.command);
     command.args(&prepared.args);
     command.envs(&prepared.env);
@@ -932,7 +932,13 @@ fn spawn_stdio(
             command.env("PATH", path_env::merge_paths(login, &current));
         }
     }
-    TokioChildProcess::builder(command)
+    command
+}
+
+fn spawn_stdio(
+    prepared: &Prepared,
+) -> DbResult<(TokioChildProcess, Option<tokio::process::ChildStderr>)> {
+    TokioChildProcess::builder(build_command(prepared))
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| DbError::Connection(format!("could not start \"{}\": {e}", prepared.command)))
