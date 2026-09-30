@@ -31,20 +31,20 @@ with Tauri 2, a Rust core, and an Angular 22 frontend (the same stack as Bench).
 
 ## Feature scope
 
-| Feature | Milestone | Scope |
-|---|---|---|
-| Register MCP servers | M1 (v0.1) | stdio (command, args, env, cwd), Streamable HTTP (URL, headers, OAuth 2.1), import from `claude_desktop_config.json` / `.mcp.json` |
-| Server explorer | M1 (v0.1) | Capabilities, tools, resources, prompts, server info, and logs per server |
-| Test tools | M1 (v0.1) | Form generated from JSON Schema plus raw JSON editor; result viewer for text, images, resource links |
-| Inspect tool calls | M1 (v0.1) | Every JSON-RPC message with timestamp, duration, size, error; filter and search |
-| Proxy mode | M1 (v0.1) | Local stdio/HTTP endpoint that forwards to a real server and records a real client's session |
-| Collections and history | M1 (v0.1) | Saved requests per server, environments with variables (like Postman) |
-| Token metering | M2 (v0.2) | Tokens per tool definition, call, and result; context cost of a server; price table |
-| Tracing | M2 (v0.2) | Spans per flow step and proxy session, waterfall view, OTLP export |
-| Prompt flows | M3 (v0.3) | Graph editor with LLM steps, tool calls, conditions, variables; runnable, reproducible, versionable as YAML |
-| Automatic tool documentation | M4 (v0.4) | Markdown docs per server from schemas and recorded examples; lint of tool descriptions |
-| Prompt optimization | M4 (v0.4) | Run prompt variants against test cases, compare accuracy and tokens |
-| Flow generation | M4 (v0.4) | Generate a flow from a natural-language goal and the available tools |
+| Feature                      | Milestone | Scope                                                                                                                              |
+| ---------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Register MCP servers         | M1 (v0.1) | stdio (command, args, env, cwd), Streamable HTTP (URL, headers, OAuth 2.1), import from `claude_desktop_config.json` / `.mcp.json` |
+| Server explorer              | M1 (v0.1) | Capabilities, tools, resources, prompts, server info, and logs per server                                                          |
+| Test tools                   | M1 (v0.1) | Form generated from JSON Schema plus raw JSON editor; result viewer for text, images, resource links                               |
+| Inspect tool calls           | M1 (v0.1) | Every JSON-RPC message with timestamp, duration, size, error; filter and search                                                    |
+| Proxy mode                   | M1 (v0.1) | Local stdio/HTTP endpoint that forwards to a real server and records a real client's session                                       |
+| Collections and history      | M1 (v0.1) | Saved requests per server, environments with variables (like Postman)                                                              |
+| Token metering               | M2 (v0.2) | Tokens per tool definition, call, and result; context cost of a server; price table                                                |
+| Tracing                      | M2 (v0.2) | Spans per flow step and proxy session, waterfall view, OTLP export                                                                 |
+| Prompt flows                 | M3 (v0.3) | Graph editor with LLM steps, tool calls, conditions, variables; runnable, reproducible, versionable as YAML                        |
+| Automatic tool documentation | M4 (v0.4) | Markdown docs per server from schemas and recorded examples; lint of tool descriptions                                             |
+| Prompt optimization          | M4 (v0.4) | Run prompt variants against test cases, compare accuracy and tokens                                                                |
+| Flow generation              | M4 (v0.4) | Generate a flow from a natural-language goal and the available tools                                                               |
 
 The MVP covers the core loop: add a server, connect, call tools, inspect every call — including
 calls made by a real client through the proxy. Flows and AI features come once this loop is stable.
@@ -65,14 +65,14 @@ calls made by a real client through the proxy. Flows and AI features come once t
 Each milestone ends at a gate: a demo scenario, not a feature count. The next milestone starts only
 once the gate passes.
 
-| Milestone | Scope | Gate |
-|---|---|---|
-| M0 Foundation | Scaffold (Tauri 2, Angular 22, pnpm, Vitest, CI, Cargo workspace); spike: `rmcp` over stdio and HTTP, `RecordingTransport`, SQLite schema | A stdio server is connected and every message is stored raw in SQLite |
-| M1 MVP (v0.1) | Registry with config import, explorer, playground with schema form, inspector timeline, proxy mode, collections, environments, history | Own server testable end to end without a terminal; Claude Code recorded through the proxy |
-| M2 Observability (v0.2) | Token metering per definition and call, context cost per server, prices; tracing waterfall for proxy sessions and flows; OTLP export | Tokens and cost of a Claude Code session fully broken down |
-| M3 Flows (v0.3) | Graph editor with LLM steps, tool calls, conditions, variables; runner with confirmation before tool calls; every run is a trace; YAML format | A flow across two servers runs reproducibly |
-| M4 AI assistance (v0.4) | Tool docs and lint, prompt optimization against test suites, flow generation with validation | — |
-| v1.0 | Signed builds for Linux, Windows, and macOS; auto-update | — |
+| Milestone               | Scope                                                                                                                                         | Gate                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| M0 Foundation           | Scaffold (Tauri 2, Angular 22, pnpm, Vitest, CI, Cargo workspace); spike: `rmcp` over stdio and HTTP, `RecordingTransport`, SQLite schema     | A stdio server is connected and every message is stored raw in SQLite                     |
+| M1 MVP (v0.1)           | Registry with config import, explorer, playground with schema form, inspector timeline, proxy mode, collections, environments, history        | Own server testable end to end without a terminal; Claude Code recorded through the proxy |
+| M2 Observability (v0.2) | Token metering per definition and call, context cost per server, prices; tracing waterfall for proxy sessions and flows; OTLP export          | Tokens and cost of a Claude Code session fully broken down                                |
+| M3 Flows (v0.3)         | Graph editor with LLM steps, tool calls, conditions, variables; runner with confirmation before tool calls; every run is a trace; YAML format | A flow across two servers runs reproducibly                                               |
+| M4 AI assistance (v0.4) | Tool docs and lint, prompt optimization against test suites, flow generation with validation                                                  | —                                                                                         |
+| v1.0                    | Signed builds for Linux, Windows, and macOS; auto-update                                                                                      | —                                                                                         |
 
 ```mermaid
 flowchart TD
@@ -101,14 +101,14 @@ supported for sensitive servers.
 
 ## Risks
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| The MCP spec changes quickly | Transport or auth code goes stale | Depend on `rmcp` instead of a custom client; store the protocol version per session |
-| Raw recording underneath `rmcp` | The SDK may lack a clean hook | Custom transport wrapper around the byte stream; verify in the M0 spike |
-| stdio servers inherit the environment | Missing `PATH` entries (`npx`, `uvx`) in the GUI app | Resolve the login-shell `PATH` at startup; overridable per server |
-| Token estimates are inaccurate | Wrong cost statements | Label estimates clearly; exact counts via provider APIs |
-| Competition (MCP Inspector, Postman) | Little differentiation | Focus on proxy tracing, context cost, and flows |
-| Three platforms at once | More test and release effort (macOS notarization, Windows signing, Linux packages) | CI matrix for all three platforms from M1; builds via the Tauri bundler |
+| Risk                                  | Impact                                                                             | Mitigation                                                                          |
+| ------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| The MCP spec changes quickly          | Transport or auth code goes stale                                                  | Depend on `rmcp` instead of a custom client; store the protocol version per session |
+| Raw recording underneath `rmcp`       | The SDK may lack a clean hook                                                      | Custom transport wrapper around the byte stream; verify in the M0 spike             |
+| stdio servers inherit the environment | Missing `PATH` entries (`npx`, `uvx`) in the GUI app                               | Resolve the login-shell `PATH` at startup; overridable per server                   |
+| Token estimates are inaccurate        | Wrong cost statements                                                              | Label estimates clearly; exact counts via provider APIs                             |
+| Competition (MCP Inspector, Postman)  | Little differentiation                                                             | Focus on proxy tracing, context cost, and flows                                     |
+| Three platforms at once               | More test and release effort (macOS notarization, Windows signing, Linux packages) | CI matrix for all three platforms from M1; builds via the Tauri bundler             |
 
 ## Decisions
 

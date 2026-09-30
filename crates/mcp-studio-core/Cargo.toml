@@ -1,0 +1,12 @@
+[package]
+name = "mcp-studio-core"
+description = "MCP Studio domain core: registry, sessions, recording, metering. No Tauri dependency."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true

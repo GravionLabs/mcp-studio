@@ -45,11 +45,11 @@ sequenceDiagram
 
 Tokens are measured at three points because each answers a different question.
 
-| Measure point | What is counted | Question |
-|---|---|---|
+| Measure point    | What is counted                                                          | Question                                                           |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
 | Tool definitions | The `tools/list` response, as a client places it into the context window | How much context does this server consume before anything happens? |
-| Tool call | Arguments plus result content | Which tool returns bloated results? |
-| Flow / LLM step | Real `usage` values from the LLM API (input, output, cache) | What does one run cost? |
+| Tool call        | Arguments plus result content                                            | Which tool returns bloated results?                                |
+| Flow / LLM step  | Real `usage` values from the LLM API (input, output, cache)              | What does one run cost?                                            |
 
 - **Estimate**: offline estimation with a local tokenizer, clearly labeled as an approximation
   (`token_source = 'estimate'`).

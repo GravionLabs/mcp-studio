@@ -1,0 +1,9 @@
+dist
+.angular
+node_modules
+target
+src-tauri/gen
+src-tauri/icons
+pnpm-lock.yaml
+Cargo.lock
+CHANGELOG.md

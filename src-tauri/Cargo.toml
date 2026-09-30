@@ -1,0 +1,25 @@
+[package]
+name = "mcp-studio"
+description = "MCP Studio - Postman for MCP"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+name = "mcp_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+mcp-studio-core = { path = "../crates/mcp-studio-core" }
+mcp-studio-llm = { path = "../crates/mcp-studio-llm" }
+tauri = { version = "2", features = [] }
+tauri-plugin-store = "2"
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2"
