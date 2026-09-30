@@ -113,7 +113,7 @@ supported for sensitive servers.
 ## Decisions
 
 - **License**: open source to start; a Pro offering with extra features stays possible later
-  (open core). The concrete license is still to be chosen.
+  (open core). Licensed `MIT OR Apache-2.0` ([ADR 0003](../adr/0003-license.md)).
 - **Flow editor**: `@foblex/flow`, no custom SVG editor.
 - **Flow format**: flows also exist as YAML files (Git-friendly); the visual editor and YAML are two
   views of the same graph.
@@ -127,3 +127,5 @@ supported for sensitive servers.
 - [Recording, proxy, token metering, and tracing](recording-and-observability.md)
 - [Prompt flows](flows.md)
 - [ADR 0001 — Stack and architecture](../adr/0001-stack-and-architecture.md)
+- [ADR 0002 — Record at the rmcp transport layer](../adr/0002-recording-at-the-rmcp-transport-layer.md)
+- [ADR 0003 — License](../adr/0003-license.md)
