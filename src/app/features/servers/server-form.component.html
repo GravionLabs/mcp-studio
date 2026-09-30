@@ -70,6 +70,10 @@
         placeholder="https://example.com/mcp"
       />
     </label>
+    <label class="inline">
+      <input type="checkbox" [checked]="form().oauth" (change)="patch({ oauth: !form().oauth })" />
+      Uses OAuth 2.1 (sign in with the browser; tokens are kept in the OS keyring)
+    </label>
     <div class="group">
       <span>Headers</span>
       <app-key-value-editor

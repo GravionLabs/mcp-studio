@@ -10,6 +10,7 @@ pub mod history;
 pub mod http_proxy;
 pub mod message_store;
 pub mod model;
+pub mod oauth;
 pub mod path_env;
 pub mod placeholders;
 pub mod proxy;

@@ -38,6 +38,9 @@ pub struct ServerInput {
     pub url: Option<String>,
     pub headers: BTreeMap<String, String>,
     pub tags: Vec<String>,
+    /// The server needs OAuth 2.1 sign-in (Streamable HTTP only).
+    #[serde(default)]
+    pub oauth: bool,
 }
 
 /// A stored server definition.
@@ -89,6 +92,7 @@ impl ServerInput {
                 }
                 self.url = None;
                 self.headers.clear();
+                self.oauth = false;
             }
             TransportKind::Http => {
                 let raw = self
@@ -128,6 +132,7 @@ struct Row {
     url: Option<String>,
     headers: String,
     tags: String,
+    oauth: bool,
     created_at: i64,
     updated_at: i64,
 }
@@ -154,6 +159,7 @@ impl TryFrom<Row> for ServerDefinition {
                 url: row.url.clone(),
                 headers: serde_json::from_str(&row.headers).map_err(json)?,
                 tags: serde_json::from_str(&row.tags).map_err(json)?,
+                oauth: row.oauth,
             },
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -163,10 +169,10 @@ impl TryFrom<Row> for ServerDefinition {
 
 const SELECT_ALL: &str =
     "SELECT id, name, transport, command, args, env, cwd, url, headers, tags, \
-     created_at, updated_at FROM servers ORDER BY name COLLATE NOCASE";
+     oauth, created_at, updated_at FROM servers ORDER BY name COLLATE NOCASE";
 const SELECT_ONE: &str =
     "SELECT id, name, transport, command, args, env, cwd, url, headers, tags, \
-     created_at, updated_at FROM servers WHERE id = ?";
+     oauth, created_at, updated_at FROM servers WHERE id = ?";
 
 /// Access to stored server definitions.
 #[derive(Clone, Debug)]
@@ -199,8 +205,8 @@ impl Registry {
         let id = new_id();
         let now = now_ms();
         sqlx::query(
-            "INSERT INTO servers (id, name, transport, command, args, env, cwd, url, headers, tags, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO servers (id, name, transport, command, args, env, cwd, url, headers, tags, oauth, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&id)
         .bind(&input.name)
@@ -212,6 +218,7 @@ impl Registry {
         .bind(&input.url)
         .bind(serde_json::to_string(&input.headers).unwrap_or_default())
         .bind(serde_json::to_string(&input.tags).unwrap_or_default())
+        .bind(input.oauth)
         .bind(now)
         .bind(now)
         .execute(self.db.pool())
@@ -224,7 +231,7 @@ impl Registry {
         self.ensure_unique_name(&input.name, Some(id)).await?;
         let result = sqlx::query(
             "UPDATE servers SET name = ?, transport = ?, command = ?, args = ?, env = ?, cwd = ?, url = ?, \
-             headers = ?, tags = ?, updated_at = ? WHERE id = ?",
+             headers = ?, tags = ?, oauth = ?, updated_at = ? WHERE id = ?",
         )
         .bind(&input.name)
         .bind(input.transport.as_str())
@@ -235,6 +242,7 @@ impl Registry {
         .bind(&input.url)
         .bind(serde_json::to_string(&input.headers).unwrap_or_default())
         .bind(serde_json::to_string(&input.tags).unwrap_or_default())
+        .bind(input.oauth)
         .bind(now_ms())
         .bind(id)
         .execute(self.db.pool())
@@ -287,6 +295,7 @@ mod tests {
             url: None,
             headers: BTreeMap::new(),
             tags: vec!["dev".into()],
+            oauth: false,
         }
     }
 
@@ -301,6 +310,7 @@ mod tests {
             url: Some(url.into()),
             headers: BTreeMap::from([("Authorization".into(), "keyring:x".into())]),
             tags: vec![],
+            oauth: false,
         }
     }
 
@@ -347,6 +357,20 @@ mod tests {
         assert!(updated.input.args.is_empty());
         assert!(updated.updated_at >= created.updated_at);
         assert_eq!(updated.created_at, created.created_at);
+    }
+
+    #[tokio::test]
+    async fn oauth_flag_is_stored_for_http_servers_and_dropped_for_stdio() {
+        let registry = registry().await;
+        let mut remote = http("Remote", "https://example.com/mcp");
+        remote.oauth = true;
+        let created = registry.create(remote).await.unwrap();
+        assert!(created.input.oauth);
+        assert!(registry.get(&created.id).await.unwrap().input.oauth);
+
+        let mut local = stdio("Local");
+        local.oauth = true;
+        assert!(!registry.create(local).await.unwrap().input.oauth);
     }
 
     #[tokio::test]

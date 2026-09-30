@@ -68,8 +68,24 @@ describe("form conversion", () => {
       url: "https://example.com/mcp",
       headers: { Authorization: "Bearer x" },
       tags: ["prod"],
+      oauth: true,
     };
     expect(formToInput(inputToForm(input))).toEqual(input);
+  });
+});
+
+describe("oauth", () => {
+  it("is only kept for HTTP servers", () => {
+    const http = { ...emptyForm("http"), name: "r", url: "https://x.test", oauth: true };
+    expect(formToInput(http).oauth).toBe(true);
+    expect(formToInput({ ...http, transport: "stdio", command: "x" }).oauth).toBe(false);
+  });
+
+  it("defaults to off for servers stored before the option existed", () => {
+    const stored = formToInput({ ...emptyForm(), name: "n", command: "c" });
+    const legacy = { ...stored } as Record<string, unknown>;
+    delete legacy["oauth"];
+    expect(inputToForm(legacy as unknown as typeof stored).oauth).toBe(false);
   });
 });
 

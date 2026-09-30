@@ -77,6 +77,7 @@ async fn harness() -> Harness {
             url: None,
             headers: BTreeMap::new(),
             tags: vec![],
+            oauth: false,
         })
         .await
         .unwrap();

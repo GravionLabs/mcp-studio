@@ -238,6 +238,8 @@ export type ServerInput = {
 	url: string | null,
 	headers: { [key in string]: string },
 	tags: string[],
+	/**  The server needs OAuth 2.1 sign-in (Streamable HTTP only). */
+	oauth?: boolean,
 };
 
 /**  `mcp://status` */

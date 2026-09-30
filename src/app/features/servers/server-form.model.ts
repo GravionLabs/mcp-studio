@@ -15,6 +15,8 @@ export interface ServerFormState {
   url: string;
   headers: KeyValueRow[];
   tags: string;
+  /** The HTTP server needs OAuth 2.1 sign-in in the browser. */
+  oauth: boolean;
 }
 
 export function emptyForm(transport: TransportKind = "stdio"): ServerFormState {
@@ -28,6 +30,7 @@ export function emptyForm(transport: TransportKind = "stdio"): ServerFormState {
     url: "",
     headers: [],
     tags: "",
+    oauth: false,
   };
 }
 
@@ -105,6 +108,7 @@ function buildInput(
       .split(",")
       .map((t) => t.trim())
       .filter((t) => t !== ""),
+    oauth: form.transport === "http" && form.oauth,
   };
 }
 
@@ -119,6 +123,7 @@ export function inputToForm(input: ServerInput): ServerFormState {
     url: input.url ?? "",
     headers: recordToRows(input.headers),
     tags: input.tags.join(", "),
+    oauth: input.oauth ?? false,
   };
 }
 

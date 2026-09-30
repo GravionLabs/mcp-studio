@@ -6,6 +6,7 @@ use mcp_studio_core::{
     history::{HistoryEntry, HistoryFilter},
     message_store::{query_messages, MessageFilter},
     model::{AppInfo, JsonValue},
+    oauth,
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
@@ -13,7 +14,7 @@ use mcp_studio_core::{
 };
 use std::collections::BTreeMap;
 
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::{
     error::{CommandError, CommandResult},
@@ -68,6 +69,7 @@ pub async fn server_remove(state: State<'_, AppState>, id: String) -> CommandRes
     for name in references_in(&existing.input) {
         state.secrets.delete(&name)?;
     }
+    state.secrets.delete(&oauth::credential_key(&id))?;
     Ok(())
 }
 
@@ -352,4 +354,25 @@ pub fn proxy_info(state: State<'_, AppState>) -> ProxyInfo {
 pub fn proxy_set_environment(state: State<'_, AppState>, id: Option<String>) {
     state.proxy.set_environment(id.clone());
     state.http_proxy.set_environment(id);
+}
+
+/// Signs in to an OAuth-protected server in the browser. Returns when the tokens are stored.
+#[tauri::command]
+pub async fn oauth_sign_in(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> CommandResult<()> {
+    let opener = crate::sink::BrowserOpener { app };
+    Ok(state.sessions.sign_in(&id, &opener).await?)
+}
+
+#[tauri::command]
+pub async fn oauth_sign_out(state: State<'_, AppState>, id: String) -> CommandResult<()> {
+    Ok(state.sessions.sign_out(&id).await?)
+}
+
+#[tauri::command]
+pub async fn oauth_status(state: State<'_, AppState>, id: String) -> CommandResult<bool> {
+    Ok(state.sessions.is_signed_in(&id).await)
 }

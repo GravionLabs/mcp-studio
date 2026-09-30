@@ -9,7 +9,7 @@ license.workspace = true
 tokio-util = "0.7"
 http = "1"
 keyring = "4"
-rmcp = { version = "3.5", features = ["client", "server", "transport-child-process", "transport-streamable-http-client-reqwest", "reqwest"] }
+rmcp = { version = "3.5", features = ["client", "server", "transport-child-process", "transport-streamable-http-client-reqwest", "reqwest", "auth"] }
 serde.workspace = true
 serde_json.workspace = true
 specta = { version = "2.0.0-rc.25", features = ["derive", "serde_json"] }
@@ -24,6 +24,7 @@ axum = { version = "0.8", default-features = false, features = ["http1", "tokio"
 reqwest = { version = "0.13", default-features = false, features = ["stream", "rustls"] }
 futures-util = "0.3"
 bytes = "1"
+async-trait = "0.1.92"
 
 [dev-dependencies]
 mcp-studio-testserver = { path = "../mcp-studio-testserver" }

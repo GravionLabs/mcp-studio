@@ -145,6 +145,7 @@ async fn server_everything_over_stdio() {
             url: None,
             headers: BTreeMap::new(),
             tags: vec![],
+            oauth: false,
         })
         .await
         .unwrap();
@@ -199,6 +200,7 @@ async fn server_everything_over_streamable_http() {
             url: Some(format!("http://127.0.0.1:{port}/mcp")),
             headers: BTreeMap::new(),
             tags: vec![],
+            oauth: false,
         })
         .await
         .unwrap();
