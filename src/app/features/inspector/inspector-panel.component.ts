@@ -9,6 +9,7 @@ import {
 } from "@angular/core";
 import type { MessageRecord } from "../../core/bindings";
 import { ToastService } from "../../core/toast.service";
+import { JsonDiffComponent } from "../../ui/json-diff/json-diff.component";
 import { JsonViewComponent } from "../../ui/json-view/json-view.component";
 import { VirtualListComponent } from "../../ui/virtual-list/virtual-list.component";
 import { ServersStore } from "../servers/servers.store";
@@ -29,7 +30,7 @@ const METHODS = [
 /** Right column: every JSON-RPC message of every session, live. */
 @Component({
   selector: "app-inspector-panel",
-  imports: [VirtualListComponent, JsonViewComponent],
+  imports: [VirtualListComponent, JsonViewComponent, JsonDiffComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./inspector-panel.component.html",
   styleUrl: "./inspector-panel.component.scss",
@@ -42,6 +43,20 @@ export class InspectorPanelComponent implements OnInit {
 
   protected readonly methods = METHODS;
   protected readonly follow = signal(true);
+  protected readonly compareOpen = signal(false);
+  protected readonly ignoreId = signal(true);
+  protected readonly compared = computed(() => {
+    const pair = this.store.comparison();
+    if (!pair) return null;
+    const parse = (message: MessageRecord): unknown => {
+      try {
+        return JSON.parse(message.payload);
+      } catch {
+        return message.payload;
+      }
+    };
+    return { left: pair[0], right: pair[1], leftJson: parse(pair[0]), rightJson: parse(pair[1]) };
+  });
   protected readonly selectedIds = computed(() => new Set(this.store.selectedIds()));
   protected readonly detail = computed(() => {
     const message = this.store.selected();
@@ -79,6 +94,10 @@ export class InspectorPanelComponent implements OnInit {
 
   protected click(message: MessageRecord, event: MouseEvent): void {
     this.store.select(message.id, event.ctrlKey || event.metaKey || event.shiftKey);
+  }
+
+  protected closeCompare(): void {
+    this.compareOpen.set(false);
   }
 
   protected onBottom(atBottom: boolean): void {

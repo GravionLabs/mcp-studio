@@ -1,0 +1,41 @@
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.path {
+  width: 34%;
+}
+
+.added .after {
+  background: color-mix(in srgb, var(--ok) 18%, transparent);
+}
+
+.removed .before {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.changed {
+  .before {
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+  }
+
+  .after {
+    background: color-mix(in srgb, var(--ok) 12%, transparent);
+  }
+}
+
+.same,
+.summary {
+  margin: 4px 0;
+}
