@@ -1,0 +1,23 @@
+<div class="tabs" role="tablist">
+  @for (tab of tabs.tabs(); track tab.id) {
+    <div
+      class="tab"
+      role="tab"
+      tabindex="0"
+      [class.active]="tab.id === tabs.activeId()"
+      [attr.aria-selected]="tab.id === tabs.activeId()"
+      (click)="select(tab.id, tab.route)"
+      (keydown.enter)="select(tab.id, tab.route)"
+    >
+      <span class="title">{{ tab.title }}</span>
+      <button
+        class="ghost close"
+        type="button"
+        [attr.aria-label]="'Close ' + tab.title"
+        (click)="close($event, tab.id)"
+      >
+        ×
+      </button>
+    </div>
+  }
+</div>

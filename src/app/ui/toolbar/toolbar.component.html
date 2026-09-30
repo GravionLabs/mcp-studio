@@ -1,0 +1,15 @@
+<header class="toolbar">
+  <strong class="brand">MCP Studio</strong>
+  <span class="spacer"></span>
+  <button type="button" class="ghost" (click)="layout.toggleInspector()">
+    {{ layout.inspectorOpen() ? "Hide inspector" : "Show inspector" }}
+  </button>
+  <button
+    type="button"
+    class="ghost"
+    (click)="theme.toggle()"
+    [attr.aria-label]="'Switch to ' + (theme.isDark() ? 'light' : 'dark') + ' theme'"
+  >
+    {{ theme.isDark() ? "☀ Light" : "☾ Dark" }}
+  </button>
+</header>

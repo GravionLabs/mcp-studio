@@ -1,12 +1,125 @@
-:root {
+:root,
+:root[data-theme="dark"] {
   color-scheme: dark;
+  --bg: #14161a;
+  --bg-elevated: #1b1e24;
+  --bg-hover: #242830;
+  --bg-active: #2b3140;
+  --border: #2a2e37;
+  --text: #e6e8eb;
+  --text-muted: #8b93a1;
+  --accent: #6ea8fe;
+  --accent-text: #0b1220;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --radius: 6px;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --bg-elevated: #ffffff;
+  --bg-hover: #eceef2;
+  --bg-active: #dfe6f5;
+  --border: #d8dce3;
+  --text: #1c2129;
+  --text-muted: #5f6877;
+  --accent: #2563eb;
+  --accent-text: #ffffff;
+  --ok: #16a34a;
+  --warn: #b45309;
+  --danger: #dc2626;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 html,
 body {
   margin: 0;
   height: 100%;
-  font-family: system-ui, sans-serif;
-  background: #14161a;
-  color: #e6e8eb;
+  font:
+    13px/1.45 system-ui,
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &.primary {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+  }
+
+  &.danger {
+    color: var(--danger);
+  }
+
+  &.ghost {
+    background: transparent;
+    border-color: transparent;
+  }
+}
+
+input,
+select,
+textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}
+
+.resize-handle {
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  flex: none;
+
+  &:hover {
+    background: var(--accent);
+    opacity: 0.5;
+  }
+}
+
+.muted {
+  color: var(--text-muted);
 }

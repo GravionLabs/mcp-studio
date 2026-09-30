@@ -1,0 +1,40 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.columns {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.sidebar,
+.inspector {
+  flex: none;
+  min-width: 0;
+  overflow: auto;
+  background: var(--bg-elevated);
+}
+
+.sidebar {
+  border-right: 1px solid var(--border);
+}
+
+.inspector {
+  border-left: 1px solid var(--border);
+}
+
+.workspace {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
