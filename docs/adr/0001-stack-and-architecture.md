@@ -1,14 +1,17 @@
 # ADR 0001 — Stack and architecture
 
 ## Status
+
 Accepted
 
 ## Context
+
 MCP Studio has to spawn local processes, hold long-lived connections to many MCP servers, record
 every message, and keep secrets safe — while offering a rich desktop UI. The original idea named
 React; the team already runs Tauri 2 + Angular in Bench.
 
 ## Decision
+
 - Tauri 2 shell, Angular 22 (standalone components, signals, zoneless), pnpm, Vitest — the same setup
   as Bench.
 - Rust owns all MCP connections, secrets, and measurements. The frontend uses only Tauri commands and
@@ -20,6 +23,7 @@ React; the team already runs Tauri 2 + Angular in Bench.
 - Open source to start; open core remains possible.
 
 ## Consequences
+
 - The core can be reused headless (CLI, CI) because it does not depend on Tauri.
 - Tracking the MCP spec is mostly an `rmcp` upgrade, but raw recording depends on how `rmcp` exposes
   its transports — verified in the M0 spike.

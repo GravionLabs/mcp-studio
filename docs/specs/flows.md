@@ -5,14 +5,14 @@ servers. The visual editor (`@foblex/flow`) and the YAML file are two views of t
 
 ## Step types
 
-| Type | Purpose |
-|---|---|
-| `input` | Declares the flow's input variables |
-| `llm` | Calls a model with a prompt template; may expose MCP tools to the model (agent step) |
-| `tool` | Calls one MCP tool with templated arguments |
-| `condition` | Branches on an expression over variables |
-| `transform` | Maps or extracts values (JSONPath / template) |
-| `output` | Declares the flow's result |
+| Type        | Purpose                                                                              |
+| ----------- | ------------------------------------------------------------------------------------ |
+| `input`     | Declares the flow's input variables                                                  |
+| `llm`       | Calls a model with a prompt template; may expose MCP tools to the model (agent step) |
+| `tool`      | Calls one MCP tool with templated arguments                                          |
+| `condition` | Branches on an expression over variables                                             |
+| `transform` | Maps or extracts values (JSONPath / template)                                        |
+| `output`    | Declares the flow's result                                                           |
 
 ## YAML format (draft)
 
