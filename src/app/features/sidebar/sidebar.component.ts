@@ -1,14 +1,23 @@
-import { ChangeDetectionStrategy, Component } from "@angular/core";
+import { ChangeDetectionStrategy, Component, OnInit, inject } from "@angular/core";
+import { RouterLink, RouterLinkActive } from "@angular/router";
+import { ConnectionStatusService } from "../../core/connection-status.service";
+import { ToastService } from "../../core/toast.service";
+import { ServersStore } from "../servers/servers.store";
 
-/** Left column: servers and collections. Filled in by the server registry and collections PBIs. */
+/** Left column: servers (and, later, collections). */
 @Component({
   selector: "app-sidebar",
+  imports: [RouterLink, RouterLinkActive],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<nav class="pad muted">No servers yet.</nav>`,
-  styles: `
-    .pad {
-      padding: 12px;
-    }
-  `,
+  templateUrl: "./sidebar.component.html",
+  styleUrl: "./sidebar.component.scss",
 })
-export class SidebarComponent {}
+export class SidebarComponent implements OnInit {
+  protected readonly store = inject(ServersStore);
+  protected readonly status = inject(ConnectionStatusService);
+  private readonly toasts = inject(ToastService);
+
+  ngOnInit(): void {
+    this.store.load().catch((error: unknown) => this.toasts.fail("Could not load servers", error));
+  }
+}

@@ -5,3 +5,27 @@ export type AppInfo = {
 	name: string,
 	version: string,
 };
+
+/**  A stored server definition. */
+export type ServerDefinition = {
+	id: string,
+	/**  Unix milliseconds. Exported to TypeScript as `number` (specta forbids `i64`). */
+	createdAt: number,
+	updatedAt: number,
+} & ServerInput;
+
+/**  What the user edits: everything except identity and timestamps. */
+export type ServerInput = {
+	name: string,
+	transport: TransportKind,
+	command: string | null,
+	args: string[],
+	env: { [key in string]: string },
+	cwd: string | null,
+	url: string | null,
+	headers: { [key in string]: string },
+	tags: string[],
+};
+
+/**  How a server is reached. */
+export type TransportKind = "stdio" | "http";

@@ -1,0 +1,25 @@
+<nav class="sidebar">
+  <header>
+    <h3>Servers</h3>
+    <a class="add" routerLink="/servers/new" aria-label="Add server" title="Add server">+</a>
+  </header>
+
+  @if (store.servers().length === 0 && store.loaded()) {
+    <p class="empty muted">No servers yet. <a routerLink="/servers/new">Add one</a>.</p>
+  }
+
+  <ul>
+    @for (server of store.servers(); track server.id) {
+      <li>
+        <a [routerLink]="['/servers', server.id]" routerLinkActive="active">
+          <span
+            class="dot"
+            [class]="status.stateOf(server.id)"
+            [title]="status.stateOf(server.id)"
+          ></span>
+          <span class="name">{{ server.name }}</span>
+        </a>
+      </li>
+    }
+  </ul>
+</nav>

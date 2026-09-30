@@ -1,5 +1,5 @@
 import { Injectable, Signal, inject, signal } from "@angular/core";
-import type { AppInfo } from "./bindings";
+import type { AppInfo, ServerDefinition, ServerInput } from "./bindings";
 import { IpcError, describeError } from "./ipc-error";
 import { IPC_INVOKE, IPC_LISTEN } from "./ipc.tokens";
 
@@ -41,5 +41,25 @@ export class TauriIpcService {
 
   appInfo(): Promise<AppInfo> {
     return this.call<AppInfo>("app_info");
+  }
+
+  serverList(): Promise<ServerDefinition[]> {
+    return this.call("server_list");
+  }
+
+  serverGet(id: string): Promise<ServerDefinition> {
+    return this.call("server_get", { id });
+  }
+
+  serverAdd(input: ServerInput): Promise<ServerDefinition> {
+    return this.call("server_add", { input });
+  }
+
+  serverUpdate(id: string, input: ServerInput): Promise<ServerDefinition> {
+    return this.call("server_update", { id, input });
+  }
+
+  serverRemove(id: string): Promise<void> {
+    return this.call("server_remove", { id });
   }
 }

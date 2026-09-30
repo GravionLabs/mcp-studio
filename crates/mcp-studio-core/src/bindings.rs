@@ -6,11 +6,18 @@
 use specta::Types;
 use specta_typescript::Typescript;
 
-use crate::model::AppInfo;
+use crate::{
+    model::AppInfo,
+    registry::{ServerDefinition, ServerInput, TransportKind},
+};
 
 /// All types exposed to the frontend.
 pub fn ipc_types() -> Types {
-    Types::default().register::<AppInfo>()
+    Types::default()
+        .register::<AppInfo>()
+        .register::<TransportKind>()
+        .register::<ServerInput>()
+        .register::<ServerDefinition>()
 }
 
 /// Renders the TypeScript bindings file.

@@ -4,6 +4,7 @@ pub mod bindings;
 pub mod db;
 pub mod model;
 pub mod recording;
+pub mod registry;
 
 /// Returns the crate version, used by the app shell and smoke tests.
 pub fn version() -> &'static str {

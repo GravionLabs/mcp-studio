@@ -1,0 +1,44 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 640px;
+  padding: 20px;
+}
+
+label,
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  > span {
+    color: var(--text-muted);
+  }
+
+  &.inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.transport {
+  display: flex;
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.problems {
+  margin: 0;
+  padding: 8px 8px 8px 24px;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
