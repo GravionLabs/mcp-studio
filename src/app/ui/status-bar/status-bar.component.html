@@ -1,0 +1,12 @@
+<footer class="bar">
+  <span class="item"><span class="dot ok"></span>{{ status.connectedCount() }} connected</span>
+  @if (status.errorCount() > 0) {
+    <span class="item"><span class="dot err"></span>{{ status.errorCount() }} with errors</span>
+  }
+  <span class="spacer"></span>
+  @for (s of status.statuses(); track s.serverId) {
+    @if (s.state === "error" && s.message) {
+      <span class="item err-text" [title]="s.message">{{ s.message }}</span>
+    }
+  }
+</footer>

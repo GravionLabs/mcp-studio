@@ -1,0 +1,18 @@
+<div class="stack" aria-live="polite">
+  @for (toast of toasts.toasts(); track toast.id) {
+    <div class="toast" [class]="toast.kind" role="status">
+      <div class="body">
+        <div class="message">{{ toast.message }}</div>
+        @if (toast.detail) {
+          <details>
+            <summary class="muted">Details</summary>
+            <pre>{{ toast.detail }}</pre>
+          </details>
+        }
+      </div>
+      <button class="ghost" type="button" aria-label="Dismiss" (click)="toasts.dismiss(toast.id)">
+        ×
+      </button>
+    </div>
+  }
+</div>
