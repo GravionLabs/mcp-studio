@@ -3,8 +3,13 @@
     <header>
       <h2>{{ s.name }}</h2>
       <div class="actions">
+        @if (s.oauth && signedIn()) {
+          <button type="button" class="ghost" (click)="signOut()">Sign out</button>
+        }
         @if (state() === "connected") {
           <button type="button" [disabled]="busy()" (click)="disconnect()">Disconnect</button>
+        } @else if (signingIn()) {
+          <button type="button" disabled>Waiting for the browser…</button>
         } @else {
           <button
             type="button"
@@ -12,7 +17,13 @@
             [disabled]="busy() || state() === 'connecting'"
             (click)="connect()"
           >
-            {{ state() === "connecting" ? "Connecting…" : "Connect" }}
+            {{
+              state() === "connecting"
+                ? "Connecting…"
+                : s.oauth && signedIn() !== true
+                  ? "Sign in & connect"
+                  : "Connect"
+            }}
           </button>
         }
         <a class="button" [routerLink]="['/servers', s.id, 'edit']">Edit</a>
@@ -33,7 +44,12 @@
 
     <dl>
       <dt>Transport</dt>
-      <dd>{{ s.transport === "stdio" ? "stdio" : "Streamable HTTP" }}</dd>
+      <dd>
+        {{ s.transport === "stdio" ? "stdio" : "Streamable HTTP" }}
+        @if (s.oauth) {
+          · OAuth 2.1 ({{ signedIn() ? "signed in" : "not signed in" }})
+        }
+      </dd>
       @if (s.transport === "stdio") {
         <dt>Command</dt>
         <dd class="mono">{{ s.command }} {{ s.args.join(" ") }}</dd>

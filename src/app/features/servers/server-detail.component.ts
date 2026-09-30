@@ -42,6 +42,9 @@ export class ServerDetailComponent {
   protected readonly status = inject(ConnectionStatusService);
   protected readonly logs = signal<LogEvent[]>([]);
   protected readonly busy = signal(false);
+  /** `null` while unknown. Only meaningful for servers that use OAuth. */
+  protected readonly signedIn = signal<boolean | null>(null);
+  protected readonly signingIn = signal(false);
   protected readonly state = computed(() => this.status.stateOf(this.id()));
   protected readonly lastError = computed(
     () =>
@@ -52,6 +55,16 @@ export class ServerDetailComponent {
   protected readonly loaded = this.store.loaded;
 
   constructor() {
+    effect(() => {
+      const server = this.server();
+      this.signedIn.set(null);
+      if (server?.oauth) {
+        this.ipc.oauthStatus(server.id).then(
+          (status) => this.signedIn.set(status),
+          () => this.signedIn.set(false),
+        );
+      }
+    });
     effect(() => {
       const id = this.id();
       this.logs.set([]);
@@ -81,7 +94,34 @@ export class ServerDetailComponent {
     return Object.entries(record);
   }
 
+  /** Opens the browser for OAuth sign-in and waits until it is done. Returns whether it worked. */
+  protected async signIn(): Promise<boolean> {
+    this.signingIn.set(true);
+    try {
+      await this.ipc.oauthSignIn(this.id());
+      this.signedIn.set(true);
+      this.toasts.success("Signed in");
+      return true;
+    } catch (error) {
+      this.toasts.fail("Sign-in failed", error);
+      return false;
+    } finally {
+      this.signingIn.set(false);
+    }
+  }
+
+  protected async signOut(): Promise<void> {
+    try {
+      await this.ipc.oauthSignOut(this.id());
+      this.signedIn.set(false);
+      this.toasts.success("Signed out");
+    } catch (error) {
+      this.toasts.fail("Could not sign out", error);
+    }
+  }
+
   protected async connect(): Promise<void> {
+    if (this.server()?.oauth && this.signedIn() !== true && !(await this.signIn())) return;
     this.busy.set(true);
     try {
       await this.ipc.serverConnect(this.id(), this.environments.activeId());

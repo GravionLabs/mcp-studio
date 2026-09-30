@@ -29,3 +29,18 @@ impl EventSink for TauriSink {
         let _ = self.app.emit("mcp://progress", event);
     }
 }
+
+/// Opens URLs (the OAuth authorization page) in the user's default browser.
+pub struct BrowserOpener {
+    pub app: AppHandle,
+}
+
+impl mcp_studio_core::oauth::UrlOpener for BrowserOpener {
+    fn open(&self, url: &str) -> Result<(), String> {
+        use tauri_plugin_opener::OpenerExt;
+        self.app
+            .opener()
+            .open_url(url, None::<&str>)
+            .map_err(|e| e.to_string())
+    }
+}

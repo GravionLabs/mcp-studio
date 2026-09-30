@@ -35,6 +35,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -131,6 +132,9 @@ pub fn run() {
             commands::history_clear,
             commands::proxy_info,
             commands::proxy_set_environment,
+            commands::oauth_sign_in,
+            commands::oauth_sign_out,
+            commands::oauth_status,
             commands::tool_call,
             commands::request_cancel,
             commands::messages_query,

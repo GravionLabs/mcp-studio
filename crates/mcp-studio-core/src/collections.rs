@@ -541,6 +541,7 @@ mod tests {
                 url: None,
                 headers: BTreeMap::new(),
                 tags: vec![],
+                oauth: false,
             })
             .await
             .unwrap();

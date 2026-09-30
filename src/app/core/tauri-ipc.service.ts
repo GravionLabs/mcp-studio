@@ -224,4 +224,17 @@ export class TauriIpcService {
   proxySetEnvironment(id: string | null): Promise<void> {
     return this.call("proxy_set_environment", { id });
   }
+
+  /** Opens the browser for OAuth sign-in; resolves when the tokens are stored. */
+  oauthSignIn(id: string): Promise<void> {
+    return this.call("oauth_sign_in", { id });
+  }
+
+  oauthSignOut(id: string): Promise<void> {
+    return this.call("oauth_sign_out", { id });
+  }
+
+  oauthStatus(id: string): Promise<boolean> {
+    return this.call("oauth_status", { id });
+  }
 }

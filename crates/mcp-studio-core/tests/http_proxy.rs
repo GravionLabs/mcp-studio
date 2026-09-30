@@ -108,6 +108,7 @@ async fn add_http_server(h: &Harness, name: &str, headers: BTreeMap<String, Stri
             url: Some(h.upstream_url.clone()),
             headers,
             tags: vec![],
+            oauth: false,
         })
         .await
         .unwrap();
@@ -241,6 +242,7 @@ async fn unknown_and_stdio_servers_are_rejected_with_a_clear_message() {
             url: None,
             headers: BTreeMap::new(),
             tags: vec![],
+            oauth: false,
         })
         .await
         .unwrap();

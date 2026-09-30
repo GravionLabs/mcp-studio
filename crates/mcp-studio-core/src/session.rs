@@ -47,6 +47,7 @@ use crate::{
     history::{History, NewEntry},
     message_store::MessageWriter,
     model::JsonValue,
+    oauth::{self, KeyringCredentialStore, UrlOpener},
     path_env,
     placeholders::{placeholders_in, resolve_json, resolve_str},
     recording::RecordingTransport,
@@ -509,30 +510,44 @@ impl SessionManager {
         };
 
         let timeout = *self.connect_timeout.lock().unwrap();
-        let connected: DbResult<RunningService<RoleClient, StudioClient>> = match prepared.transport
-        {
-            TransportKind::Stdio => {
-                let (process, stderr) = spawn_stdio(&prepared)?;
-                if let Some(stderr) = stderr {
-                    let logger = self.logger.clone();
-                    let id = server_id.to_owned();
-                    tokio::spawn(async move {
-                        let mut lines = BufReader::new(stderr).lines();
-                        while let Ok(Some(line)) = lines.next_line().await {
-                            logger.log(&id, LogSource::Stderr, "info", &line);
-                        }
-                    });
+        // Everything that can fail while opening the transport happens in this block, so that the
+        // session row is closed and the writer stopped on every error path.
+        let connected: DbResult<RunningService<RoleClient, StudioClient>> = async {
+            match prepared.transport {
+                TransportKind::Stdio => {
+                    let (process, stderr) = spawn_stdio(&prepared)?;
+                    if let Some(stderr) = stderr {
+                        let logger = self.logger.clone();
+                        let id = server_id.to_owned();
+                        tokio::spawn(async move {
+                            let mut lines = BufReader::new(stderr).lines();
+                            while let Ok(Some(line)) = lines.next_line().await {
+                                logger.log(&id, LogSource::Stderr, "info", &line);
+                            }
+                        });
+                    }
+                    let transport =
+                        RecordingTransport::<_, RoleClient>::new(process, writer.recorder());
+                    initialize(handler, transport, timeout).await
                 }
-                let transport =
-                    RecordingTransport::<_, RoleClient>::new(process, writer.recorder());
-                initialize(handler, transport, timeout).await
+                TransportKind::Http if server.input.oauth => {
+                    let store = KeyringCredentialStore::new(self.secrets.clone(), server_id);
+                    let client = oauth::auth_client(&prepared.url, store).await?;
+                    let http =
+                        StreamableHttpClientTransport::with_client(client, http_config(&prepared)?);
+                    let transport =
+                        RecordingTransport::<_, RoleClient>::new(http, writer.recorder());
+                    initialize(handler, transport, timeout).await
+                }
+                TransportKind::Http => {
+                    let http = StreamableHttpClientTransport::from_config(http_config(&prepared)?);
+                    let transport =
+                        RecordingTransport::<_, RoleClient>::new(http, writer.recorder());
+                    initialize(handler, transport, timeout).await
+                }
             }
-            TransportKind::Http => {
-                let http = StreamableHttpClientTransport::from_config(http_config(&prepared)?);
-                let transport = RecordingTransport::<_, RoleClient>::new(http, writer.recorder());
-                initialize(handler, transport, timeout).await
-            }
-        };
+        }
+        .await;
 
         let running = match connected {
             Ok(running) => running,
@@ -861,6 +876,42 @@ impl SessionManager {
         }
     }
 
+    /// Signs in to an OAuth-protected server in the user's browser and stores the tokens.
+    pub async fn sign_in(&self, server_id: &str, opener: &dyn UrlOpener) -> DbResult<()> {
+        let server = self.registry.get(server_id).await?;
+        if server.input.transport != TransportKind::Http || !server.input.oauth {
+            return Err(DbError::Invalid(format!(
+                "\"{}\" is not configured for OAuth sign-in",
+                server.input.name
+            )));
+        }
+        let url = server.input.url.clone().unwrap_or_default();
+        // Sign-in only needs the URL; placeholders in it are resolved like for connecting.
+        let variables = std::collections::BTreeMap::new();
+        let url = resolve_str(&url, &variables).unwrap_or(url);
+        let store = KeyringCredentialStore::new(self.secrets.clone(), server_id);
+        oauth::sign_in(&url, store, opener, oauth::SIGN_IN_TIMEOUT).await
+    }
+
+    /// Forgets the stored OAuth credentials of a server and disconnects it.
+    pub async fn sign_out(&self, server_id: &str) -> DbResult<()> {
+        self.disconnect(server_id).await?;
+        oauth::sign_out(&KeyringCredentialStore::new(
+            self.secrets.clone(),
+            server_id,
+        ))
+        .await
+    }
+
+    /// Whether OAuth credentials are stored for the server.
+    pub async fn is_signed_in(&self, server_id: &str) -> bool {
+        oauth::is_signed_in(&KeyringCredentialStore::new(
+            self.secrets.clone(),
+            server_id,
+        ))
+        .await
+    }
+
     /// Closes the connection and waits until it is gone.
     pub async fn disconnect(&self, server_id: &str) -> DbResult<()> {
         let Some(session) = self.session(server_id) else {
@@ -984,6 +1035,7 @@ mod tests {
             url: None,
             headers: BTreeMap::new(),
             tags: vec![],
+            oauth: false,
         }
     }
 

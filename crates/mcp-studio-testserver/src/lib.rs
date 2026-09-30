@@ -1,5 +1,7 @@
 //! A tiny deterministic MCP server for tests: `echo`, `add`, and `fail` tools.
 
+pub mod oauth;
+
 use std::future::Future;
 
 use rmcp::{

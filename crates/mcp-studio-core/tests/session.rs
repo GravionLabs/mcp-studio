@@ -86,6 +86,7 @@ fn stdio_server(command: &str, args: &[&str]) -> ServerInput {
         url: None,
         headers: BTreeMap::new(),
         tags: vec![],
+        oauth: false,
     }
 }
 
@@ -154,8 +155,8 @@ async fn unknown_command_reports_an_error() {
         .manager
         .connect(&server.id, None)
         .await
-        .err()
-        .expect("must fail");
+        .map(|_| ())
+        .expect_err("must fail");
     assert!(error.to_string().contains("could not start"), "{error}");
     assert_eq!(states(&h.sink).last(), Some(&ConnectionState::Error));
     assert!(h.manager.session(&server.id).is_none());
@@ -244,6 +245,7 @@ async fn connects_over_streamable_http_with_headers() {
             url: Some(url),
             headers: BTreeMap::from([("Authorization".into(), "keyring:h".into())]),
             tags: vec![],
+            oauth: false,
         })
         .await
         .unwrap();

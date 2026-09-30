@@ -224,6 +224,7 @@ mod tests {
             url: None,
             headers: BTreeMap::from([("Authorization".into(), "keyring:def".into())]),
             tags: vec![],
+            oauth: false,
         }
     }
 
