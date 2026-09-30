@@ -59,6 +59,10 @@
       }
     </dl>
 
+    @if (s.transport === "stdio") {
+      <app-proxy-panel [serverName]="s.name" />
+    }
+
     <h3>Logs</h3>
     @if (logs().length === 0) {
       <p class="muted">No log output yet.</p>

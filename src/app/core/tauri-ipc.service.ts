@@ -13,6 +13,7 @@ import type {
   LogEvent,
   MessageFilter,
   MessageRecord,
+  ProxyInfo,
   PromptInfo,
   ResourceInfo,
   ResourceTemplateInfo,
@@ -214,5 +215,13 @@ export class TauriIpcService {
 
   historyClear(serverId: string | null): Promise<number> {
     return this.call("history_clear", { serverId });
+  }
+
+  proxyInfo(): Promise<ProxyInfo> {
+    return this.call("proxy_info");
+  }
+
+  proxySetEnvironment(id: string | null): Promise<void> {
+    return this.call("proxy_set_environment", { id });
   }
 }

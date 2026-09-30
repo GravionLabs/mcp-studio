@@ -1,0 +1,24 @@
+<section class="proxy">
+  <h3>Record a real client</h3>
+  <p class="muted">
+    Start this server through MCP Studio from Claude Code, Claude Desktop, or an IDE. Every message
+    shows up in the inspector while the client works.
+  </p>
+  @if (info(); as i) {
+    @if (command(); as cmd) {
+      <p class="muted">Configure the client to run:</p>
+      <div class="command">
+        <code class="mono">{{ cmd }}</code>
+        <button type="button" (click)="copy(cmd)">Copy</button>
+      </div>
+      <p class="muted status">
+        Proxy is listening on 127.0.0.1:{{ i.controlPort }}. MCP Studio must be running.
+      </p>
+    } @else {
+      <p class="warn" role="status">
+        The <code>mcp-studio-proxy</code> program was not found next to the app. Build it with
+        <code>cargo build -p mcp-studio-proxy</code> or set <code>MCP_STUDIO_PROXY_BIN</code>.
+      </p>
+    }
+  }
+</section>

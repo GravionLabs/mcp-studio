@@ -104,3 +104,17 @@ Angular 22 with standalone components, signals, and zoneless change detection; s
   holds only view state and subscribes to events.
 - **Libraries**: CodeMirror 6 (JSON, Markdown, YAML); a small in-house JSON Schema form generator for
   the subset MCP tools use (instead of a heavy Formly dependency); `@foblex/flow` for the flow editor.
+
+## Proxy mode
+
+`mcp-studio-proxy` is a small program that an MCP client starts instead of the real server
+(`mcp-studio-proxy --server <name>`). It connects to the running app over a loopback TCP connection
+authenticated with the token from `<app data dir>/proxy.json` and pipes stdio to it. The app starts the
+real server, forwards every line unchanged, and records each JSON-RPC message in both directions
+(`sessions.origin = 'proxy'`).
+
+- **Development**: build the program next to the app with `cargo build -p mcp-studio-proxy`
+  (or set `MCP_STUDIO_PROXY_BIN`).
+- **Releases**: `pnpm bundle` builds the program for the target triple, copies it to
+  `src-tauri/binaries/` and bundles it as a Tauri sidecar (`tauri.bundle.conf.json`), so it is
+  installed next to the app.

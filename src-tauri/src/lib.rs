@@ -2,13 +2,14 @@ mod commands;
 mod error;
 mod sink;
 
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use mcp_studio_core::{
     collections::Collections,
     db::Db,
     environments::Environments,
     message_store::{self, RetentionPolicy},
+    proxy::{discovery_path, ProxyService},
     registry::Registry,
     secrets::{KeyringStore, SecretStore},
     session::SessionManager,
@@ -23,6 +24,8 @@ pub struct AppState {
     pub collections: Collections,
     pub secrets: Arc<dyn SecretStore>,
     pub sessions: Arc<SessionManager>,
+    pub proxy: ProxyService,
+    pub discovery_file: PathBuf,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -51,15 +54,25 @@ pub fn run() {
             let collections = Collections::new(db.clone());
             let secrets: Arc<dyn SecretStore> =
                 Arc::new(KeyringStore::new("dev.gravionlabs.mcp-studio"));
+            let sink = Arc::new(sink::TauriSink {
+                app: app.handle().clone(),
+            });
             let sessions = SessionManager::new(
                 db.clone(),
                 registry.clone(),
                 environments.clone(),
                 secrets.clone(),
-                Arc::new(sink::TauriSink {
-                    app: app.handle().clone(),
-                }),
+                sink.clone(),
             );
+            let discovery_file = discovery_path(&dir);
+            let proxy = tauri::async_runtime::block_on(ProxyService::start(
+                db.clone(),
+                registry.clone(),
+                environments.clone(),
+                secrets.clone(),
+                sink,
+                &discovery_file,
+            ))?;
             app.manage(AppState {
                 db,
                 registry,
@@ -67,6 +80,8 @@ pub fn run() {
                 collections,
                 secrets,
                 sessions,
+                proxy,
+                discovery_file,
             });
             Ok(())
         })
@@ -103,6 +118,8 @@ pub fn run() {
             commands::collection_import,
             commands::history_list,
             commands::history_clear,
+            commands::proxy_info,
+            commands::proxy_set_environment,
             commands::tool_call,
             commands::request_cancel,
             commands::messages_query,

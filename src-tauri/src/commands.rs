@@ -6,6 +6,7 @@ use mcp_studio_core::{
     history::{HistoryEntry, HistoryFilter},
     message_store::{query_messages, MessageFilter},
     model::{AppInfo, JsonValue},
+    proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
@@ -337,4 +338,15 @@ pub async fn history_clear(
     server_id: Option<String>,
 ) -> CommandResult<u64> {
     Ok(state.sessions.history().clear(server_id.as_deref()).await?)
+}
+
+#[tauri::command]
+pub fn proxy_info(state: State<'_, AppState>) -> ProxyInfo {
+    state.proxy.info(&state.discovery_file)
+}
+
+/// The environment whose variables apply to sessions started through the proxy.
+#[tauri::command]
+pub fn proxy_set_environment(state: State<'_, AppState>, id: Option<String>) {
+    state.proxy.set_environment(id);
 }

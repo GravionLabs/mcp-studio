@@ -1,0 +1,35 @@
+.proxy {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+
+  h3 {
+    margin: 0 0 4px;
+  }
+}
+
+.command {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  code {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+.status {
+  margin-bottom: 0;
+}
+
+.warn {
+  color: var(--warn);
+}

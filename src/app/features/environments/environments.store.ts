@@ -24,11 +24,18 @@ export class EnvironmentsStore {
 
   async load(): Promise<void> {
     this._environments.set(await this.ipc.environmentList());
+    this.syncProxy();
   }
 
   setActive(id: string | null): void {
     this._activeId.set(id);
     this.storage.set(ACTIVE_KEY, id ?? "");
+    this.syncProxy();
+  }
+
+  /** Sessions started through the proxy use the active environment's variables. */
+  private syncProxy(): void {
+    void this.ipc.proxySetEnvironment(this.activeId()).catch(() => undefined);
   }
 
   async add(input: EnvironmentInput): Promise<Environment> {
