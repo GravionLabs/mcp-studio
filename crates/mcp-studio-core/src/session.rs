@@ -498,6 +498,7 @@ impl SessionManager {
         let writer = MessageWriter::spawn(
             self.db.clone(),
             session_id.clone(),
+            server_id.to_owned(),
             prepared.redactor.clone(),
             self.sink.clone(),
         );

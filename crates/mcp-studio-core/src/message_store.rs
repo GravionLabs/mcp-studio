@@ -72,7 +72,13 @@ impl Pending {
 }
 
 impl MessageWriter {
-    pub fn spawn(db: Db, session_id: String, redactor: Redactor, sink: Arc<dyn EventSink>) -> Self {
+    pub fn spawn(
+        db: Db,
+        session_id: String,
+        server_id: String,
+        redactor: Redactor,
+        sink: Arc<dyn EventSink>,
+    ) -> Self {
         let (tx, mut rx) = mpsc::unbounded_channel::<Pending>();
         let handle = tokio::spawn(async move {
             let mut batch = Vec::with_capacity(BATCH_SIZE);
@@ -92,7 +98,9 @@ impl MessageWriter {
                         () = &mut deadline => break,
                     }
                 }
-                if let Err(error) = write_batch(&db, &session_id, &batch, sink.as_ref()).await {
+                if let Err(error) =
+                    write_batch(&db, &session_id, &server_id, &batch, sink.as_ref()).await
+                {
                     tracing_error(&error.to_string());
                 }
                 batch.clear();
@@ -126,6 +134,7 @@ fn tracing_error(message: &str) {
 async fn write_batch(
     db: &Db,
     session_id: &str,
+    server_id: &str,
     batch: &[Pending],
     sink: &dyn EventSink,
 ) -> DbResult<()> {
@@ -153,6 +162,7 @@ async fn write_batch(
         records.push(MessageRecord {
             id,
             session_id: session_id.to_owned(),
+            server_id: server_id.to_owned(),
             direction: message.direction,
             jsonrpc_id: message.jsonrpc_id.clone(),
             method: message.method.clone(),
@@ -199,6 +209,7 @@ type MessageRow = (
     i64,
     String,
     String,
+    String,
     Option<String>,
     Option<String>,
     String,
@@ -211,7 +222,7 @@ type MessageRow = (
 /// Reads recorded messages. Responses carry `duration_ms`, measured from their request.
 pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<MessageRecord>> {
     let mut query = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
-        "SELECT m.id, m.session_id, m.direction, m.jsonrpc_id, m.method, m.payload, m.bytes, m.is_error, m.ts, \
+        "SELECT m.id, m.session_id, (SELECT server_id FROM sessions WHERE id = m.session_id), m.direction, m.jsonrpc_id, m.method, m.payload, m.bytes, m.is_error, m.ts, \
          (SELECT m.ts - r.ts FROM messages r WHERE r.session_id = m.session_id AND r.jsonrpc_id = m.jsonrpc_id \
             AND r.method IS NOT NULL AND r.direction != m.direction AND r.id < m.id \
             ORDER BY r.id DESC LIMIT 1) AS duration \
@@ -274,6 +285,7 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
             |(
                 id,
                 session_id,
+                server_id,
                 direction,
                 jsonrpc_id,
                 method,
@@ -286,6 +298,7 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
                 MessageRecord {
                     id,
                     session_id,
+                    server_id,
                     direction: if direction == "in" {
                         Direction::In
                     } else {
@@ -377,7 +390,13 @@ mod tests {
     async fn stores_messages_in_order_and_emits_events() {
         let (db, session) = setup().await;
         let sink = Arc::new(CollectingSink::default());
-        let writer = MessageWriter::spawn(db.clone(), session, Redactor::default(), sink.clone());
+        let writer = MessageWriter::spawn(
+            db.clone(),
+            session,
+            "srv".into(),
+            Redactor::default(),
+            sink.clone(),
+        );
         let recorder = writer.recorder();
         recorder.record(message(
             Direction::Out,
@@ -425,6 +444,7 @@ mod tests {
         let writer = MessageWriter::spawn(
             db.clone(),
             session,
+            "srv".into(),
             redactor,
             Arc::new(CollectingSink::default()),
         );
@@ -447,6 +467,7 @@ mod tests {
         let writer = MessageWriter::spawn(
             db.clone(),
             session,
+            "srv".into(),
             Redactor::default(),
             Arc::new(CollectingSink::default()),
         );
@@ -468,6 +489,7 @@ mod tests {
         let writer = MessageWriter::spawn(
             db.clone(),
             session,
+            "srv".into(),
             Redactor::default(),
             Arc::new(CollectingSink::default()),
         );
