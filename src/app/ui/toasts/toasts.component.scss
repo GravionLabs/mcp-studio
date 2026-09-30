@@ -1,0 +1,42 @@
+.stack {
+  position: fixed;
+  right: 16px;
+  bottom: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 340px;
+  z-index: 1000;
+}
+
+.toast {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 30%);
+
+  &.success {
+    border-left-color: var(--ok);
+  }
+
+  &.error {
+    border-left-color: var(--danger);
+  }
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+pre {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+}

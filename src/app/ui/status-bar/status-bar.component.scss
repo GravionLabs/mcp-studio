@@ -1,0 +1,43 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 2px 12px;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+
+  &.ok {
+    background: var(--ok);
+  }
+
+  &.err {
+    background: var(--danger);
+  }
+}
+
+.err-text {
+  color: var(--danger);
+}
