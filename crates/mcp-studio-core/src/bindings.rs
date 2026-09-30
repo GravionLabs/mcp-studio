@@ -17,6 +17,7 @@ use crate::{
     explorer::{
         PromptArgumentInfo, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo,
     },
+    history::{HistoryEntry, HistoryFilter},
     message_store::MessageFilter,
     model::AppInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
@@ -54,6 +55,8 @@ pub fn ipc_types() -> Types {
         .register::<SavedRequest>()
         .register::<CollectionTree>()
         .register::<ImportReport>()
+        .register::<HistoryEntry>()
+        .register::<HistoryFilter>()
 }
 
 /// Renders the TypeScript bindings file.

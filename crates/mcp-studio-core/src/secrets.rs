@@ -146,6 +146,11 @@ impl Redactor {
         Self { secrets }
     }
 
+    /// The secret values this redactor masks.
+    pub fn secrets(&self) -> &[String] {
+        &self.secrets
+    }
+
     pub fn redact(&self, text: &str) -> String {
         self.secrets
             .iter()

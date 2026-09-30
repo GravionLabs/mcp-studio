@@ -39,6 +39,30 @@ export type EnvironmentInput = {
 	variables: { [key in string]: string },
 };
 
+export type HistoryEntry = {
+	id: number,
+	serverId: string,
+	method: string,
+	target: string,
+	arguments: unknown,
+	isError: boolean,
+	cancelled: boolean,
+	durationMs: number | null,
+	result: unknown | null,
+	error: string | null,
+	ts: number,
+};
+
+export type HistoryFilter = {
+	serverId?: string | null,
+	/**  Case-insensitive match on the target, the arguments, and the error text. */
+	search?: string | null,
+	/**  Page backwards: only entries older than this id. */
+	beforeId?: number,
+	/**  Default 100, maximum 1000. Newest first. */
+	limit?: number | null,
+};
+
 /**  Result of importing a collection file. */
 export type ImportReport = {
 	/**  Id of the imported top-level folder. */
@@ -112,7 +136,7 @@ export type MessageRecord = {
 	/**  Unix milliseconds. */
 	ts: number,
 	/**  For responses: milliseconds since the matching request (filled by queries). */
-	durationMs: number,
+	durationMs: number | null,
 };
 
 /**  `mcp://progress`: progress of a running tool call. */

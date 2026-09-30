@@ -44,6 +44,7 @@ use crate::{
         ConnectionState, EventSink, ListChangedEvent, ListKind, LogEvent, LogSource, ProgressEvent,
         StatusEvent,
     },
+    history::{History, NewEntry},
     message_store::MessageWriter,
     model::JsonValue,
     path_env,
@@ -312,6 +313,29 @@ impl Logger {
             .insert(server_id.to_owned(), redactor);
     }
 
+    /// Teaches the redactor about more secret values (e.g. from environment variables used in a call).
+    fn add_secrets(&self, server_id: &str, secrets: Vec<String>) {
+        if secrets.is_empty() {
+            return;
+        }
+        let mut all = self.redactor.lock().unwrap();
+        let known = all
+            .remove(server_id)
+            .map(|r| r.secrets().to_vec())
+            .unwrap_or_default();
+        all.insert(
+            server_id.to_owned(),
+            Redactor::new(known.into_iter().chain(secrets)),
+        );
+    }
+
+    fn redact(&self, server_id: &str, text: &str) -> String {
+        match self.redactor.lock().unwrap().get(server_id) {
+            Some(redactor) => redactor.redact(text),
+            None => text.to_owned(),
+        }
+    }
+
     fn log(&self, server_id: &str, source: LogSource, level: &str, line: &str) {
         let line = match self.redactor.lock().unwrap().get(server_id) {
             Some(redactor) => redactor.redact(line),
@@ -349,6 +373,7 @@ pub struct SessionManager {
     logger: Arc<Logger>,
     live: Mutex<HashMap<String, Arc<LiveSession>>>,
     connect_timeout: Mutex<Duration>,
+    history: History,
     progress: Arc<Mutex<HashMap<String, String>>>,
     calls: Mutex<HashMap<String, CancellationToken>>,
 }
@@ -361,6 +386,7 @@ impl SessionManager {
         secrets: Arc<dyn SecretStore>,
         sink: Arc<dyn EventSink>,
     ) -> Arc<Self> {
+        let db_for_history = db.clone();
         let logger = Arc::new(Logger {
             sink: sink.clone(),
             buffer: LogBuffer::default(),
@@ -375,6 +401,7 @@ impl SessionManager {
             logger,
             live: Mutex::default(),
             connect_timeout: Mutex::new(DEFAULT_CONNECT_TIMEOUT),
+            history: History::new(db_for_history),
             progress: Arc::default(),
             calls: Mutex::default(),
         })
@@ -625,11 +652,129 @@ impl SessionManager {
     /// Calls a tool. Protocol errors (unknown tool, invalid params) are `Err`; a tool that ran and
     /// failed is `Ok` with `is_error` set.
     pub async fn call_tool(&self, request: ToolCallRequest) -> DbResult<ToolCallResult> {
+        let outcome = self.call_tool_inner(&request).await;
+        let entry = match &outcome {
+            Ok(done) => NewEntry {
+                server_id: request.server_id.clone(),
+                method: "tools/call".into(),
+                target: request.tool_name.clone(),
+                arguments: request.arguments.0.clone(),
+                is_error: done.is_error,
+                cancelled: done.cancelled,
+                duration_ms: Some(done.duration_ms),
+                result: (!done.cancelled)
+                    .then(|| self.redact_json(&request.server_id, &done.result.0)),
+                error: None,
+            },
+            Err(error) => NewEntry {
+                server_id: request.server_id.clone(),
+                method: "tools/call".into(),
+                target: request.tool_name.clone(),
+                arguments: request.arguments.0.clone(),
+                is_error: true,
+                cancelled: false,
+                duration_ms: None,
+                result: None,
+                error: Some(self.logger.redact(&request.server_id, &error.to_string())),
+            },
+        };
+        self.record(entry).await;
+        outcome
+    }
+
+    /// Reads a resource and records the request in the history.
+    pub async fn read_resource(&self, server_id: &str, uri: &str) -> DbResult<JsonValue> {
+        let peer = self.peer(server_id)?;
+        let started = std::time::Instant::now();
+        let outcome = crate::explorer::read_resource(&peer, uri).await;
+        self.record_simple(
+            server_id,
+            "resources/read",
+            uri,
+            serde_json::json!({}),
+            &outcome,
+            started,
+        )
+        .await;
+        outcome
+    }
+
+    /// Gets a prompt and records the request in the history.
+    pub async fn get_prompt(
+        &self,
+        server_id: &str,
+        name: &str,
+        arguments: &BTreeMap<String, String>,
+    ) -> DbResult<JsonValue> {
+        let peer = self.peer(server_id)?;
+        let started = std::time::Instant::now();
+        let outcome = crate::explorer::get_prompt(&peer, name, arguments).await;
+        let args = serde_json::to_value(arguments).unwrap_or_default();
+        self.record_simple(server_id, "prompts/get", name, args, &outcome, started)
+            .await;
+        outcome
+    }
+
+    /// The request history.
+    pub fn history(&self) -> &History {
+        &self.history
+    }
+
+    fn redact_json(&self, server_id: &str, value: &serde_json::Value) -> serde_json::Value {
+        let text = value.to_string();
+        let redacted = self.logger.redact(server_id, &text);
+        if redacted == text {
+            value.clone()
+        } else {
+            serde_json::from_str(&redacted).unwrap_or(serde_json::Value::Null)
+        }
+    }
+
+    async fn record(&self, entry: NewEntry) {
+        // History is a convenience; failing to store it must never fail the request itself.
+        let _ = self.history.record(entry).await;
+    }
+
+    async fn record_simple(
+        &self,
+        server_id: &str,
+        method: &str,
+        target: &str,
+        arguments: serde_json::Value,
+        outcome: &DbResult<JsonValue>,
+        started: std::time::Instant,
+    ) {
+        let (result, error) = match outcome {
+            Ok(value) => (Some(self.redact_json(server_id, &value.0)), None),
+            Err(error) => (
+                None,
+                Some(self.logger.redact(server_id, &error.to_string())),
+            ),
+        };
+        self.record(NewEntry {
+            server_id: server_id.to_owned(),
+            method: method.into(),
+            target: target.into(),
+            arguments,
+            is_error: outcome.is_err(),
+            cancelled: false,
+            duration_ms: Some(started.elapsed().as_millis() as i64),
+            result,
+            error,
+        })
+        .await;
+    }
+
+    async fn call_tool_inner(&self, request: &ToolCallRequest) -> DbResult<ToolCallResult> {
+        let request = request.clone();
         let peer = self.peer(&request.server_id)?;
         let variables = match request.environment_id.as_deref() {
             Some(id) => {
                 let env = self.environments.get(id).await?;
-                resolve_values(self.secrets.as_ref(), &env.input.variables)?.0
+                let (values, secrets) =
+                    resolve_values(self.secrets.as_ref(), &env.input.variables)?;
+                self.logger.add_secrets(&request.server_id, secrets);
+                values
             }
             None => BTreeMap::new(),
         };

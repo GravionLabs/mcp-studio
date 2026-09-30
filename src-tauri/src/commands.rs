@@ -3,6 +3,7 @@ use mcp_studio_core::{
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
+    history::{HistoryEntry, HistoryFilter},
     message_store::{query_messages, MessageFilter},
     model::{AppInfo, JsonValue},
     registry::{ServerDefinition, ServerInput},
@@ -217,7 +218,7 @@ pub async fn resource_read(
     id: String,
     uri: String,
 ) -> CommandResult<JsonValue> {
-    Ok(explorer::read_resource(&state.sessions.peer(&id)?, &uri).await?)
+    Ok(state.sessions.read_resource(&id, &uri).await?)
 }
 
 #[tauri::command]
@@ -227,7 +228,7 @@ pub async fn prompt_get(
     name: String,
     arguments: BTreeMap<String, String>,
 ) -> CommandResult<JsonValue> {
-    Ok(explorer::get_prompt(&state.sessions.peer(&id)?, &name, &arguments).await?)
+    Ok(state.sessions.get_prompt(&id, &name, &arguments).await?)
 }
 
 #[tauri::command]
@@ -319,4 +320,21 @@ pub async fn collection_import(
         .collections
         .import_collection(&json, parent_id.as_deref())
         .await?)
+}
+
+#[tauri::command]
+pub async fn history_list(
+    state: State<'_, AppState>,
+    filter: HistoryFilter,
+) -> CommandResult<Vec<HistoryEntry>> {
+    Ok(state.sessions.history().list(&filter).await?)
+}
+
+/// Deletes the history of one server, or of all servers. Returns how many entries were removed.
+#[tauri::command]
+pub async fn history_clear(
+    state: State<'_, AppState>,
+    server_id: Option<String>,
+) -> CommandResult<u64> {
+    Ok(state.sessions.history().clear(server_id.as_deref()).await?)
 }

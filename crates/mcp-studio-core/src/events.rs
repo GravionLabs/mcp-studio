@@ -44,7 +44,7 @@ pub struct MessageRecord {
     #[specta(type = u32)]
     pub ts: i64,
     /// For responses: milliseconds since the matching request (filled by queries).
-    #[specta(type = u32)]
+    #[specta(type = Option<u32>)]
     pub duration_ms: Option<i64>,
 }
 

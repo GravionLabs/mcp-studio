@@ -534,3 +534,96 @@ async fn reads_resources_and_gets_prompts() {
     );
     h.manager.disconnect_all().await;
 }
+
+#[tokio::test]
+async fn history_records_calls_with_unresolved_arguments_and_masked_results() {
+    use mcp_studio_core::history::HistoryFilter;
+
+    let h = harness().await;
+    h.secrets.set("pw", "hunter2-secret").unwrap();
+    let environment = h
+        .environments
+        .create(EnvironmentInput {
+            name: "dev".into(),
+            variables: BTreeMap::from([("password".into(), "keyring:pw".into())]),
+        })
+        .await
+        .unwrap();
+    let server = h
+        .registry
+        .create(stdio_server(&server_binary(), &[]))
+        .await
+        .unwrap();
+    h.manager.connect(&server.id, None).await.unwrap();
+
+    let mut request = call(
+        &server.id,
+        "echo",
+        serde_json::json!({"message": "pw={{password}}"}),
+    );
+    request.environment_id = Some(environment.id.clone());
+    let done = h.manager.call_tool(request).await.unwrap();
+    // The caller still sees the real value...
+    assert_eq!(done.result.0["content"][0]["text"], "pw=hunter2-secret");
+
+    h.manager
+        .call_tool(call(&server.id, "fail", serde_json::json!({})))
+        .await
+        .unwrap();
+    h.manager
+        .call_tool(call(&server.id, "nope", serde_json::json!({})))
+        .await
+        .ok();
+    h.manager
+        .read_resource(&server.id, "test://greeting")
+        .await
+        .unwrap();
+    h.manager
+        .get_prompt(
+            &server.id,
+            "greet",
+            &BTreeMap::from([("name".to_owned(), "Ada".to_owned())]),
+        )
+        .await
+        .unwrap();
+    assert!(h
+        .manager
+        .read_resource(&server.id, "test://missing")
+        .await
+        .is_err());
+
+    let entries = h
+        .manager
+        .history()
+        .list(&HistoryFilter::default())
+        .await
+        .unwrap();
+    let methods: Vec<_> = entries.iter().rev().map(|e| e.method.as_str()).collect();
+    assert_eq!(
+        methods[..4],
+        ["tools/call", "tools/call", "tools/call", "resources/read"]
+    );
+    assert_eq!(*methods.last().unwrap(), "resources/read");
+
+    // ...but the stored history has the placeholder and a masked result.
+    let echo = entries.iter().find(|e| e.target == "echo").unwrap();
+    assert_eq!(echo.arguments.0["message"], "pw={{password}}");
+    let stored = echo.result.as_ref().unwrap().0.to_string();
+    assert!(!stored.contains("hunter2-secret"), "{stored}");
+    assert!(stored.contains(mcp_studio_core::secrets::MASK));
+    assert!(
+        entries
+            .iter()
+            .find(|e| e.target == "fail")
+            .unwrap()
+            .is_error
+    );
+    let failed_read = entries
+        .iter()
+        .find(|e| e.target == "test://missing")
+        .unwrap();
+    assert!(failed_read.is_error && failed_read.error.is_some());
+    let prompt = entries.iter().find(|e| e.method == "prompts/get").unwrap();
+    assert_eq!(prompt.arguments.0["name"], "Ada");
+    h.manager.disconnect_all().await;
+}

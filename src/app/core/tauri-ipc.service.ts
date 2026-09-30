@@ -3,6 +3,8 @@ import type {
   AppInfo,
   CollectionNode,
   CollectionTree,
+  HistoryEntry,
+  HistoryFilter,
   ImportReport,
   SavedRequest,
   SavedRequestInput,
@@ -204,5 +206,13 @@ export class TauriIpcService {
 
   collectionImport(path: string, parentId: string | null): Promise<ImportReport> {
     return this.call("collection_import", { path, parentId });
+  }
+
+  historyList(filter: HistoryFilter = {}): Promise<HistoryEntry[]> {
+    return this.call("history_list", { filter });
+  }
+
+  historyClear(serverId: string | null): Promise<number> {
+    return this.call("history_clear", { serverId });
   }
 }

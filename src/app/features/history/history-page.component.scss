@@ -1,0 +1,102 @@
+.history {
+  padding: 20px;
+  max-width: 1000px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+}
+
+.entries {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.entry {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kind {
+  color: var(--accent);
+  font-size: 11px;
+  min-width: 56px;
+}
+
+.server {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  min-width: 68px;
+  text-align: center;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+
+  &.ok {
+    color: var(--ok);
+  }
+
+  &.error {
+    color: var(--danger);
+  }
+
+  &.cancelled {
+    color: var(--warn);
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+}
+
+.details {
+  padding: 4px 0 8px 24px;
+
+  h4 {
+    margin: 8px 0 4px;
+  }
+}
+
+.failure {
+  color: var(--danger);
+}
+
+.empty {
+  padding: 16px 0;
+}
