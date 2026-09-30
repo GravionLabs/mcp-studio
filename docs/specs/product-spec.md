@@ -49,6 +49,12 @@ with Tauri 2, a Rust core, and an Angular 22 frontend (the same stack as Bench).
 The MVP covers the core loop: add a server, connect, call tools, inspect every call — including
 calls made by a real client through the proxy. Flows and AI features come once this loop is stable.
 
+## Status
+
+M0 and M1 are implemented (see the closed issues of milestones "M0 Foundation" and "M1 MVP"). Beyond the
+plan, M1 includes OAuth 2.1 sign-in for HTTP servers, import from Claude Desktop / Claude Code
+configurations, and ready-made client configuration snippets for the proxies. M2 to M4 are planned.
+
 ## Epics
 
 1. Foundation and app shell
