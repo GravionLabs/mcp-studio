@@ -366,6 +366,8 @@ pub struct ProxyInfo {
     /// Absolute path of the `mcp-studio-proxy` program, if it was found.
     pub proxy_binary: Option<String>,
     pub discovery_file: String,
+    /// Port of the local HTTP proxy for HTTP servers (`http://127.0.0.1:<port>/mcp/<server>`).
+    pub http_port: u16,
 }
 
 /// Finds the `mcp-studio-proxy` program: `MCP_STUDIO_PROXY_BIN`, then next to the running
@@ -398,11 +400,12 @@ fn locate_proxy_binary_with(
 }
 
 impl ProxyService {
-    pub fn info(&self, discovery_file: &Path) -> ProxyInfo {
+    pub fn info(&self, discovery_file: &Path, http_port: u16) -> ProxyInfo {
         ProxyInfo {
             control_port: self.port,
             proxy_binary: locate_proxy_binary().map(|p| p.to_string_lossy().into_owned()),
             discovery_file: discovery_file.to_string_lossy().into_owned(),
+            http_port,
         }
     }
 }
