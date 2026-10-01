@@ -361,6 +361,8 @@ export type SpanFilter = {
 	traceId?: string | null,
 	/**  Spans of the sessions of one server. */
 	serverId?: string | null,
+	/**  Only root spans (the sessions), for listing traces. */
+	rootsOnly?: boolean,
 	/**  Maximum number of rows (default 1000, max 10000), newest first. */
 	limit?: number | null,
 };

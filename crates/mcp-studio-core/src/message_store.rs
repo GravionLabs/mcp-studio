@@ -838,6 +838,47 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn lists_only_root_spans_newest_first_when_asked() {
+        let (db, session) = setup().await;
+        record_all(
+            &db,
+            &session,
+            vec![timed(
+                Direction::Out,
+                1,
+                json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo"}}),
+            )],
+        )
+        .await;
+        let now = now_ms();
+        sqlx::query("INSERT INTO sessions (id, server_id, origin, started_at) VALUES ('later', 'srv', 'studio', ?)")
+            .bind(now).execute(db.pool()).await.unwrap();
+        record_all(
+            &db,
+            "later",
+            vec![message(
+                Direction::Out,
+                json!({"jsonrpc":"2.0","id":1,"method":"ping"}),
+            )],
+        )
+        .await;
+        let roots = trace::query_spans(
+            &db,
+            &trace::SpanFilter {
+                roots_only: true,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(roots.iter().all(|s| s.kind == trace::SpanKind::Session));
+        assert_eq!(roots.len(), 2);
+        // Oldest first within the returned window, like messages.
+        assert_eq!(roots[0].trace_id, "sess");
+        assert_eq!(roots[1].trace_id, "later");
+    }
+
+    #[tokio::test]
     async fn retention_removes_old_traces_without_messages() {
         let (db, session) = setup().await;
         record_all(
