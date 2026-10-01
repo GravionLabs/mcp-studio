@@ -1,6 +1,7 @@
 use mcp_studio_core::{
     client_import::{self, ConfigSource, ImportCandidate, ImportSummary},
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
+    docs_gen::{self, DocsInput},
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
@@ -511,6 +512,54 @@ pub fn flow_to_yaml(flow: Flow) -> CommandResult<String> {
 #[tauri::command]
 pub fn flow_from_yaml(yaml: String) -> CommandResult<Flow> {
     Ok(flow_yaml::from_yaml(&yaml)?)
+}
+
+/// Markdown documentation of a server's tools: purpose and parameters from the definitions you pass,
+/// examples and error cases from the recorded history of that server. Nothing is sent anywhere.
+async fn render_server_docs(
+    state: &AppState,
+    server_id: &str,
+    tools: &[ToolInfo],
+) -> CommandResult<String> {
+    let server = state.registry.get(server_id).await?;
+    let history = state
+        .sessions
+        .history()
+        .list(&HistoryFilter {
+            server_id: Some(server_id.to_owned()),
+            limit: Some(1000),
+            ..HistoryFilter::default()
+        })
+        .await?;
+    let generated_on = docs_gen::civil_date(mcp_studio_core::db::now_ms());
+    Ok(docs_gen::render_docs(&DocsInput {
+        server_name: &server.input.name,
+        generated_on: &generated_on,
+        tools,
+        history: &history,
+    }))
+}
+
+#[tauri::command]
+pub async fn server_docs(
+    state: State<'_, AppState>,
+    server_id: String,
+    tools: Vec<ToolInfo>,
+) -> CommandResult<String> {
+    render_server_docs(&state, &server_id, &tools).await
+}
+
+/// Writes the documentation of a server's tools to a Markdown file.
+#[tauri::command]
+pub async fn server_docs_export(
+    state: State<'_, AppState>,
+    server_id: String,
+    tools: Vec<ToolInfo>,
+    path: String,
+) -> CommandResult<()> {
+    let markdown = render_server_docs(&state, &server_id, &tools).await?;
+    std::fs::write(&path, markdown)
+        .map_err(|e| CommandError(format!("could not write {path}: {e}")))
 }
 
 /// Checks tool definitions for vague descriptions, missing `required` fields, overlapping tools and

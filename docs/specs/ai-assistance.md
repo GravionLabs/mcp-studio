@@ -23,3 +23,20 @@ heuristics, and shows the result on the server page ("Tool quality"). Findings a
 Words are compared in lower case, split at `_`, `-` and camelCase, without common stop words and with
 a crude stem (`lists`, `listed` and `list` are one word). Token counts are the offline estimates of the
 inspector. The thresholds are constants in `crates/mcp-studio-core/src/lint.rs`.
+
+## Tool documentation
+
+For a connected server, **Documentation** on its page writes Markdown that can be previewed, copied,
+or saved as a `.md` file. It needs no model and sends nothing anywhere; it is built from:
+
+- **the tool definitions**: title and description (purpose), the parameters as a table (type, whether
+  required, description, allowed values, default, range; nested objects as `parent.child`), the
+  output schema, and the hints the server gives (read-only, destructive, ...)
+- **the recorded calls** of the server in the history: up to 3 recent successful calls per tool with
+  distinct arguments, shown with the arguments and the start of the result (400 characters), and the
+  different error messages with how often and when they happened. History results are already
+  masked and size limited when they are stored. Cancelled calls are ignored.
+- **the lint** of the tool: a "Documentation gaps" list when the description is missing or vague
+
+Tools are sorted by name and the text is deterministic for the same input apart from the date line,
+so it can be kept in Git and diffed.
