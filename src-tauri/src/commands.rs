@@ -12,10 +12,12 @@ use mcp_studio_core::{
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
+    update::UpdateInfo,
 };
 use std::collections::BTreeMap;
 
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_updater::UpdaterExt;
 
 use crate::{
     error::{CommandError, CommandResult},
@@ -25,6 +27,44 @@ use crate::{
 #[tauri::command]
 pub fn app_info() -> AppInfo {
     AppInfo::current()
+}
+
+/// Asks the update server whether a newer version exists. The update is kept for [`update_install`].
+#[tauri::command]
+pub async fn update_check(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> CommandResult<Option<UpdateInfo>> {
+    let update = app
+        .updater()
+        .map_err(|e| CommandError(e.to_string()))?
+        .check()
+        .await
+        .map_err(|e| CommandError(format!("Could not check for updates: {e}")))?;
+    let info = update.as_ref().map(|u| UpdateInfo {
+        version: u.version.clone(),
+        current_version: u.current_version.clone(),
+        notes: u.body.clone(),
+        date: u.date.map(|d| d.to_string()),
+    });
+    *state.pending_update.lock().unwrap() = update;
+    Ok(info)
+}
+
+/// Downloads and installs the update found by the last check. The app restarts to finish it.
+#[tauri::command]
+pub async fn update_install(app: AppHandle, state: State<'_, AppState>) -> CommandResult<()> {
+    let update = state.pending_update.lock().unwrap().take();
+    let Some(update) = update else {
+        return Err(CommandError(
+            "There is no update to install; check for updates first".into(),
+        ));
+    };
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| CommandError(format!("Could not install the update: {e}")))?;
+    app.restart()
 }
 
 #[tauri::command]

@@ -24,6 +24,8 @@ keyring.
 - **Record real clients**: route Claude Code, Claude Desktop, GitHub Copilot, OpenCode, or another
   client through MCP Studio with a local stdio proxy or HTTP proxy and watch the traffic.
   Ready-made configuration snippets included (see [Record a real client](#record-a-real-client)).
+- **Updates**: **Check for updates** in the status bar installs signed updates from GitHub releases.
+  Nothing is checked in the background.
 - **Collections and history**: save requests in folders, share them as JSON files, and rerun anything
   from the history.
 

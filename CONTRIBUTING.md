@@ -58,10 +58,29 @@ Work is tracked as Epic → Feature → PBI → Task using GitHub sub-issues.
    the changelog is generated from them.
 4. Open one pull request per PBI. Reference the PBI and its tasks with `Closes #N`.
 
+## Releases
+
+Every merge to `main` builds installers for all platforms and publishes a GitHub release (see
+`.github/workflows/release.yml`); the version comes from GitVersion. Put `+semver: major` (or
+`minor`) in a commit message to bump that part.
+
+The app updates itself from the latest release (`latest.json`, checked only when the user clicks
+**Check for updates**). Update packages are signed with a Tauri updater key:
+
+- the public key is in `src-tauri/tauri.conf.json` (`plugins.updater.pubkey`)
+- the private key and its password are the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- **keep a backup of the private key and password**: if they are lost, installed apps can never
+  update again and a new public key needs a manual reinstall
+
+To make a new key: `pnpm tauri signer generate -w <file>`, then update the public key and both secrets.
+Linux `.deb` and `.rpm` installs are updated through the package manager; the in-app updater
+replaces AppImage, Windows, and macOS installs.
+
 ## Principles
 
 - **Local first**: no telemetry, no network calls except to the servers and LLM providers the user
-  configured.
+  configured, and the update check the user starts themselves.
 - **Secrets stay in the OS keyring**: the database and logs only ever contain `keyring:` references or
   masked values.
 - **Rust owns connections**: the webview never spawns processes or sees credentials.
