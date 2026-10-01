@@ -74,39 +74,27 @@
     </tbody>
   </table>
 
-  <h3>Anthropic API key and exact token counts</h3>
+  <h3>Exact token counts</h3>
   <p class="muted">
-    Your own Anthropic API key is used for flows that call Anthropic models and for exact token
-    counts. It is kept in the OS keyring and only sent to Anthropic. Token counts are estimates by
-    default. With an Anthropic API key you can replace the estimate of a message with the exact
-    count: use <strong>Count exactly</strong> in the inspector. That sends the message's content
-    (secrets masked) to Anthropic's token counting endpoint, only when you click. The key is kept in
-    the OS keyring.
+    Token counts are estimates by default. With an Anthropic API key you can replace the estimate of
+    a message with the exact count: use <strong>Count exactly</strong> in the inspector. That sends
+    the message's content (secrets masked) to Anthropic's token counting endpoint, only when you
+    click.
+    @if (hasKey()) {
+      An Anthropic API key is stored.
+    } @else {
+      Add an Anthropic API key on the <a routerLink="/providers">Providers</a> page first.
+    }
   </p>
   <div class="counting">
     <label>
-      <span>Model</span>
+      <span>Model whose tokenizer is used</span>
       <input
         aria-label="Model used for counting"
         [value]="countingModel()"
         (input)="countingModel.set(text($event))"
       />
     </label>
-    <label>
-      <span>API key</span>
-      <input
-        type="password"
-        autocomplete="off"
-        aria-label="Anthropic API key"
-        [placeholder]="hasKey() ? 'A key is stored; type to replace it' : 'sk-ant-…'"
-        [value]="countingKey()"
-        (input)="countingKey.set(text($event))"
-      />
-    </label>
     <button type="button" class="primary" (click)="saveCounting()">Save</button>
-    @if (hasKey()) {
-      <button type="button" [disabled]="testing()" (click)="testKey()">Test key</button>
-      <button type="button" class="ghost" (click)="removeKey()">Remove key</button>
-    }
   </div>
 </section>

@@ -8,7 +8,10 @@ use mcp_studio_core::{
     flow_yaml,
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
-    llm::{CompletionRequest, LlmProvider, Message, ProviderTestResult},
+    llm::{
+        CompletionRequest, Message, ProviderSettings, ProviderStatus, ProviderTestResult,
+        OPENAI_KEY_NAME,
+    },
     message_store::{query_messages, MessageFilter},
     metering::{self, ContextCost, SessionUsage},
     model::{AppInfo, JsonValue},
@@ -112,37 +115,71 @@ pub async fn token_counting_set_model(
         .await?)
 }
 
-/// Stores the Anthropic API key in the keyring, or removes it when `key` is empty or missing.
+/// Which providers are set up: their addresses and whether API keys are stored.
 #[tauri::command]
-pub fn token_counting_set_key(
+pub async fn provider_status(state: State<'_, AppState>) -> CommandResult<ProviderStatus> {
+    Ok(ProviderStatus {
+        settings: mcp_studio_llm::load_settings(&state.settings).await?,
+        anthropic_key: state.secrets.get(tokens::ANTHROPIC_KEY_NAME)?.is_some(),
+        openai_key: state.secrets.get(OPENAI_KEY_NAME)?.is_some(),
+    })
+}
+
+#[tauri::command]
+pub async fn provider_set_settings(
     state: State<'_, AppState>,
+    settings: ProviderSettings,
+) -> CommandResult<ProviderSettings> {
+    Ok(mcp_studio_llm::save_settings(&state.settings, settings).await?)
+}
+
+/// Stores the API key of a provider (`anthropic` or `openai`) in the OS keyring, or removes it
+/// when `key` is empty or missing.
+#[tauri::command]
+pub fn provider_set_key(
+    state: State<'_, AppState>,
+    provider: String,
     key: Option<String>,
 ) -> CommandResult<()> {
+    let name = match provider.as_str() {
+        "anthropic" => tokens::ANTHROPIC_KEY_NAME,
+        "openai" => OPENAI_KEY_NAME,
+        other => return Err(CommandError(format!("{other} does not use an API key"))),
+    };
     match key.map(|k| k.trim().to_owned()).filter(|k| !k.is_empty()) {
-        Some(key) => state.secrets.set(tokens::ANTHROPIC_KEY_NAME, &key)?,
-        None => state.secrets.delete(tokens::ANTHROPIC_KEY_NAME)?,
+        Some(key) => state.secrets.set(name, &key)?,
+        None => state.secrets.delete(name)?,
     }
     Ok(())
 }
 
-/// Sends a tiny request to Anthropic with the stored API key, to check that the key and the model
-/// work. Costs a handful of tokens.
+/// The models installed in the configured Ollama.
 #[tauri::command]
-pub async fn provider_test_anthropic(
+pub async fn ollama_models(state: State<'_, AppState>) -> CommandResult<Vec<String>> {
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    mcp_studio_llm::ollama_models(&settings.ollama_url)
+        .await
+        .map_err(|e| CommandError(e.message))
+}
+
+/// Sends a tiny request to the provider of `model` (for example `ollama:llama3.1:8b`) to check
+/// that the address, the key, and the model work.
+#[tauri::command]
+pub async fn provider_test(
     state: State<'_, AppState>,
-    model: Option<String>,
+    model: String,
 ) -> CommandResult<ProviderTestResult> {
-    let provider = mcp_studio_llm::AnthropicProvider::from_store(state.secrets.as_ref())
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let resolved = mcp_studio_llm::resolve(&settings, state.secrets.as_ref(), &model)
         .map_err(|e| CommandError(e.message))?;
-    let model = match model.filter(|m| !m.trim().is_empty()) {
-        Some(model) => model,
-        None => counting_model(&state).await?,
-    };
-    let mut request =
-        CompletionRequest::new(model, vec![Message::user("Reply with the single word OK.")]);
+    let mut request = CompletionRequest::new(
+        resolved.model,
+        vec![Message::user("Reply with the single word OK.")],
+    );
     request.max_tokens = 16;
     request.temperature = Some(0.0);
-    let completion = provider
+    let completion = resolved
+        .provider
         .complete(&request)
         .await
         .map_err(|e| CommandError(e.message))?;
@@ -162,7 +199,7 @@ pub async fn message_count_exact(
 ) -> CommandResult<u32> {
     let Some(key) = state.secrets.get(tokens::ANTHROPIC_KEY_NAME)? else {
         return Err(CommandError(
-            "Add an Anthropic API key on the Prices page to count tokens exactly".into(),
+            "Add an Anthropic API key on the Providers page to count tokens exactly".into(),
         ));
     };
     let counter = mcp_studio_llm::AnthropicCounter::new(key, counting_model(&state).await?);

@@ -306,6 +306,29 @@ export type PromptInfo = {
 	arguments?: PromptArgumentInfo[],
 };
 
+/**
+ *  Where the providers other than Anthropic are reached. Keys are not part of this: they live in
+ *  the OS keyring.
+ */
+export type ProviderSettings = {
+	/**  Base address of Ollama, without `/v1`. */
+	ollamaUrl: string,
+	/**  Base address of an OpenAI-compatible API, without `/v1` (OpenAI, LM Studio, vLLM, ...). */
+	openaiUrl: string,
+};
+
+/**  Which providers are set up. */
+export type ProviderStatus = {
+	settings: ProviderSettings,
+	/**  An Anthropic API key is stored in the keyring. */
+	anthropicKey: boolean,
+	/**
+	 *  An API key for the OpenAI-compatible endpoint is stored in the keyring (local endpoints
+	 *  often need none).
+	 */
+	openaiKey: boolean,
+};
+
 /**  Result of checking that a provider and its key work. */
 export type ProviderTestResult = {
 	model: string,

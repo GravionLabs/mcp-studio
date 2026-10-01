@@ -232,6 +232,41 @@ pub trait LlmProvider: Send + Sync {
     ) -> Result<Completion, LlmError>;
 }
 
+/// Name of the keyring entry that holds the API key of an OpenAI-compatible endpoint.
+pub const OPENAI_KEY_NAME: &str = "openai-api-key";
+
+/// Where the providers other than Anthropic are reached. Keys are not part of this: they live in
+/// the OS keyring.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSettings {
+    /// Base address of Ollama, without `/v1`.
+    pub ollama_url: String,
+    /// Base address of an OpenAI-compatible API, without `/v1` (OpenAI, LM Studio, vLLM, ...).
+    pub openai_url: String,
+}
+
+impl Default for ProviderSettings {
+    fn default() -> Self {
+        Self {
+            ollama_url: "http://localhost:11434".into(),
+            openai_url: "https://api.openai.com".into(),
+        }
+    }
+}
+
+/// Which providers are set up.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderStatus {
+    pub settings: ProviderSettings,
+    /// An Anthropic API key is stored in the keyring.
+    pub anthropic_key: bool,
+    /// An API key for the OpenAI-compatible endpoint is stored in the keyring (local endpoints
+    /// often need none).
+    pub openai_key: bool,
+}
+
 /// Result of checking that a provider and its key work.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
