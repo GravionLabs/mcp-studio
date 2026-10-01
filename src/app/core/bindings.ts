@@ -6,6 +6,23 @@ export type AppInfo = {
 	version: string,
 };
 
+/**  The outcome of one case for one variant. */
+export type CaseResult = {
+	caseId: string,
+	input: string,
+	expectation: Expectation,
+	passed: boolean,
+	/**  The first tool the model called, if any. */
+	calledTool: string | null,
+	/**  The start of the text the model wrote. */
+	answer: string,
+	/**  Exact tokens the provider reported for this call. */
+	inputTokens: number,
+	outputTokens: number,
+	/**  Set when the call to the model failed; the case then counts as not passed. */
+	error: string | null,
+};
+
 export type CollectionNode = {
 	id: string,
 	parentId: string | null,
@@ -115,6 +132,11 @@ export type EnvironmentInput = {
 	/**  Values are plain text or `keyring:` references. */
 	variables: { [key in string]: string },
 };
+
+/**  Progress of a comparison, for the UI. */
+export type EvalEvent = { type: "case_done"; runId: string; variantId: string; caseId: string; passed: boolean } | { type: "variant_done"; runId: string; result: VariantResult } | 
+/**  The comparison is over; `error` is set when it could not run at all. */
+{ type: "finished"; runId: string; cancelled: boolean; error: string | null };
 
 /**  What should happen for a case. */
 export type Expectation = 
@@ -756,4 +778,27 @@ export type Usage = {
 	outputTokens: number,
 	cacheReadTokens: number | null,
 	cacheWriteTokens: number | null,
+};
+
+/**  A way to describe the tools to the model. */
+export type Variant = {
+	id: string,
+	label: string,
+	/**  Replaces the system prompt of the suite; `None` keeps the suite's own. */
+	systemPrompt: string | null,
+	/**  Replacement descriptions by tool name; other tools keep theirs. */
+	toolDescriptions: { [key in string]: string },
+};
+
+export type VariantResult = {
+	variant: Variant,
+	/**  In the order of the cases of the suite. */
+	results: CaseResult[],
+	passed: number,
+	total: number,
+	/**  Exact tokens summed over all cases. */
+	inputTokens: number,
+	outputTokens: number,
+	/**  Estimated tokens of the tool definitions that every request of this variant carries. */
+	definitionTokens: number,
 };

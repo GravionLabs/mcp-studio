@@ -22,6 +22,19 @@ pub enum Expectation {
     Answer { contains: String },
 }
 
+impl Expectation {
+    /// The expectation in words, for messages and prompts.
+    pub fn describe(&self) -> String {
+        match self {
+            Expectation::Tool { name } => format!("the model calls the tool {name}"),
+            Expectation::NoTool => "the model calls no tool".to_owned(),
+            Expectation::Answer { contains } => {
+                format!("the model answers with text containing {contains:?}")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TestCase {

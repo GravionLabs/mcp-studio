@@ -1,6 +1,7 @@
 use mcp_studio_core::{
     client_import::{self, ConfigSource, ImportCandidate, ImportSummary},
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
+    compare::{self, EvalEvent, Variant},
     docs_gen::{self, DocsInput},
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
@@ -35,7 +36,7 @@ use mcp_studio_core::{
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::{
@@ -584,6 +585,129 @@ pub async fn test_suite_save(
 #[tauri::command]
 pub async fn test_suite_delete(state: State<'_, AppState>, id: String) -> CommandResult<()> {
     Ok(state.test_suites.delete(&id).await?)
+}
+
+/// The tools of the server of a suite, connecting the server when needed.
+async fn suite_tools(
+    state: &AppState,
+    server_id: &str,
+    environment_id: Option<&str>,
+) -> CommandResult<Vec<ToolInfo>> {
+    state.sessions.connect(server_id, environment_id).await?;
+    let peer = state.sessions.peer(server_id)?;
+    Ok(explorer::list_tools(&peer).await?)
+}
+
+fn resolve_model(
+    settings: &mcp_studio_core::llm::ProviderSettings,
+    state: &AppState,
+    model: &str,
+) -> CommandResult<(Arc<dyn mcp_studio_core::llm::LlmProvider>, String)> {
+    let resolved = mcp_studio_llm::resolve(settings, state.secrets.as_ref(), model)
+        .map_err(|e| CommandError(e.message))?;
+    Ok((resolved.provider, resolved.model))
+}
+
+/// Asks a model for variants of the prompt and tool descriptions of a suite. `failing` are the
+/// cases that the current descriptions get wrong (from a baseline run), so the model can aim at
+/// them. This sends the tool definitions and those cases to the model's provider: one call.
+#[tauri::command]
+pub async fn variants_propose(
+    state: State<'_, AppState>,
+    suite_id: String,
+    model: String,
+    count: u32,
+    failing: Vec<compare::CaseResult>,
+    environment_id: Option<String>,
+) -> CommandResult<Vec<Variant>> {
+    let suite = state.test_suites.get(&suite_id).await?;
+    let tools = suite_tools(&state, &suite.server_id, environment_id.as_deref()).await?;
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let (provider, model_name) = resolve_model(&settings, &state, &model)?;
+    Ok(compare::propose_variants(
+        provider.as_ref(),
+        &model_name,
+        &tools,
+        &suite,
+        &failing,
+        count.clamp(1, 6) as usize,
+    )
+    .await?)
+}
+
+/// Runs a suite with each variant in the background. Progress arrives as `eval://event` events.
+/// Every case of every variant is one call to the model's provider; the tools are only offered to
+/// the model and never called. The caller chooses `run_id` so it can listen before the start.
+#[tauri::command]
+pub async fn variants_run(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    run_id: String,
+    suite_id: String,
+    model: String,
+    variants: Vec<Variant>,
+    environment_id: Option<String>,
+) -> CommandResult<()> {
+    if state.running_flows.lock().unwrap().contains_key(&run_id) {
+        return Err(CommandError("this comparison is already going".into()));
+    }
+    let suite = state.test_suites.get(&suite_id).await?;
+    let tools = suite_tools(&state, &suite.server_id, environment_id.as_deref()).await?;
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let (provider, model_name) = resolve_model(&settings, &state, &model)?;
+    let cancel = tokio_util::sync::CancellationToken::new();
+    state
+        .running_flows
+        .lock()
+        .unwrap()
+        .insert(run_id.clone(), cancel.clone());
+    tauri::async_runtime::spawn(async move {
+        for variant in &variants {
+            if cancel.is_cancelled() {
+                break;
+            }
+            let on_case = |result: &compare::CaseResult| {
+                let _ = app.emit(
+                    "eval://event",
+                    EvalEvent::CaseDone {
+                        run_id: run_id.clone(),
+                        variant_id: variant.id.clone(),
+                        case_id: result.case_id.clone(),
+                        passed: result.passed,
+                    },
+                );
+            };
+            let result = compare::evaluate_variant(
+                provider.as_ref(),
+                &model_name,
+                &tools,
+                &suite,
+                variant,
+                &cancel,
+                &on_case,
+            )
+            .await;
+            let _ = app.emit(
+                "eval://event",
+                EvalEvent::VariantDone {
+                    run_id: run_id.clone(),
+                    result,
+                },
+            );
+        }
+        let _ = app.emit(
+            "eval://event",
+            EvalEvent::Finished {
+                run_id: run_id.clone(),
+                cancelled: cancel.is_cancelled(),
+                error: None,
+            },
+        );
+        if let Some(state) = app.try_state::<AppState>() {
+            state.running_flows.lock().unwrap().remove(&run_id);
+        }
+    });
+    Ok(())
 }
 
 /// Checks tool definitions for vague descriptions, missing `required` fields, overlapping tools and

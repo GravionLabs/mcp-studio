@@ -55,3 +55,19 @@ and cases. A case holds:
 Saving replaces the whole suite; cases that are sent back with their id keep it. A suite stays with
 its server and is removed with it. A suite may have no cases yet. Names, inputs, and the tool name or
 answer text are required.
+
+## Variant comparison
+
+The **Compare** page runs a test suite against variants of the system prompt and the tool
+descriptions and shows accuracy and tokens side by side.
+
+- A variant is a label, an optional system prompt, and replacement descriptions for named tools. The
+  baseline is the server as it is.
+- Each case is one model call with the server's tool definitions; tools are never called. A case
+  passes when the first tool call (or answer) matches the expectation.
+- **Propose variants** asks the model for three variants aimed at the cases the baseline fails.
+  Proposals that name unknown tools are dropped. The tool definitions and failing cases are sent to
+  the provider you chose.
+- The table shows accuracy, passed cases, input and output tokens, and the estimated size of the tool
+  definitions; the most accurate variant (then the cheapest) is marked. A matrix lists what the model
+  did per case and variant. Proposed variants can be copied as Markdown.
