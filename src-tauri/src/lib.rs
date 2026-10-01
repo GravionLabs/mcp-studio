@@ -142,6 +142,7 @@ pub fn run() {
             commands::flow_import,
             commands::flow_to_yaml,
             commands::flow_from_yaml,
+            commands::provider_test_anthropic,
             commands::price_list,
             commands::price_set,
             commands::price_remove,

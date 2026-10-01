@@ -12,7 +12,6 @@ use tokio::sync::OnceCell;
 
 /// Model used for counting until the user chooses another.
 pub const DEFAULT_MODEL: &str = "claude-sonnet-5-5";
-const BASE_URL: &str = "https://api.anthropic.com";
 const API_VERSION: &str = "2023-06-01";
 
 /// Counts tokens with `POST /v1/messages/count_tokens`.
@@ -29,7 +28,7 @@ pub struct AnthropicCounter {
 
 impl AnthropicCounter {
     pub fn new(api_key: impl Into<String>, model: impl Into<String>) -> Self {
-        Self::with_base_url(api_key, model, BASE_URL)
+        Self::with_base_url(api_key, model, crate::DEFAULT_BASE_URL)
     }
 
     pub fn with_base_url(

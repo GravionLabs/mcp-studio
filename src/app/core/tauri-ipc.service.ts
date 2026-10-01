@@ -25,6 +25,7 @@ import type {
   ProxyInfo,
   PromptInfo,
   Price,
+  ProviderTestResult,
   ResourceInfo,
   ResourceTemplateInfo,
   ServerDefinition,
@@ -128,6 +129,11 @@ export class TauriIpcService {
   /** Stores the Anthropic API key in the OS keyring; `null` removes it. */
   tokenCountingSetKey(key: string | null): Promise<void> {
     return this.call("token_counting_set_key", { key });
+  }
+
+  /** Sends a tiny request to Anthropic with the stored key to check that it works. */
+  providerTestAnthropic(model: string | null): Promise<ProviderTestResult> {
+    return this.call("provider_test_anthropic", { model });
   }
 
   /** Asks Anthropic for the exact token count of a message and saves it. */

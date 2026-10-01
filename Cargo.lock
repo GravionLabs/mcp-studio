@@ -2607,6 +2607,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
+ "futures-util",
  "mcp-studio-core",
  "reqwest",
  "serde",

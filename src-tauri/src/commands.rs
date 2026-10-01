@@ -8,6 +8,7 @@ use mcp_studio_core::{
     flow_yaml,
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
+    llm::{CompletionRequest, LlmProvider, Message, ProviderTestResult},
     message_store::{query_messages, MessageFilter},
     metering::{self, ContextCost, SessionUsage},
     model::{AppInfo, JsonValue},
@@ -122,6 +123,34 @@ pub fn token_counting_set_key(
         None => state.secrets.delete(tokens::ANTHROPIC_KEY_NAME)?,
     }
     Ok(())
+}
+
+/// Sends a tiny request to Anthropic with the stored API key, to check that the key and the model
+/// work. Costs a handful of tokens.
+#[tauri::command]
+pub async fn provider_test_anthropic(
+    state: State<'_, AppState>,
+    model: Option<String>,
+) -> CommandResult<ProviderTestResult> {
+    let provider = mcp_studio_llm::AnthropicProvider::from_store(state.secrets.as_ref())
+        .map_err(|e| CommandError(e.message))?;
+    let model = match model.filter(|m| !m.trim().is_empty()) {
+        Some(model) => model,
+        None => counting_model(&state).await?,
+    };
+    let mut request =
+        CompletionRequest::new(model, vec![Message::user("Reply with the single word OK.")]);
+    request.max_tokens = 16;
+    request.temperature = Some(0.0);
+    let completion = provider
+        .complete(&request)
+        .await
+        .map_err(|e| CommandError(e.message))?;
+    Ok(ProviderTestResult {
+        model: completion.model.clone(),
+        reply: completion.text(),
+        usage: completion.usage,
+    })
 }
 
 /// Asks Anthropic for the exact token count of a stored message and saves it. Sends the message's
