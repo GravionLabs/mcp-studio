@@ -28,7 +28,7 @@ use crate::{
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
-    tokens::TokenSource,
+    tokens::{CountingStatus, TokenSource},
     trace::{Span, SpanFilter, SpanKind, SpanStatus},
     update::UpdateInfo,
 };
@@ -79,6 +79,7 @@ pub fn ipc_types() -> Types {
         .register::<FlowIssueCode>()
         .register::<UpdateInfo>()
         .register::<TokenSource>()
+        .register::<CountingStatus>()
         .register::<Price>()
         .register::<Cost>()
         .register::<ToolCost>()

@@ -55,6 +55,10 @@ Tokens are measured at three points because each answers a different question.
   (`token_source = 'estimate'`).
 - **Exact**: via the provider's token-counting endpoint or `usage` when an API key is configured
   (`token_source = 'exact'`).
+- **Exact (implemented)**: the **Count exactly** action in the inspector sends one message's stored,
+  secret-masked content to Anthropic's `count_tokens` endpoint, subtracts the fixed per-message
+  overhead (measured once with a one-token text), and stores the result with
+  `token_source = 'exact'`. It needs an API key in the OS keyring and never runs on its own.
 - **Cost**: from the editable `prices` table; currency is configurable.
 
 ## Tracing

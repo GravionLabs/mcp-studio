@@ -91,8 +91,8 @@ replaces AppImage, Windows, and macOS installs.
 ## Principles
 
 - **Local first**: no telemetry, no network calls except to the servers and LLM providers the user
-  configured, the update check the user starts themselves, and the OpenTelemetry export the user
-  turns on.
+  configured, the update check the user starts themselves, the OpenTelemetry export the user turns
+  on, and the exact token counts the user asks Anthropic for.
 - **Secrets stay in the OS keyring**: the database and logs only ever contain `keyring:` references or
   masked values.
 - **Rust owns connections**: the webview never spawns processes or sees credentials.

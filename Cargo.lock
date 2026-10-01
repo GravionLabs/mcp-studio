@@ -2604,9 +2604,14 @@ dependencies = [
 name = "mcp-studio-llm"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "axum",
+ "mcp-studio-core",
+ "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]

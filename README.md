@@ -28,7 +28,9 @@ keyring.
   the app).
 - **Cost**: every server shows how much context its tool definitions take, and calls and sessions
   show their estimated cost. You enter the price per million tokens of the models you use on the
-  **Prices** page; none are built in because they change often.
+  **Prices** page; none are built in because they change often. Token counts are estimates; with an
+  Anthropic API key, **Count exactly** in the inspector replaces a message's estimate with the exact
+  count (only when you click).
 - **Record real clients**: route Claude Code, Claude Desktop, GitHub Copilot, OpenCode, or another
   client through MCP Studio with a local stdio proxy or HTTP proxy and watch the traffic.
   Ready-made configuration snippets included (see [Record a real client](#record-a-real-client)).

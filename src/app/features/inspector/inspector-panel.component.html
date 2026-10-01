@@ -133,6 +133,17 @@
             }}</span>
           }
         </span>
+        @if (d.message.tokens !== null && d.message.tokenSource !== "exact") {
+          <button
+            type="button"
+            class="ghost"
+            [disabled]="counting()"
+            title="Sends this message's content to Anthropic's token counting endpoint (needs an API key on the Prices page)"
+            (click)="countExactly(d.message)"
+          >
+            Count exactly
+          </button>
+        }
         <button type="button" class="ghost" (click)="copy(d.text)">Copy JSON</button>
       </div>
       @if (callCost(d.message); as call) {

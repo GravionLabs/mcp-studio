@@ -15,6 +15,7 @@ use mcp_studio_core::{
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
+    tokens::{self, CountingStatus},
     trace::{query_spans, Span, SpanFilter},
     update::UpdateInfo,
 };
@@ -77,6 +78,63 @@ pub async fn spans_query(
     filter: SpanFilter,
 ) -> CommandResult<Vec<Span>> {
     Ok(query_spans(&state.db, &filter).await?)
+}
+
+async fn counting_model(state: &AppState) -> CommandResult<String> {
+    Ok(state
+        .settings
+        .get(tokens::COUNTING_MODEL_SETTING)
+        .await?
+        .filter(|m| !m.trim().is_empty())
+        .unwrap_or_else(|| mcp_studio_llm::DEFAULT_MODEL.to_owned()))
+}
+
+#[tauri::command]
+pub async fn token_counting_status(state: State<'_, AppState>) -> CommandResult<CountingStatus> {
+    Ok(CountingStatus {
+        model: counting_model(&state).await?,
+        has_key: state.secrets.get(tokens::ANTHROPIC_KEY_NAME)?.is_some(),
+    })
+}
+
+#[tauri::command]
+pub async fn token_counting_set_model(
+    state: State<'_, AppState>,
+    model: String,
+) -> CommandResult<()> {
+    Ok(state
+        .settings
+        .set(tokens::COUNTING_MODEL_SETTING, model.trim())
+        .await?)
+}
+
+/// Stores the Anthropic API key in the keyring, or removes it when `key` is empty or missing.
+#[tauri::command]
+pub fn token_counting_set_key(
+    state: State<'_, AppState>,
+    key: Option<String>,
+) -> CommandResult<()> {
+    match key.map(|k| k.trim().to_owned()).filter(|k| !k.is_empty()) {
+        Some(key) => state.secrets.set(tokens::ANTHROPIC_KEY_NAME, &key)?,
+        None => state.secrets.delete(tokens::ANTHROPIC_KEY_NAME)?,
+    }
+    Ok(())
+}
+
+/// Asks Anthropic for the exact token count of a stored message and saves it. Sends the message's
+/// (secret-masked) content to Anthropic, so it only runs when the user asks for it.
+#[tauri::command]
+pub async fn message_count_exact(
+    state: State<'_, AppState>,
+    message_id: u32,
+) -> CommandResult<u32> {
+    let Some(key) = state.secrets.get(tokens::ANTHROPIC_KEY_NAME)? else {
+        return Err(CommandError(
+            "Add an Anthropic API key on the Prices page to count tokens exactly".into(),
+        ));
+    };
+    let counter = mcp_studio_llm::AnthropicCounter::new(key, counting_model(&state).await?);
+    Ok(tokens::count_message_exact(&state.db, &counter, i64::from(message_id)).await?)
 }
 
 #[tauri::command]

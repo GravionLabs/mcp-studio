@@ -19,6 +19,7 @@ use mcp_studio_core::{
     registry::Registry,
     secrets::{KeyringStore, SecretStore},
     session::SessionManager,
+    settings::Settings,
 };
 use tauri::Manager;
 
@@ -30,6 +31,7 @@ pub struct AppState {
     pub collections: Collections,
     pub prices: Prices,
     pub trace_exporter: Arc<TraceExporter>,
+    pub settings: Settings,
     pub secrets: Arc<dyn SecretStore>,
     pub sessions: Arc<SessionManager>,
     pub proxy: ProxyService,
@@ -66,6 +68,7 @@ pub fn run() {
             let environments = Environments::new(db.clone());
             let collections = Collections::new(db.clone());
             let prices = Prices::new(db.clone());
+            let settings = Settings::new(db.clone());
             let secrets: Arc<dyn SecretStore> =
                 Arc::new(KeyringStore::new("dev.gravionlabs.mcp-studio"));
             let sink = Arc::new(sink::TauriSink {
@@ -104,6 +107,7 @@ pub fn run() {
                 collections,
                 prices,
                 trace_exporter,
+                settings,
                 secrets,
                 sessions,
                 proxy,
@@ -122,6 +126,10 @@ pub fn run() {
             commands::trace_export_set_config,
             commands::trace_export_status,
             commands::trace_export_now,
+            commands::token_counting_status,
+            commands::token_counting_set_model,
+            commands::token_counting_set_key,
+            commands::message_count_exact,
             commands::price_list,
             commands::price_set,
             commands::price_remove,
