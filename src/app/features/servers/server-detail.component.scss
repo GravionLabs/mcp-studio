@@ -1,12 +1,13 @@
 .detail {
   padding: 20px;
-  max-width: 800px;
 }
 
+/* Keep the text parts readable; the recording panel and logs use the full width. */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  max-width: 800px;
 }
 
 .actions {
@@ -27,6 +28,7 @@ dl {
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 4px 16px;
+  max-width: 800px;
 }
 
 dt {
