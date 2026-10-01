@@ -112,6 +112,7 @@ pub fn run() {
             commands::app_info,
             commands::update_check,
             commands::update_install,
+            commands::spans_query,
             commands::price_list,
             commands::price_set,
             commands::price_remove,

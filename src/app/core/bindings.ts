@@ -177,6 +177,8 @@ export type MessageFilter = {
 	/**  Exact JSON-RPC method, e.g. `tools/call`. Responses match through their request. */
 	method?: string | null,
 	direction?: Direction | null,
+	/**  Only messages of one span (a tool call or a session). */
+	spanId?: string | null,
 	errorsOnly?: boolean,
 	/**  Case-insensitive text search over the raw payload. */
 	search?: string | null,
@@ -207,6 +209,8 @@ export type MessageRecord = {
 	tokens: number | null,
 	/**  Whether `tokens` is an offline estimate or an exact count. */
 	tokenSource: TokenSource | null,
+	/**  The span this message belongs to: its tool call, or the session. */
+	spanId: string | null,
 };
 
 /**  Price of one model, in `currency` per million tokens. */
@@ -334,6 +338,38 @@ export type SessionUsage = {
 	tokenSource: TokenSource,
 	cost: Cost | null,
 };
+
+export type Span = {
+	id: string,
+	traceId: string,
+	parentId: string | null,
+	kind: SpanKind,
+	name: string,
+	/**  Unix milliseconds. */
+	startedAt: number,
+	/**  Unix milliseconds; `None` while the span is still open. */
+	endedAt: number | null,
+	status: SpanStatus,
+	attributes: unknown,
+	/**  Estimated tokens of the messages in this span (a session span counts the whole session). */
+	tokens: number | null,
+};
+
+/**  Filters for [`query_spans`]. Fields are combined with AND. */
+export type SpanFilter = {
+	/**  Spans of one trace (for sessions: the session id). */
+	traceId?: string | null,
+	/**  Spans of the sessions of one server. */
+	serverId?: string | null,
+	/**  Maximum number of rows (default 1000, max 10000), newest first. */
+	limit?: number | null,
+};
+
+export type SpanKind = "session" | "flow" | "step" | "llm" | "tool";
+
+export type SpanStatus = "ok" | "error" | 
+/**  The span was still open when its session ended (for example a cancelled call). */
+"cancelled";
 
 /**  `mcp://status` */
 export type StatusEvent = {

@@ -10,6 +10,7 @@ use crate::{
     recording::{Direction, RecordedMessage, Recorder},
     secrets::Redactor,
     tokens::{message_tokens, TokenSource},
+    trace::{self, MessageInfo, SpanTracker},
 };
 
 /// Flush when this many messages are waiting...
@@ -26,6 +27,8 @@ struct Pending {
     bytes: i64,
     is_error: bool,
     tokens: i64,
+    /// Tool name of a `tools/call` request.
+    tool_name: Option<String>,
 }
 
 /// Sends messages of one session to a background task that writes them in batches.
@@ -60,6 +63,9 @@ impl Pending {
             .map(str::to_owned);
         let is_error = payload.get("error").is_some()
             || payload["result"]["isError"].as_bool().unwrap_or(false);
+        let tool_name = (method.as_deref() == Some("tools/call"))
+            .then(|| payload["params"]["name"].as_str().map(str::to_owned))
+            .flatten();
         let text = redactor.redact(&payload.to_string());
         Self {
             direction: message.direction,
@@ -70,6 +76,7 @@ impl Pending {
             payload: text,
             is_error,
             tokens: i64::from(message_tokens(payload)),
+            tool_name,
         }
     }
 }
@@ -84,6 +91,11 @@ impl MessageWriter {
     ) -> Self {
         let (tx, mut rx) = mpsc::unbounded_channel::<Pending>();
         let handle = tokio::spawn(async move {
+            let mut tracker = SpanTracker::new(&session_id);
+            if let Err(error) = open_session_span(&db, &mut tracker, &session_id, &server_id).await
+            {
+                tracing_error(&error.to_string());
+            }
             let mut batch = Vec::with_capacity(BATCH_SIZE);
             loop {
                 // Wait for the first message, then collect more for a short moment.
@@ -101,8 +113,15 @@ impl MessageWriter {
                         () = &mut deadline => break,
                     }
                 }
-                if let Err(error) =
-                    write_batch(&db, &session_id, &server_id, &batch, sink.as_ref()).await
+                if let Err(error) = write_batch(
+                    &db,
+                    &session_id,
+                    &server_id,
+                    &batch,
+                    &mut tracker,
+                    sink.as_ref(),
+                )
+                .await
                 {
                     tracing_error(&error.to_string());
                 }
@@ -110,6 +129,9 @@ impl MessageWriter {
                 if closed {
                     break;
                 }
+            }
+            if let Err(error) = close_spans(&db, &mut tracker).await {
+                tracing_error(&error.to_string());
             }
         });
         Self {
@@ -130,6 +152,32 @@ impl MessageWriter {
     }
 }
 
+async fn open_session_span(
+    db: &Db,
+    tracker: &mut SpanTracker,
+    session_id: &str,
+    server_id: &str,
+) -> DbResult<()> {
+    let name: Option<String> = sqlx::query_scalar("SELECT name FROM servers WHERE id = ?")
+        .bind(server_id)
+        .fetch_optional(db.pool())
+        .await?;
+    let mut conn = db.pool().acquire().await?;
+    tracker
+        .open_session(
+            &mut conn,
+            name.as_deref().unwrap_or(session_id),
+            server_id,
+            now_ms(),
+        )
+        .await
+}
+
+async fn close_spans(db: &Db, tracker: &mut SpanTracker) -> DbResult<()> {
+    let mut conn = db.pool().acquire().await?;
+    tracker.close(&mut conn, now_ms()).await
+}
+
 fn tracing_error(message: &str) {
     eprintln!("mcp-studio: failed to store messages: {message}");
 }
@@ -139,6 +187,7 @@ async fn write_batch(
     session_id: &str,
     server_id: &str,
     batch: &[Pending],
+    tracker: &mut SpanTracker,
     sink: &dyn EventSink,
 ) -> DbResult<()> {
     let mut tx = db.pool().begin().await?;
@@ -148,11 +197,25 @@ async fn write_batch(
             Direction::Out => "out",
             Direction::In => "in",
         };
+        let span_id = tracker
+            .on_message(
+                &mut tx,
+                &MessageInfo {
+                    direction: message.direction,
+                    ts: message.ts,
+                    jsonrpc_id: message.jsonrpc_id.as_deref(),
+                    method: message.method.as_deref(),
+                    tool_name: message.tool_name.as_deref(),
+                    is_error: message.is_error,
+                },
+            )
+            .await?;
         let id: i64 = sqlx::query_scalar(
-            "INSERT INTO messages (session_id, direction, jsonrpc_id, method, payload, bytes, is_error, tokens, token_source, ts) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+            "INSERT INTO messages (session_id, span_id, direction, jsonrpc_id, method, payload, bytes, is_error, tokens, token_source, ts) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         )
         .bind(session_id)
+        .bind(&span_id)
         .bind(direction)
         .bind(&message.jsonrpc_id)
         .bind(&message.method)
@@ -178,6 +241,7 @@ async fn write_batch(
             duration_ms: None,
             tokens: Some(message.tokens),
             token_source: Some(TokenSource::Estimate),
+            span_id,
         });
     }
     tx.commit().await?;
@@ -204,6 +268,8 @@ pub struct MessageFilter {
     /// Exact JSON-RPC method, e.g. `tools/call`. Responses match through their request.
     pub method: Option<String>,
     pub direction: Option<Direction>,
+    /// Only messages of one span (a tool call or a session).
+    pub span_id: Option<String>,
     pub errors_only: bool,
     /// Case-insensitive text search over the raw payload.
     pub search: Option<String>,
@@ -226,6 +292,7 @@ type MessageRow = (
     Option<i64>,
     Option<i64>,
     Option<String>,
+    Option<String>,
 );
 
 /// Reads recorded messages. Responses carry `duration_ms`, measured from their request.
@@ -234,7 +301,7 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
         "SELECT m.id, m.session_id, (SELECT server_id FROM sessions WHERE id = m.session_id), m.direction, m.jsonrpc_id, m.method, m.payload, m.bytes, m.is_error, m.ts, \
          (SELECT m.ts - r.ts FROM messages r WHERE r.session_id = m.session_id AND r.jsonrpc_id = m.jsonrpc_id \
             AND r.method IS NOT NULL AND r.direction != m.direction AND r.id < m.id \
-            ORDER BY r.id DESC LIMIT 1) AS duration, m.tokens, m.token_source \
+            ORDER BY r.id DESC LIMIT 1) AS duration, m.tokens, m.token_source, m.span_id \
          FROM messages m WHERE 1 = 1",
     );
     if let Some(session) = &filter.session_id {
@@ -261,6 +328,9 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
             .push(" OR (m.method IS NULL AND EXISTS (SELECT 1 FROM messages q WHERE q.session_id = m.session_id AND q.jsonrpc_id = m.jsonrpc_id AND q.method = ")
             .push_bind(method.clone())
             .push(")))");
+    }
+    if let Some(span) = &filter.span_id {
+        query.push(" AND m.span_id = ").push_bind(span.clone());
     }
     if let Some(direction) = filter.direction {
         query
@@ -305,6 +375,7 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
                 duration,
                 tokens,
                 token_source,
+                span_id,
             )| {
                 MessageRecord {
                     id,
@@ -324,6 +395,7 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
                     duration_ms: duration,
                     tokens,
                     token_source: token_source.as_deref().and_then(TokenSource::parse),
+                    span_id,
                 }
             },
         )
@@ -371,6 +443,7 @@ pub async fn cleanup(db: &Db, policy: RetentionPolicy) -> DbResult<u64> {
     .bind(cutoff)
     .execute(db.pool())
     .await?;
+    trace::cleanup(db, cutoff).await?;
     Ok(deleted)
 }
 
@@ -544,6 +617,257 @@ mod tests {
         let events = sink.messages.lock().unwrap();
         assert_eq!(events[0].tokens, tokens[0]);
         assert_eq!(events[0].token_source, Some(TokenSource::Estimate));
+    }
+
+    fn timed(direction: Direction, ts: i64, payload: serde_json::Value) -> RecordedMessage {
+        RecordedMessage {
+            direction,
+            ts,
+            bytes: payload.to_string().len(),
+            payload,
+        }
+    }
+
+    async fn record_all(db: &Db, session: &str, messages: Vec<RecordedMessage>) {
+        let writer = MessageWriter::spawn(
+            db.clone(),
+            session.to_owned(),
+            "srv".into(),
+            Redactor::default(),
+            Arc::new(CollectingSink::default()),
+        );
+        let recorder = writer.recorder();
+        for message in messages {
+            recorder.record(message);
+        }
+        drop(recorder);
+        writer.finish().await;
+    }
+
+    #[tokio::test]
+    async fn records_the_session_as_a_root_span_named_after_the_server() {
+        let (db, session) = setup().await;
+        record_all(
+            &db,
+            &session,
+            vec![message(
+                Direction::Out,
+                json!({"jsonrpc":"2.0","id":1,"method":"tools/list"}),
+            )],
+        )
+        .await;
+        let spans = trace::query_spans(&db, &trace::SpanFilter::default())
+            .await
+            .unwrap();
+        assert_eq!(spans.len(), 1);
+        let root = &spans[0];
+        assert_eq!(root.kind, trace::SpanKind::Session);
+        assert_eq!(root.name, "S");
+        assert_eq!(root.trace_id, "sess");
+        assert_eq!(root.parent_id, None);
+        assert!(root.ended_at.is_some());
+        assert_eq!(root.status, trace::SpanStatus::Ok);
+        // Non-call messages belong to the session span.
+        let owner: Option<String> = sqlx::query_scalar("SELECT span_id FROM messages")
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+        assert_eq!(owner.as_deref(), Some(root.id.as_str()));
+    }
+
+    #[tokio::test]
+    async fn a_tool_call_becomes_a_child_span_from_request_to_response() {
+        let (db, session) = setup().await;
+        record_all(
+            &db,
+            &session,
+            vec![
+                timed(
+                    Direction::Out,
+                    1_000,
+                    json!({"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"echo","arguments":{"message":"hi"}}}),
+                ),
+                timed(
+                    Direction::In,
+                    1_250,
+                    json!({"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"hi"}]}}),
+                ),
+            ],
+        )
+        .await;
+        let spans = trace::query_spans(&db, &trace::SpanFilter::default())
+            .await
+            .unwrap();
+        let call = spans
+            .iter()
+            .find(|s| s.kind == trace::SpanKind::Tool)
+            .unwrap();
+        let root = spans
+            .iter()
+            .find(|s| s.kind == trace::SpanKind::Session)
+            .unwrap();
+        assert_eq!(call.name, "echo");
+        assert_eq!(call.parent_id.as_deref(), Some(root.id.as_str()));
+        assert_eq!((call.started_at, call.ended_at), (1_000, Some(1_250)));
+        assert_eq!(call.status, trace::SpanStatus::Ok);
+        assert!(call.tokens.unwrap() > 0);
+        // The session span counts the tokens of the whole session.
+        assert!(root.tokens.unwrap() >= call.tokens.unwrap());
+        // Request and response both attach to the call span.
+        let owners: Vec<Option<String>> =
+            sqlx::query_scalar("SELECT span_id FROM messages ORDER BY id")
+                .fetch_all(db.pool())
+                .await
+                .unwrap();
+        assert_eq!(owners, vec![Some(call.id.clone()), Some(call.id.clone())]);
+    }
+
+    #[tokio::test]
+    async fn failed_calls_get_error_status_and_unanswered_calls_are_cancelled() {
+        let (db, session) = setup().await;
+        record_all(
+            &db,
+            &session,
+            vec![
+                timed(
+                    Direction::Out,
+                    10,
+                    json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"fail"}}),
+                ),
+                timed(
+                    Direction::In,
+                    20,
+                    json!({"jsonrpc":"2.0","id":1,"result":{"isError":true,"content":[]}}),
+                ),
+                timed(
+                    Direction::Out,
+                    30,
+                    json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"sleep"}}),
+                ),
+                timed(
+                    Direction::Out,
+                    35,
+                    json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"other"}}),
+                ),
+                // A response in the same direction as the request is not its answer.
+                timed(
+                    Direction::Out,
+                    36,
+                    json!({"jsonrpc":"2.0","id":3,"result":{}}),
+                ),
+            ],
+        )
+        .await;
+        let spans = trace::query_spans(&db, &trace::SpanFilter::default())
+            .await
+            .unwrap();
+        let status = |name: &str| spans.iter().find(|s| s.name == name).unwrap().status;
+        assert_eq!(status("fail"), trace::SpanStatus::Error);
+        assert_eq!(status("sleep"), trace::SpanStatus::Cancelled);
+        assert_eq!(status("other"), trace::SpanStatus::Cancelled);
+        assert!(spans.iter().all(|s| s.ended_at.is_some()));
+    }
+
+    #[tokio::test]
+    async fn filters_messages_by_span_and_spans_by_trace_and_server() {
+        let (db, session) = setup().await;
+        record_all(
+            &db,
+            &session,
+            vec![
+                message(
+                    Direction::Out,
+                    json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo"}}),
+                ),
+                message(Direction::In, json!({"jsonrpc":"2.0","id":1,"result":{}})),
+                message(
+                    Direction::Out,
+                    json!({"jsonrpc":"2.0","id":2,"method":"ping"}),
+                ),
+            ],
+        )
+        .await;
+        let by_trace = trace::query_spans(
+            &db,
+            &trace::SpanFilter {
+                trace_id: Some("sess".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(by_trace.len(), 2);
+        let none = trace::query_spans(
+            &db,
+            &trace::SpanFilter {
+                trace_id: Some("other".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(none.is_empty());
+        let by_server = trace::query_spans(
+            &db,
+            &trace::SpanFilter {
+                server_id: Some("srv".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(by_server.len(), 2);
+
+        let call = by_trace
+            .iter()
+            .find(|s| s.kind == trace::SpanKind::Tool)
+            .unwrap();
+        let in_call = query_messages(
+            &db,
+            &MessageFilter {
+                span_id: Some(call.id.clone()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(in_call.len(), 2);
+        assert!(in_call
+            .iter()
+            .all(|m| m.span_id.as_deref() == Some(call.id.as_str())));
+    }
+
+    #[tokio::test]
+    async fn retention_removes_old_traces_without_messages() {
+        let (db, session) = setup().await;
+        record_all(
+            &db,
+            &session,
+            vec![timed(
+                Direction::Out,
+                1,
+                json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo"}}),
+            )],
+        )
+        .await;
+        // Spans of a trace that still has messages stay, however old they are.
+        trace::cleanup(&db, now_ms() + 1_000).await.unwrap();
+        assert_eq!(
+            trace::query_spans(&db, &trace::SpanFilter::default())
+                .await
+                .unwrap()
+                .len(),
+            2
+        );
+        sqlx::query("DELETE FROM messages")
+            .execute(db.pool())
+            .await
+            .unwrap();
+        trace::cleanup(&db, now_ms() + 1_000).await.unwrap();
+        assert!(trace::query_spans(&db, &trace::SpanFilter::default())
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[tokio::test]
