@@ -12,6 +12,7 @@ pub mod flow_yaml;
 pub mod flows;
 pub mod history;
 pub mod http_proxy;
+pub mod llm;
 pub mod message_store;
 pub mod metering;
 pub mod model;

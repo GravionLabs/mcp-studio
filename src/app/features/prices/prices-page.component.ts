@@ -65,6 +65,23 @@ export class PricesPageComponent implements OnInit {
     }
   }
 
+  protected readonly testing = signal(false);
+
+  protected async testKey(): Promise<void> {
+    this.testing.set(true);
+    try {
+      const result = await this.ipc.providerTestAnthropic(this.countingModel() || null);
+      const usage = result.usage;
+      this.toasts.success(
+        `${result.model} answered "${result.reply.trim()}" (${usage.inputTokens} in, ${usage.outputTokens} out)`,
+      );
+    } catch (error) {
+      this.toasts.fail("The Anthropic API key does not work", error);
+    } finally {
+      this.testing.set(false);
+    }
+  }
+
   protected async removeKey(): Promise<void> {
     try {
       await this.ipc.tokenCountingSetKey(null);

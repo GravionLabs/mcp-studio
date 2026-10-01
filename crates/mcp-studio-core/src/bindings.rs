@@ -21,6 +21,10 @@ use crate::{
     flow::{Flow, FlowIssue, FlowIssueCode, InputDecl, Step, StepKind, ToolRef},
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
+    llm::{
+        Completion, CompletionRequest, ContentBlock, Message, ProviderTestResult, Role, StopReason,
+        StreamEvent, ToolDefinition, Usage,
+    },
     message_store::MessageFilter,
     metering::{ContextCost, SessionUsage, ToolCost},
     model::AppInfo,
@@ -93,6 +97,16 @@ pub fn ipc_types() -> Types {
         .register::<SpanFilter>()
         .register::<ExportConfig>()
         .register::<ExportStatus>()
+        .register::<Role>()
+        .register::<ContentBlock>()
+        .register::<Message>()
+        .register::<ToolDefinition>()
+        .register::<CompletionRequest>()
+        .register::<StopReason>()
+        .register::<Usage>()
+        .register::<Completion>()
+        .register::<StreamEvent>()
+        .register::<ProviderTestResult>()
 }
 
 /// Renders the TypeScript bindings file.
