@@ -1,5 +1,10 @@
-name: CI
+name: CI & Release
 
+# One pipeline: checks first, then installers for all platforms, then the release.
+#   pull requests   lint, test, and the Rust checks; installers only when packaging files change
+#   push to main    checks, then installers for all platforms, then the GitHub release is published
+#   manual run      checks and installers on any branch (validates packaging)
+# The release is only published by a run on main, and only after the checks and all installers passed.
 on:
   push:
     branches: [main]
@@ -8,7 +13,8 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push replaces an older pull request run, but a release in progress is never cancelled.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -19,6 +25,9 @@ jobs:
       pull-requests: read
     outputs:
       rust: ${{ github.event_name != 'pull_request' || steps.filter.outputs.rust == 'true' }}
+      # Installer bundling for all platforms is slow, so pull requests only run it when packaging
+      # files change; they validate themselves on the pull request that changes them.
+      package: ${{ github.event_name != 'pull_request' || steps.filter.outputs.package == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -33,6 +42,11 @@ jobs:
               - 'src-tauri/**'
               - 'src/app/core/bindings.ts'
               - '.github/workflows/ci.yml'
+            package:
+              - '.github/workflows/ci.yml'
+              - 'scripts/build-proxy-sidecar.mjs'
+              - 'src-tauri/tauri.conf.json'
+              - 'src-tauri/tauri.bundle.conf.json'
 
   frontend:
     name: Frontend (lint, test, build)
@@ -86,3 +100,161 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+
+  determine-version:
+    name: Determine version
+    needs: changes
+    if: needs.changes.outputs.package == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      semver: ${{ steps.version.outputs.semver }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        uses: GravionLabs/ci/versioning/determine-version@main
+        with:
+          gitversion-config-file: GitVersion.yml
+
+  build:
+    name: Build installers
+    # Installers are only built from code that passed the checks. The Rust job is skipped on pull
+    # requests that change no Rust files, which is fine.
+    needs: [changes, determine-version, frontend, rust]
+    if: >-
+      ${{ !cancelled() && needs.changes.outputs.package == 'true'
+      && needs.determine-version.result == 'success'
+      && needs.frontend.result == 'success'
+      && (needs.rust.result == 'success' || needs.rust.result == 'skipped') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: write
+    env:
+      # MSI requires a numeric-only version, so builds from other branches use 0.0.<run number>
+      # instead of GitVersion's branch-named pre-release versions.
+      VERSION: ${{ github.ref == 'refs/heads/main' && needs.determine-version.outputs.semver || format('0.0.{0}', github.run_number) }}
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Set release version
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.VERSION;
+            for (const file of ['package.json', 'src-tauri/tauri.conf.json']) {
+              const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+              json.version = version;
+              fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n');
+            }
+            const cargo = fs.readFileSync('Cargo.toml', 'utf8');
+            fs.writeFileSync('Cargo.toml', cargo.replace(/^version = \".*\"/m, \`version = \"\${version}\"\`));
+          "
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libdbus-1-dev
+
+      - run: pnpm install --frozen-lockfile
+
+      # The proxy program ships next to the app (Tauri sidecar); see tauri.bundle.conf.json.
+      - name: Build proxy sidecar
+        run: node scripts/build-proxy-sidecar.mjs ${{ matrix.target }}
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the update packages the in-app updater verifies (see CONTRIBUTING.md, "Releases").
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          # Only builds from main create/update a GitHub release; manual runs on other branches just
+          # build. The release stays a draft until every platform has finished (see publish-release).
+          tagName: ${{ github.ref == 'refs/heads/main' && format('v{0}', env.VERSION) || '' }}
+          releaseName: ${{ github.ref == 'refs/heads/main' && format('MCP Studio v{0}', env.VERSION) || '' }}
+          releaseDraft: true
+          args: --target ${{ matrix.target }} --config src-tauri/tauri.bundle.conf.json
+
+  publish-release:
+    name: Publish release
+    needs: [determine-version, build]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "v${{ needs.determine-version.outputs.semver }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false
+
+  update-changelog:
+    name: Update changelog
+    # Runs after the release is published so the new tag is part of the history. A commit pushed
+    # with the workflow token does not start another run.
+    needs: [determine-version, publish-release]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Generate CHANGELOG.md
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Commit the changelog
+        run: |
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "The changelog is up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore: update the changelog for v${{ needs.determine-version.outputs.semver }}"
+          git pull --rebase origin main
+          git push origin HEAD:main
