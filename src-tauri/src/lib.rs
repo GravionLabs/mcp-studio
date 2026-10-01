@@ -1,8 +1,10 @@
 mod commands;
 mod error;
+mod flow_runtime;
 mod sink;
 
 use std::{
+    collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -11,6 +13,7 @@ use mcp_studio_core::{
     collections::Collections,
     db::Db,
     environments::Environments,
+    flow_runs::FlowRuns,
     flows::Flows,
     http_proxy::{self, HttpProxy},
     message_store::{self, RetentionPolicy},
@@ -32,6 +35,10 @@ pub struct AppState {
     pub collections: Collections,
     pub prices: Prices,
     pub flows: Flows,
+    pub flow_runs: FlowRuns,
+    /// Runs in progress, so they can be cancelled.
+    pub running_flows: Mutex<HashMap<String, tokio_util::sync::CancellationToken>>,
+    pub confirmations: Arc<flow_runtime::Confirmations>,
     pub trace_exporter: Arc<TraceExporter>,
     pub settings: Settings,
     pub secrets: Arc<dyn SecretStore>,
@@ -71,6 +78,16 @@ pub fn run() {
             let collections = Collections::new(db.clone());
             let prices = Prices::new(db.clone());
             let flows = Flows::new(db.clone());
+            let flow_runs = FlowRuns::new(db.clone());
+            {
+                // Runs that were still going when the app stopped will never finish.
+                let flow_runs = flow_runs.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = flow_runs
+                        .fail_interrupted(mcp_studio_core::db::now_ms())
+                        .await;
+                });
+            }
             let settings = Settings::new(db.clone());
             let secrets: Arc<dyn SecretStore> =
                 Arc::new(KeyringStore::new("dev.gravionlabs.mcp-studio"));
@@ -110,6 +127,9 @@ pub fn run() {
                 collections,
                 prices,
                 flows,
+                flow_runs,
+                running_flows: Mutex::new(HashMap::new()),
+                confirmations: Arc::new(flow_runtime::Confirmations::default()),
                 trace_exporter,
                 settings,
                 secrets,
@@ -139,6 +159,14 @@ pub fn run() {
             commands::flow_delete,
             commands::flow_export,
             commands::flow_import,
+            commands::flow_run_start,
+            commands::flow_run_cancel,
+            commands::flow_run_get,
+            commands::flow_run_list,
+            commands::flow_run_delete,
+            commands::flow_confirm,
+            commands::tool_policy_get,
+            commands::tool_policy_set,
             commands::flow_to_yaml,
             commands::flow_from_yaml,
             commands::provider_status,

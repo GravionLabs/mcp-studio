@@ -106,7 +106,7 @@ pub struct SpanFilter {
     pub trace_id: Option<String>,
     /// Spans of the sessions of one server.
     pub server_id: Option<String>,
-    /// Only root spans (the sessions), for listing traces.
+    /// Only root spans (sessions and flow runs), for listing traces.
     pub roots_only: bool,
     /// Maximum number of rows (default 1000, max 10000), newest first.
     pub limit: Option<u32>,
@@ -131,7 +131,8 @@ pub async fn query_spans(db: &Db, filter: &SpanFilter) -> DbResult<Vec<Span>> {
         "SELECT s.id, s.trace_id, s.parent_id, s.kind, s.name, s.started_at, s.ended_at, s.status, s.attributes, \
          CASE WHEN s.kind = 'session' \
            THEN (SELECT SUM(m.tokens) FROM messages m WHERE m.session_id = s.trace_id) \
-           ELSE (SELECT SUM(m.tokens) FROM messages m WHERE m.span_id = s.id) END AS tokens \
+           ELSE COALESCE((SELECT SUM(m.tokens) FROM messages m WHERE m.span_id = s.id), \
+             json_extract(s.attributes, '$.tokens')) END AS tokens \
          FROM spans s WHERE 1 = 1",
     );
     if let Some(trace) = &filter.trace_id {
@@ -144,7 +145,7 @@ pub async fn query_spans(db: &Db, filter: &SpanFilter) -> DbResult<Vec<Span>> {
             .push(")");
     }
     if filter.roots_only {
-        query.push(" AND s.parent_id IS NULL AND s.kind = 'session'");
+        query.push(" AND s.parent_id IS NULL AND s.kind IN ('session', 'flow')");
     }
     query
         .push(" ORDER BY s.started_at DESC, s.rowid DESC LIMIT ")
@@ -178,7 +179,8 @@ pub(crate) async fn unexported_spans(db: &Db, limit: u32) -> DbResult<Vec<Span>>
         "SELECT s.id, s.trace_id, s.parent_id, s.kind, s.name, s.started_at, s.ended_at, s.status, s.attributes, \
          CASE WHEN s.kind = 'session' \
            THEN (SELECT SUM(m.tokens) FROM messages m WHERE m.session_id = s.trace_id) \
-           ELSE (SELECT SUM(m.tokens) FROM messages m WHERE m.span_id = s.id) END AS tokens \
+           ELSE COALESCE((SELECT SUM(m.tokens) FROM messages m WHERE m.span_id = s.id), \
+             json_extract(s.attributes, '$.tokens')) END AS tokens \
          FROM spans s WHERE s.exported = 0 AND s.ended_at IS NOT NULL \
          ORDER BY s.started_at, s.rowid LIMIT ?",
     )
@@ -346,6 +348,52 @@ impl SpanTracker {
             .await?;
         Ok(())
     }
+}
+
+/// A span to start outside of a recorded session (flow runs).
+pub(crate) struct NewSpan<'a> {
+    pub id: &'a str,
+    pub trace_id: &'a str,
+    pub parent_id: Option<&'a str>,
+    pub kind: SpanKind,
+    pub name: &'a str,
+    pub started_at: i64,
+    pub attributes: &'a serde_json::Value,
+}
+
+pub(crate) async fn insert_span(db: &Db, span: &NewSpan<'_>) -> DbResult<()> {
+    sqlx::query(
+        "INSERT INTO spans (id, trace_id, parent_id, kind, name, started_at, status, attributes) \
+         VALUES (?, ?, ?, ?, ?, ?, 'ok', ?)",
+    )
+    .bind(span.id)
+    .bind(span.trace_id)
+    .bind(span.parent_id)
+    .bind(span.kind.as_str())
+    .bind(span.name)
+    .bind(span.started_at)
+    .bind(span.attributes.to_string())
+    .execute(db.pool())
+    .await?;
+    Ok(())
+}
+
+/// Ends a span and replaces its attributes.
+pub(crate) async fn end_span(
+    db: &Db,
+    id: &str,
+    ended_at: i64,
+    status: SpanStatus,
+    attributes: &serde_json::Value,
+) -> DbResult<()> {
+    sqlx::query("UPDATE spans SET ended_at = ?, status = ?, attributes = ? WHERE id = ?")
+        .bind(ended_at)
+        .bind(status.as_str())
+        .bind(attributes.to_string())
+        .bind(id)
+        .execute(db.pool())
+        .await?;
+    Ok(())
 }
 
 /// Removes old traces: root spans past `cutoff` whose session no longer has messages. Child spans

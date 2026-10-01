@@ -5,6 +5,8 @@ use mcp_studio_core::{
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
     flow::Flow,
+    flow_run::{self, Decision, FlowEngine, RunRequest, ToolPolicy},
+    flow_runs::{FlowRun, RunSummary},
     flow_yaml,
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
@@ -27,6 +29,7 @@ use mcp_studio_core::{
     update::UpdateInfo,
 };
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_updater::UpdaterExt;
@@ -272,6 +275,135 @@ pub async fn flow_import(state: State<'_, AppState>, path: String) -> CommandRes
     let yaml = std::fs::read_to_string(&path)
         .map_err(|e| CommandError(format!("could not read {path}: {e}")))?;
     Ok(state.flows.import_yaml(&yaml).await?)
+}
+
+/// Starts a run in the background and returns at once; progress arrives as `flow://event` events
+/// and tool calls wait for the user in `flow://confirm`. The caller chooses `run_id` so it can
+/// listen before the run begins. Pass `flow` to run an unsaved flow; otherwise `flow_id` is run.
+#[tauri::command]
+pub async fn flow_run_start(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    run_id: String,
+    flow_id: Option<String>,
+    flow: Option<Flow>,
+    inputs: JsonValue,
+    environment_id: Option<String>,
+) -> CommandResult<()> {
+    let (flow_id, flow) = match (flow, flow_id) {
+        (Some(flow), id) => (id, flow),
+        (None, Some(id)) => {
+            let record = state.flows.get(&id).await?;
+            (Some(id), record.flow)
+        }
+        (None, None) => return Err(CommandError("choose a flow to run".into())),
+    };
+    let inputs = match inputs.0 {
+        serde_json::Value::Object(map) => map,
+        serde_json::Value::Null => serde_json::Map::new(),
+        _ => return Err(CommandError("the inputs must be an object".into())),
+    };
+    if state.running_flows.lock().unwrap().contains_key(&run_id) {
+        return Err(CommandError("this run is already going".into()));
+    }
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let engine = FlowEngine::new(
+        state.db.clone(),
+        Arc::new(crate::flow_runtime::SessionTools {
+            sessions: state.sessions.clone(),
+            registry: state.registry.clone(),
+            environment_id,
+        }),
+        Arc::new(crate::flow_runtime::ConfiguredModels {
+            settings,
+            secrets: state.secrets.clone(),
+        }),
+        Arc::new(crate::flow_runtime::AskInWebview {
+            app: app.clone(),
+            confirmations: state.confirmations.clone(),
+        }),
+        Arc::new(crate::flow_runtime::EmitProgress { app: app.clone() }),
+    );
+    let cancel = tokio_util::sync::CancellationToken::new();
+    state
+        .running_flows
+        .lock()
+        .unwrap()
+        .insert(run_id.clone(), cancel.clone());
+    tauri::async_runtime::spawn(async move {
+        let finished = run_id.clone();
+        let _ = engine
+            .run(
+                RunRequest {
+                    run_id,
+                    flow_id,
+                    flow,
+                    inputs,
+                    replay_of: None,
+                },
+                cancel,
+            )
+            .await;
+        if let Some(state) = app.try_state::<AppState>() {
+            state.running_flows.lock().unwrap().remove(&finished);
+        }
+    });
+    Ok(())
+}
+
+/// Cancels a run in progress; returns whether it was still running.
+#[tauri::command]
+pub fn flow_run_cancel(state: State<'_, AppState>, run_id: String) -> bool {
+    match state.running_flows.lock().unwrap().get(&run_id) {
+        Some(token) => {
+            token.cancel();
+            true
+        }
+        None => false,
+    }
+}
+
+#[tauri::command]
+pub async fn flow_run_get(state: State<'_, AppState>, run_id: String) -> CommandResult<FlowRun> {
+    Ok(state.flow_runs.get(&run_id).await?)
+}
+
+/// The newest runs, optionally of one flow.
+#[tauri::command]
+pub async fn flow_run_list(
+    state: State<'_, AppState>,
+    flow_id: Option<String>,
+    limit: Option<u32>,
+) -> CommandResult<Vec<RunSummary>> {
+    Ok(state
+        .flow_runs
+        .list(flow_id.as_deref(), limit.unwrap_or(50))
+        .await?)
+}
+
+#[tauri::command]
+pub async fn flow_run_delete(state: State<'_, AppState>, run_id: String) -> CommandResult<()> {
+    Ok(state.flow_runs.delete(&run_id).await?)
+}
+
+/// Answers a question of a run (`flow://confirm`). Returns whether it was still waiting.
+#[tauri::command]
+pub fn flow_confirm(state: State<'_, AppState>, id: String, decision: Decision) -> bool {
+    state.confirmations.answer(&id, decision)
+}
+
+/// The tools and servers that may run without asking.
+#[tauri::command]
+pub async fn tool_policy_get(state: State<'_, AppState>) -> CommandResult<ToolPolicy> {
+    Ok(flow_run::load_policy(&state.settings).await?)
+}
+
+#[tauri::command]
+pub async fn tool_policy_set(
+    state: State<'_, AppState>,
+    policy: ToolPolicy,
+) -> CommandResult<ToolPolicy> {
+    Ok(flow_run::save_policy(&state.settings, policy).await?)
 }
 
 /// The YAML text of a flow, for the editor's YAML view.

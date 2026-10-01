@@ -112,6 +112,8 @@ pub enum FlowIssueCode {
     UnknownStep,
     Cycle,
     MalformedTemplate,
+    /// A condition jumps to itself or to an earlier step; jumps only go forward.
+    BackwardJump,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -228,6 +230,33 @@ impl Validator<'_> {
             self.step(step, &ids, &inputs, deps.entry(&step.id).or_default());
         }
         self.cycles(&deps);
+        // A condition may only jump forward, so a flow cannot loop forever.
+        let positions: BTreeMap<&str, usize> = flow
+            .steps
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (s.id.as_str(), i))
+            .collect();
+        for (index, step) in flow.steps.iter().enumerate() {
+            if let StepKind::Condition {
+                then, otherwise, ..
+            } = &step.kind
+            {
+                for (label, target) in [("then", then), ("else", otherwise)] {
+                    let backward = target
+                        .as_deref()
+                        .and_then(|t| positions.get(t))
+                        .is_some_and(|position| *position <= index);
+                    if backward {
+                        self.issue(
+                            Some(&step.id),
+                            FlowIssueCode::BackwardJump,
+                            format!("`{label}` must point to a step after this one"),
+                        );
+                    }
+                }
+            }
+        }
     }
 
     fn step<'f>(
@@ -871,5 +900,26 @@ mod tests {
         let json = serde_json::to_value(issue).unwrap();
         assert_eq!(json["stepId"], "a");
         assert_eq!(json["code"], "unknownTool");
+    }
+
+    #[test]
+    fn conditions_may_only_jump_forward() {
+        let f = flow(json!({
+            "version": 1, "name": "x",
+            "steps": [
+                { "id": "a", "type": "transform" },
+                { "id": "c", "type": "condition", "expression": "true", "then": "a", "else": "c" },
+                { "id": "ok", "type": "condition", "expression": "true", "then": "o" },
+                { "id": "o", "type": "output" }
+            ]
+        }));
+        let issues = validate(&f, &catalog());
+        let backward: Vec<_> = issues
+            .iter()
+            .filter(|i| i.code == FlowIssueCode::BackwardJump)
+            .collect();
+        assert_eq!(backward.len(), 2);
+        assert!(backward.iter().all(|i| i.step_id.as_deref() == Some("c")));
+        assert!(backward[0].message.contains("`then`") && backward[1].message.contains("`else`"));
     }
 }

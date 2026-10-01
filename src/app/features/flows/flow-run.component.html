@@ -1,0 +1,132 @@
+<section class="run">
+  <h3>Run {{ record().flow.name }}</h3>
+
+  @if (fields().length > 0) {
+    <form class="inputs" (submit)="$event.preventDefault(); start()">
+      @for (field of fields(); track field.name) {
+        <div class="field">
+          <label [for]="'in-' + field.name">
+            {{ field.name }} <span class="muted">({{ field.kind }})</span>
+          </label>
+          @switch (field.kind) {
+            @case ("boolean") {
+              <input
+                type="checkbox"
+                [id]="'in-' + field.name"
+                [checked]="raw()[field.name] === true"
+                (change)="setChecked(field.name, $event)"
+              />
+            }
+            @case ("array") {
+              <textarea
+                rows="3"
+                [id]="'in-' + field.name"
+                placeholder='["a", "b"]'
+                [value]="raw()[field.name] ?? ''"
+                (input)="setText(field.name, $event)"
+              ></textarea>
+            }
+            @case ("object") {
+              <textarea
+                rows="3"
+                [id]="'in-' + field.name"
+                placeholder='{"key": "value"}'
+                [value]="raw()[field.name] ?? ''"
+                (input)="setText(field.name, $event)"
+              ></textarea>
+            }
+            @default {
+              <input
+                [id]="'in-' + field.name"
+                [value]="raw()[field.name] ?? ''"
+                (input)="setText(field.name, $event)"
+              />
+            }
+          }
+          @if (field.description) {
+            <span class="muted small">{{ field.description }}</span>
+          }
+          @if (errors()[field.name]; as problem) {
+            <span class="problem" role="alert">{{ problem }}</span>
+          }
+        </div>
+      }
+    </form>
+  } @else {
+    <p class="muted">This flow takes no inputs.</p>
+  }
+  <div class="actions">
+    <button type="button" class="primary" [disabled]="running()" (click)="start()">Run</button>
+    @if (running()) {
+      <button type="button" (click)="cancel()">Cancel</button>
+    }
+    <span class="muted">Every tool call asks you first, unless you allowed it before.</span>
+  </div>
+
+  @if (view(); as v) {
+    <div class="progress">
+      <p>
+        <strong>{{ v.flowName }}</strong>
+        <span class="status" [class]="v.status">{{ v.status }}</span>
+        @if (v.error) {
+          <span class="problem">{{ v.error }}</span>
+        }
+      </p>
+      <ol class="steps">
+        @for (step of v.steps; track step.stepId) {
+          <li>
+            <button
+              type="button"
+              class="step ghost"
+              [class.selected]="selectedStep() === step.stepId"
+              (click)="selectedStep.set(step.stepId)"
+            >
+              <span class="status" [class]="step.status">{{ step.status }}</span>
+              <span class="mono">{{ step.stepId }}</span>
+              <span class="muted">{{ step.kind }}</span>
+              <span class="muted spacer">{{ durationOf(step.stepId) }}</span>
+            </button>
+            @if (step.error) {
+              <p class="problem">{{ step.error }}</p>
+            }
+            @if (step.text) {
+              <pre class="text">{{ step.text }}</pre>
+            }
+          </li>
+        }
+      </ol>
+      @if (detail(); as d) {
+        <div class="detail">
+          <strong>Asked to do</strong>
+          <app-json-view [value]="d.resolved" />
+          <strong>Result</strong>
+          <app-json-view [value]="d.output" />
+        </div>
+      }
+      @if (outputs(); as out) {
+        <div class="outputs">
+          <strong>Result of the flow</strong>
+          <app-json-view [value]="out" />
+        </div>
+      }
+    </div>
+  }
+
+  @if (history().length > 0) {
+    <h4>Earlier runs</h4>
+    <ul class="history">
+      @for (item of history(); track item.id) {
+        <li>
+          <button type="button" class="ghost" (click)="open(item)">
+            <span class="status" [class]="item.status">{{ item.status }}</span>
+            {{ when(item.startedAt) }}
+            @if (item.replayOf) {
+              <span class="muted">(replay)</span>
+            }
+          </button>
+          <button type="button" class="ghost" (click)="remove(item)">Delete</button>
+        </li>
+      }
+    </ul>
+  }
+</section>

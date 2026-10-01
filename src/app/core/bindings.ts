@@ -43,6 +43,21 @@ export type ConfigSource = {
 	exists: boolean,
 };
 
+/**  A question for the user, with the id the answer must carry. */
+export type ConfirmEvent = {
+	id: string,
+	request: ConfirmRequest,
+};
+
+/**  A tool call that waits for the user's decision. */
+export type ConfirmRequest = {
+	runId: string,
+	stepId: string,
+	server: string,
+	tool: string,
+	arguments: unknown,
+};
+
 /**  Connection state of one server. */
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
@@ -75,6 +90,14 @@ export type CountingStatus = {
 	/**  An API key is stored in the keyring. The key itself never leaves the backend. */
 	hasKey: boolean,
 };
+
+export type Decision = 
+/**  This call only. */
+"allow" | 
+/**  This tool from now on, without asking. */
+"allow_tool" | 
+/**  Every tool of this server from now on. */
+"allow_server" | "deny";
 
 /**  Direction of a message relative to the party that owns the transport. */
 export type Direction = 
@@ -123,7 +146,9 @@ export type FlowIssue = {
 	message: string,
 };
 
-export type FlowIssueCode = "unsupportedVersion" | "emptyName" | "invalidStepId" | "duplicateStepId" | "multipleInputSteps" | "missingOutputStep" | "emptyField" | "unknownServer" | "unknownTool" | "missingArgument" | "unknownArgument" | "argumentType" | "unknownInput" | "unknownStep" | "cycle" | "malformedTemplate";
+export type FlowIssueCode = "unsupportedVersion" | "emptyName" | "invalidStepId" | "duplicateStepId" | "multipleInputSteps" | "missingOutputStep" | "emptyField" | "unknownServer" | "unknownTool" | "missingArgument" | "unknownArgument" | "argumentType" | "unknownInput" | "unknownStep" | "cycle" | "malformedTemplate" | 
+/**  A condition jumps to itself or to an earlier step; jumps only go forward. */
+"backwardJump";
 
 /**  A flow in the library. */
 export type FlowRecord = {
@@ -131,6 +156,23 @@ export type FlowRecord = {
 	flow: Flow,
 	/**  Unix milliseconds. */
 	updatedAt: number,
+};
+
+export type FlowRun = {
+	id: string,
+	flowId: string | null,
+	/**  The flow as it was when the run started. */
+	flow: Flow,
+	inputs: unknown,
+	status: RunStatus,
+	startedAt: number,
+	endedAt: number | null,
+	outputs: unknown | null,
+	error: string | null,
+	/**  The run whose tool results this run replays. */
+	replayOf: string | null,
+	steps: StepRun[],
+	calls: RecordedCall[],
 };
 
 export type HistoryEntry = {
@@ -347,6 +389,20 @@ export type ProxyInfo = {
 	httpPort: number,
 };
 
+/**  A tool call made by a run, with its result. */
+export type RecordedCall = {
+	seq: number,
+	stepId: string,
+	server: string,
+	tool: string,
+	arguments: unknown,
+	/**  The MCP `CallToolResult`; `None` when the call was denied or failed before it ran. */
+	result: unknown | null,
+	isError: boolean,
+	/**  The user did not allow the call. */
+	denied: boolean,
+};
+
 export type ResourceInfo = {
 	uri: string,
 	name: string,
@@ -364,6 +420,25 @@ export type ResourceTemplateInfo = {
 };
 
 export type Role = "user" | "assistant";
+
+/**  Progress of a run, for the UI. */
+export type RunEvent = { type: "run_started"; runId: string; flowName: string } | { type: "step_started"; runId: string; stepId: string; kind: string } | { type: "step_finished"; runId: string; stepId: string; status: StepStatus; error: string | null } | 
+/**  A piece of the answer of an LLM step, as the model writes it. */
+{ type: "text_delta"; runId: string; stepId: string; text: string } | { type: "run_finished"; runId: string; status: RunStatus; error: string | null };
+
+export type RunStatus = "running" | "succeeded" | "failed" | "cancelled";
+
+/**  A run in a list. */
+export type RunSummary = {
+	id: string,
+	flowId: string | null,
+	flowName: string,
+	status: RunStatus,
+	startedAt: number,
+	endedAt: number | null,
+	error: string | null,
+	replayOf: string | null,
+};
 
 export type SavedRequest = {
 	id: string,
@@ -453,7 +528,7 @@ export type SpanFilter = {
 	traceId?: string | null,
 	/**  Spans of the sessions of one server. */
 	serverId?: string | null,
-	/**  Only root spans (the sessions), for listing traces. */
+	/**  Only root spans (sessions and flow runs), for listing traces. */
 	rootsOnly?: boolean,
 	/**  Maximum number of rows (default 1000, max 10000), newest first. */
 	limit?: number | null,
@@ -490,6 +565,25 @@ export type StepKind =
 { type: "transform"; values?: { [key in string]: string } } | 
 /**  Declares the flow's result; each entry is a template. */
 { type: "output"; outputs?: { [key in string]: string } };
+
+export type StepRun = {
+	seq: number,
+	stepId: string,
+	/**  The step type: `input`, `llm`, `tool`, ... */
+	kind: string,
+	status: StepStatus,
+	startedAt: number,
+	endedAt: number | null,
+	/**  What the step was asked to do once templates were filled in. */
+	resolved: unknown | null,
+	output: unknown | null,
+	error: string | null,
+	spanId: string | null,
+};
+
+export type StepStatus = "running" | "succeeded" | "failed" | 
+/**  Not run because a condition jumped over it. */
+"skipped" | "cancelled";
 
 /**  Why the model stopped. */
 export type StopReason = 
@@ -557,6 +651,14 @@ export type ToolInfo = {
 	inputSchema?: unknown,
 	outputSchema?: unknown | null,
 	annotations?: unknown | null,
+};
+
+/**
+ *  The tools and servers that were allowed to run without asking. Entries are `server` or
+ *  `server/tool`.
+ */
+export type ToolPolicy = {
+	allow?: string[],
 };
 
 /**  A tool exposed to an `llm` step. */

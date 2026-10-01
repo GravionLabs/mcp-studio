@@ -19,6 +19,8 @@ use crate::{
         PromptArgumentInfo, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo,
     },
     flow::{Flow, FlowIssue, FlowIssueCode, InputDecl, Step, StepKind, ToolRef},
+    flow_run::{ConfirmEvent, ConfirmRequest, Decision, RunEvent, ToolPolicy},
+    flow_runs::{FlowRun, RecordedCall, RunStatus, RunSummary, StepRun, StepStatus},
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
     llm::{
@@ -83,6 +85,17 @@ pub fn ipc_types() -> Types {
         .register::<FlowIssue>()
         .register::<FlowIssueCode>()
         .register::<FlowRecord>()
+        .register::<ConfirmEvent>()
+        .register::<ConfirmRequest>()
+        .register::<Decision>()
+        .register::<RunEvent>()
+        .register::<ToolPolicy>()
+        .register::<FlowRun>()
+        .register::<RecordedCall>()
+        .register::<RunStatus>()
+        .register::<RunSummary>()
+        .register::<StepRun>()
+        .register::<StepStatus>()
         .register::<UpdateInfo>()
         .register::<TokenSource>()
         .register::<CountingStatus>()

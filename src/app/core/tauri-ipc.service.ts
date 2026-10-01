@@ -9,7 +9,9 @@ import type {
   ExportStatus,
   Flow,
   FlowRecord,
+  FlowRun,
   CountingStatus,
+  Decision,
   HistoryEntry,
   HistoryFilter,
   ImportCandidate,
@@ -28,6 +30,7 @@ import type {
   ProviderSettings,
   ProviderStatus,
   ProviderTestResult,
+  RunSummary,
   ResourceInfo,
   ResourceTemplateInfo,
   ServerDefinition,
@@ -39,6 +42,7 @@ import type {
   ToolCallRequest,
   ToolCallResult,
   ToolInfo,
+  ToolPolicy,
   UpdateInfo,
 } from "./bindings";
 import { IpcError, describeError } from "./ipc-error";
@@ -179,6 +183,50 @@ export class TauriIpcService {
 
   flowImport(path: string): Promise<FlowRecord> {
     return this.call("flow_import", { path });
+  }
+
+  /**
+   * Starts a run in the background. Progress arrives as `flow://event` events and questions as
+   * `flow://confirm`. The caller chooses `runId` so it can listen before the run begins. Pass `flow`
+   * to run an unsaved flow, otherwise `flowId` is run.
+   */
+  flowRunStart(request: {
+    runId: string;
+    flowId: string | null;
+    flow: Flow | null;
+    inputs: Record<string, unknown>;
+    environmentId: string | null;
+  }): Promise<void> {
+    return this.call("flow_run_start", request);
+  }
+
+  flowRunCancel(runId: string): Promise<boolean> {
+    return this.call("flow_run_cancel", { runId });
+  }
+
+  flowRunGet(runId: string): Promise<FlowRun> {
+    return this.call("flow_run_get", { runId });
+  }
+
+  flowRunList(flowId: string | null, limit: number | null = null): Promise<RunSummary[]> {
+    return this.call("flow_run_list", { flowId, limit });
+  }
+
+  flowRunDelete(runId: string): Promise<void> {
+    return this.call("flow_run_delete", { runId });
+  }
+
+  /** Answers a question of a run; returns whether it was still waiting. */
+  flowConfirm(id: string, decision: Decision): Promise<boolean> {
+    return this.call("flow_confirm", { id, decision });
+  }
+
+  toolPolicyGet(): Promise<ToolPolicy> {
+    return this.call("tool_policy_get");
+  }
+
+  toolPolicySet(policy: ToolPolicy): Promise<ToolPolicy> {
+    return this.call("tool_policy_set", { policy });
   }
 
   flowToYaml(flow: Flow): Promise<string> {
