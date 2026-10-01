@@ -11,6 +11,7 @@ pub mod events;
 pub mod explorer;
 pub mod flow;
 pub mod flow_expr;
+pub mod flow_gen;
 pub mod flow_replay;
 pub mod flow_run;
 pub mod flow_runs;

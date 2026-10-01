@@ -7,6 +7,7 @@ use mcp_studio_core::{
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
     flow::{self, Flow, FlowValidation, ToolCatalog},
+    flow_gen::{self, GeneratedFlow},
     flow_replay::ReplayTools,
     flow_run::{self, Decision, FlowEngine, RunRequest, ToolPolicy},
     flow_runs::{FlowRun, RunSummary},
@@ -502,6 +503,29 @@ pub async fn flow_validate(
         }
     }
     Ok(flow::validate_available(&flow, &catalog))
+}
+
+/// Asks a model to write a flow for a goal, using the tools of the chosen servers (they are
+/// connected on demand). The goal and the tool definitions are sent to the model's provider; one
+/// call, or two when the first answer needs a repair. Nothing is saved or run here: the caller
+/// saves and opens the flow only when the result has no issues.
+#[tauri::command]
+pub async fn flow_generate(
+    state: State<'_, AppState>,
+    goal: String,
+    model: String,
+    server_ids: Vec<String>,
+    environment_id: Option<String>,
+) -> CommandResult<GeneratedFlow> {
+    let mut catalog = ToolCatalog::new();
+    for id in &server_ids {
+        let server = state.registry.get(id).await?;
+        let tools = suite_tools(&state, id, environment_id.as_deref()).await?;
+        catalog.insert(server.input.name, tools);
+    }
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let (provider, model_name) = resolve_model(&settings, &state, &model)?;
+    Ok(flow_gen::generate_flow(provider.as_ref(), &model_name, &goal, &catalog).await?)
 }
 
 /// The YAML text of a flow, for the editor's YAML view.

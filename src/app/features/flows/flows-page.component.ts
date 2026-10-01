@@ -6,13 +6,14 @@ import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { RouterLink } from "@angular/router";
+import { FlowGenerateComponent } from "./flow-generate.component";
 import { FlowRunComponent } from "./flow-run.component";
 import { describeFlow, newFlow } from "./flows.model";
 
 /** The flow library: create, import from and export to YAML files, delete. */
 @Component({
   selector: "app-flows-page",
-  imports: [FlowRunComponent, RouterLink],
+  imports: [FlowGenerateComponent, FlowRunComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flows-page.component.html",
   styleUrl: "./flows-page.component.scss",

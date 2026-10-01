@@ -213,6 +213,21 @@ export type FlowValidation = {
 	uncheckedServers: string[],
 };
 
+/**  The outcome of a generation. */
+export type GeneratedFlow = {
+	/**  The flow, when the answer could be read as one. */
+	flow: Flow | null,
+	/**  The YAML text the model wrote, as far as it could be extracted. */
+	yaml: string,
+	/**
+	 *  What is wrong with it, from reading it or from validation. Empty means it is valid and may
+	 *  be opened.
+	 */
+	issues: FlowIssue[],
+	/**  Model calls this took (1, or 2 with a repair). */
+	attempts: number,
+};
+
 export type HistoryEntry = {
 	id: number,
 	serverId: string,

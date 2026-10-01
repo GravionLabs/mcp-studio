@@ -48,6 +48,7 @@ import type {
   ToolInfo,
   Variant,
   CaseResult,
+  GeneratedFlow,
   ToolPolicy,
   UpdateInfo,
 } from "./bindings";
@@ -251,6 +252,19 @@ export class TauriIpcService {
   /** Checks a flow against the servers that are connected; the others are reported as unchecked. */
   flowValidate(flow: Flow): Promise<FlowValidation> {
     return this.call("flow_validate", { flow });
+  }
+
+  /**
+   * Asks a model to write a flow for a goal using the tools of the chosen servers. Sends the goal
+   * and the tool definitions to the model's provider. Nothing is saved or run.
+   */
+  flowGenerate(request: {
+    goal: string;
+    model: string;
+    serverIds: string[];
+    environmentId: string | null;
+  }): Promise<GeneratedFlow> {
+    return this.call("flow_generate", request);
   }
 
   flowToYaml(flow: Flow): Promise<string> {
