@@ -62,9 +62,10 @@ Work is tracked as Epic → Feature → PBI → Task using GitHub sub-issues.
 
 ## Releases
 
-Releases are cut per epic, not per pull request. Every merge to `main` builds installers for all
-platforms and publishes a GitHub release (see `.github/workflows/release.yml`); the version comes
-from GitVersion. So `main` only receives finished epics:
+Releases are cut per epic, not per pull request. There is one pipeline (`.github/workflows/ci.yml`):
+every pull request runs the lint, test, and Rust checks, and every merge to `main` runs the same
+checks, then builds installers for all platforms, then publishes a GitHub release. A failing check
+stops the release. The version comes from GitVersion. So `main` only receives finished epics:
 
 - Each epic has a **release branch** named `epic/<issue>-<short-description>`, created from `main`.
 - **Every pull request targets the release branch**, not `main`. CI runs on all pull requests.
