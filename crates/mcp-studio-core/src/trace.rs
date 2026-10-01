@@ -106,6 +106,8 @@ pub struct SpanFilter {
     pub trace_id: Option<String>,
     /// Spans of the sessions of one server.
     pub server_id: Option<String>,
+    /// Only root spans (the sessions), for listing traces.
+    pub roots_only: bool,
     /// Maximum number of rows (default 1000, max 10000), newest first.
     pub limit: Option<u32>,
 }
@@ -140,6 +142,9 @@ pub async fn query_spans(db: &Db, filter: &SpanFilter) -> DbResult<Vec<Span>> {
             .push(" AND s.trace_id IN (SELECT id FROM sessions WHERE server_id = ")
             .push_bind(server.clone())
             .push(")");
+    }
+    if filter.roots_only {
+        query.push(" AND s.parent_id IS NULL AND s.kind = 'session'");
     }
     query
         .push(" ORDER BY s.started_at DESC, s.rowid DESC LIMIT ")
