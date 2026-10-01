@@ -32,6 +32,8 @@ keyring.
   the app).
 - **Tool quality**: every connected server is checked for vague tool descriptions, missing
   `required` fields, overlapping tools, and oversized definitions (offline, no model needed).
+- **Tool documentation**: Markdown docs per server (purpose, parameters, examples from your call
+  history, error cases) to copy or save, offline.
 - **Cost**: every server shows how much context its tool definitions take, and calls and sessions
   show their estimated cost. You enter the price per million tokens of the models you use on the
   **Prices** page; none are built in because they change often. Token counts are estimates; with an

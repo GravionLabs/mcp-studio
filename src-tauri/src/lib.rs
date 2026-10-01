@@ -176,6 +176,8 @@ pub fn run() {
             commands::provider_set_key,
             commands::ollama_models,
             commands::provider_test,
+            commands::server_docs,
+            commands::server_docs_export,
             commands::tools_lint,
             commands::price_list,
             commands::price_set,

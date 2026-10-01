@@ -16,6 +16,7 @@ import { DialogService } from "../../core/dialog.service";
 import { ToastService } from "../../core/toast.service";
 import { EnvironmentsStore } from "../environments/environments.store";
 import { ExplorerComponent } from "../explorer/explorer.component";
+import { ToolDocsComponent } from "../docs/tool-docs.component";
 import { ToolLintComponent } from "../lint/tool-lint.component";
 import { ContextCostComponent } from "../prices/context-cost.component";
 import { ProxyPanelComponent } from "../proxy/proxy-panel.component";
@@ -31,6 +32,7 @@ import { ServersStore } from "./servers.store";
     ProxyPanelComponent,
     ContextCostComponent,
     ToolLintComponent,
+    ToolDocsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./server-detail.component.html",

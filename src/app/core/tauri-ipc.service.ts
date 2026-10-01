@@ -257,6 +257,15 @@ export class TauriIpcService {
     return this.call("flow_from_yaml", { yaml });
   }
 
+  /** Markdown documentation of a server's tools, with examples and error cases from its history. */
+  serverDocs(serverId: string, tools: ToolInfo[]): Promise<string> {
+    return this.call("server_docs", { serverId, tools });
+  }
+
+  serverDocsExport(serverId: string, tools: ToolInfo[], path: string): Promise<void> {
+    return this.call("server_docs_export", { serverId, tools, path });
+  }
+
   /** Checks tool definitions for vague descriptions, missing `required` fields, overlap and size. */
   toolsLint(tools: ToolInfo[]): Promise<LintReport> {
     return this.call("tools_lint", { tools });

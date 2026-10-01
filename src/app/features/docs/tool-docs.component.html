@@ -1,0 +1,19 @@
+<section class="docs">
+  <h3>Documentation</h3>
+  <p class="muted">
+    Markdown for these tools: what each does, its parameters, examples from the calls you made, and
+    the errors that happened. Examples and errors come from this server's history; nothing is sent
+    anywhere.
+  </p>
+  <div class="actions">
+    <button type="button" [disabled]="busy()" (click)="generate()">Preview</button>
+    <button type="button" [disabled]="busy()" (click)="copy()">Copy Markdown</button>
+    <button type="button" class="primary" [disabled]="busy()" (click)="save()">Save as .md…</button>
+    @if (markdown() !== null) {
+      <button type="button" class="ghost" (click)="hide()">Hide preview</button>
+    }
+  </div>
+  @if (markdown(); as text) {
+    <pre class="preview mono" aria-label="Markdown preview">{{ text }}</pre>
+  }
+</section>

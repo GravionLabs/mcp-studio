@@ -4,6 +4,7 @@ pub mod bindings;
 pub mod client_import;
 pub mod collections;
 pub mod db;
+pub mod docs_gen;
 pub mod environments;
 pub mod events;
 pub mod explorer;
