@@ -20,6 +20,7 @@ pub mod recording;
 pub mod registry;
 pub mod secrets;
 pub mod session;
+pub mod tokens;
 pub mod update;
 
 /// Returns the crate version, used by the app shell and smoke tests.

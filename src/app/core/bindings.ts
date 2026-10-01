@@ -187,6 +187,10 @@ export type MessageRecord = {
 	ts: number,
 	/**  For responses: milliseconds since the matching request (filled by queries). */
 	durationMs: number | null,
+	/**  Tokens this message adds to a model's context (arguments, result, or tool definitions). */
+	tokens: number | null,
+	/**  Whether `tokens` is an offline estimate or an exact count. */
+	tokenSource: TokenSource | null,
 };
 
 /**  `mcp://progress`: progress of a running tool call. */
@@ -316,6 +320,13 @@ export type StepKind =
 { type: "transform"; values?: { [key in string]: string } } | 
 /**  Declares the flow's result; each entry is a template. */
 { type: "output"; outputs?: { [key in string]: string } };
+
+/**  Where a token count comes from. */
+export type TokenSource = 
+/**  Approximated offline; see [`estimate_text`]. */
+"estimate" | 
+/**  Reported by the model provider. */
+"exact";
 
 /**  A tool call to run. */
 export type ToolCallRequest = {

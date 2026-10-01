@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::recording::Direction;
+use crate::{recording::Direction, tokens::TokenSource};
 
 /// Connection state of one server.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -47,6 +47,11 @@ pub struct MessageRecord {
     /// For responses: milliseconds since the matching request (filled by queries).
     #[specta(type = Option<u32>)]
     pub duration_ms: Option<i64>,
+    /// Tokens this message adds to a model's context (arguments, result, or tool definitions).
+    #[specta(type = Option<u32>)]
+    pub tokens: Option<i64>,
+    /// Whether `tokens` is an offline estimate or an exact count.
+    pub token_source: Option<TokenSource>,
 }
 
 /// Where a log line came from.

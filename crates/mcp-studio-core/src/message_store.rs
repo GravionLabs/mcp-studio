@@ -9,6 +9,7 @@ use crate::{
     events::{EventSink, MessageRecord},
     recording::{Direction, RecordedMessage, Recorder},
     secrets::Redactor,
+    tokens::{message_tokens, TokenSource},
 };
 
 /// Flush when this many messages are waiting...
@@ -24,6 +25,7 @@ struct Pending {
     payload: String,
     bytes: i64,
     is_error: bool,
+    tokens: i64,
 }
 
 /// Sends messages of one session to a background task that writes them in batches.
@@ -67,6 +69,7 @@ impl Pending {
             bytes: text.len() as i64,
             payload: text,
             is_error,
+            tokens: i64::from(message_tokens(payload)),
         }
     }
 }
@@ -146,8 +149,8 @@ async fn write_batch(
             Direction::In => "in",
         };
         let id: i64 = sqlx::query_scalar(
-            "INSERT INTO messages (session_id, direction, jsonrpc_id, method, payload, bytes, is_error, ts) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+            "INSERT INTO messages (session_id, direction, jsonrpc_id, method, payload, bytes, is_error, tokens, token_source, ts) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         )
         .bind(session_id)
         .bind(direction)
@@ -156,6 +159,8 @@ async fn write_batch(
         .bind(&message.payload)
         .bind(message.bytes)
         .bind(message.is_error)
+        .bind(message.tokens)
+        .bind(TokenSource::Estimate.as_str())
         .bind(message.ts)
         .fetch_one(&mut *tx)
         .await?;
@@ -171,6 +176,8 @@ async fn write_batch(
             is_error: message.is_error,
             ts: message.ts,
             duration_ms: None,
+            tokens: Some(message.tokens),
+            token_source: Some(TokenSource::Estimate),
         });
     }
     tx.commit().await?;
@@ -217,6 +224,8 @@ type MessageRow = (
     bool,
     i64,
     Option<i64>,
+    Option<i64>,
+    Option<String>,
 );
 
 /// Reads recorded messages. Responses carry `duration_ms`, measured from their request.
@@ -225,7 +234,7 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
         "SELECT m.id, m.session_id, (SELECT server_id FROM sessions WHERE id = m.session_id), m.direction, m.jsonrpc_id, m.method, m.payload, m.bytes, m.is_error, m.ts, \
          (SELECT m.ts - r.ts FROM messages r WHERE r.session_id = m.session_id AND r.jsonrpc_id = m.jsonrpc_id \
             AND r.method IS NOT NULL AND r.direction != m.direction AND r.id < m.id \
-            ORDER BY r.id DESC LIMIT 1) AS duration \
+            ORDER BY r.id DESC LIMIT 1) AS duration, m.tokens, m.token_source \
          FROM messages m WHERE 1 = 1",
     );
     if let Some(session) = &filter.session_id {
@@ -294,6 +303,8 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
                 is_error,
                 ts,
                 duration,
+                tokens,
+                token_source,
             )| {
                 MessageRecord {
                     id,
@@ -311,6 +322,8 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
                     is_error,
                     ts,
                     duration_ms: duration,
+                    tokens,
+                    token_source: token_source.as_deref().and_then(TokenSource::parse),
                 }
             },
         )
@@ -481,6 +494,56 @@ mod tests {
             .await
             .unwrap();
         assert!(flagged);
+    }
+
+    #[tokio::test]
+    async fn stores_labeled_token_estimates_for_calls_and_definitions() {
+        let (db, session) = setup().await;
+        let sink = Arc::new(CollectingSink::default());
+        let writer = MessageWriter::spawn(
+            db.clone(),
+            session,
+            "srv".into(),
+            Redactor::default(),
+            sink.clone(),
+        );
+        let arguments = json!({"message": "hello there"});
+        let tools = json!([{"name": "echo", "description": "Echo the message back"}]);
+        let recorder = writer.recorder();
+        recorder.record(message(
+            Direction::Out,
+            json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo","arguments":arguments}}),
+        ));
+        recorder.record(message(
+            Direction::In,
+            json!({"jsonrpc":"2.0","id":2,"result":{"tools":tools}}),
+        ));
+        recorder.record(message(
+            Direction::Out,
+            json!({"jsonrpc":"2.0","id":3,"method":"ping"}),
+        ));
+        drop(recorder);
+        writer.finish().await;
+
+        let records = query_messages(&db, &MessageFilter::default())
+            .await
+            .unwrap();
+        let tokens: Vec<_> = records.iter().map(|r| r.tokens).collect();
+        assert_eq!(
+            tokens,
+            [
+                Some(i64::from(crate::tokens::estimate_value(&arguments))),
+                Some(i64::from(crate::tokens::estimate_value(&tools))),
+                Some(0),
+            ]
+        );
+        assert!(records
+            .iter()
+            .all(|r| r.token_source == Some(TokenSource::Estimate)));
+        // Live events carry the same label.
+        let events = sink.messages.lock().unwrap();
+        assert_eq!(events[0].tokens, tokens[0]);
+        assert_eq!(events[0].token_source, Some(TokenSource::Estimate));
     }
 
     #[tokio::test]
