@@ -74,6 +74,12 @@ dd {
   }
 }
 
+.logs-title {
+  margin: 16px 0 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
 .logs {
   max-height: 260px;
   overflow: auto;
