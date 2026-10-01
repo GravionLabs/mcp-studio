@@ -36,6 +36,7 @@ use crate::{
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
+    test_suites::{Expectation, TestCase, TestCaseInput, TestSuite, TestSuiteInput},
     tokens::{CountingStatus, TokenSource},
     trace::{Span, SpanFilter, SpanKind, SpanStatus},
     update::UpdateInfo,
@@ -128,6 +129,11 @@ pub fn ipc_types() -> Types {
         .register::<Severity>()
         .register::<LintFinding>()
         .register::<LintReport>()
+        .register::<Expectation>()
+        .register::<TestCase>()
+        .register::<TestCaseInput>()
+        .register::<TestSuite>()
+        .register::<TestSuiteInput>()
 }
 
 /// Renders the TypeScript bindings file.

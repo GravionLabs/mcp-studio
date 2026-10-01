@@ -24,6 +24,7 @@ use mcp_studio_core::{
     secrets::{KeyringStore, SecretStore},
     session::SessionManager,
     settings::Settings,
+    test_suites::TestSuites,
 };
 use tauri::Manager;
 
@@ -35,6 +36,7 @@ pub struct AppState {
     pub collections: Collections,
     pub prices: Prices,
     pub flows: Flows,
+    pub test_suites: TestSuites,
     pub flow_runs: FlowRuns,
     /// Runs in progress, so they can be cancelled.
     pub running_flows: Mutex<HashMap<String, tokio_util::sync::CancellationToken>>,
@@ -78,6 +80,7 @@ pub fn run() {
             let collections = Collections::new(db.clone());
             let prices = Prices::new(db.clone());
             let flows = Flows::new(db.clone());
+            let test_suites = TestSuites::new(db.clone());
             let flow_runs = FlowRuns::new(db.clone());
             {
                 // Runs that were still going when the app stopped will never finish.
@@ -127,6 +130,7 @@ pub fn run() {
                 collections,
                 prices,
                 flows,
+                test_suites,
                 flow_runs,
                 running_flows: Mutex::new(HashMap::new()),
                 confirmations: Arc::new(flow_runtime::Confirmations::default()),
@@ -178,6 +182,9 @@ pub fn run() {
             commands::provider_test,
             commands::server_docs,
             commands::server_docs_export,
+            commands::test_suite_list,
+            commands::test_suite_save,
+            commands::test_suite_delete,
             commands::tools_lint,
             commands::price_list,
             commands::price_set,

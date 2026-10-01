@@ -40,3 +40,18 @@ or saved as a `.md` file. It needs no model and sends nothing anywhere; it is bu
 
 Tools are sorted by name and the text is deterministic for the same input apart from the date line,
 so it can be kept in Git and diffed.
+
+## Test suites
+
+Suites are saved per server (**Suites** in the toolbar) and are the input of the variant comparison.
+A suite has a name, an optional **system prompt** that is tested together with the tool descriptions,
+and cases. A case holds:
+
+- an **input**, written as a user would ask it ("Which issues are open in a/b?")
+- an **expectation**: the model calls a given **tool** first, calls **no tool**, or **answers** with
+  text that contains a given string (ignoring case)
+- optional notes
+
+Saving replaces the whole suite; cases that are sent back with their id keep it. A suite stays with
+its server and is removed with it. A suite may have no cases yet. Names, inputs, and the tool name or
+answer text are required.

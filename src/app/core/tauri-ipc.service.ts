@@ -43,6 +43,8 @@ import type {
   SpanFilter,
   ToolCallRequest,
   ToolCallResult,
+  TestSuite,
+  TestSuiteInput,
   ToolInfo,
   ToolPolicy,
   UpdateInfo,
@@ -264,6 +266,19 @@ export class TauriIpcService {
 
   serverDocsExport(serverId: string, tools: ToolInfo[], path: string): Promise<void> {
     return this.call("server_docs_export", { serverId, tools, path });
+  }
+
+  testSuiteList(serverId: string): Promise<TestSuite[]> {
+    return this.call("test_suite_list", { serverId });
+  }
+
+  /** Creates a suite (`id` null) or replaces an existing one with all its cases. */
+  testSuiteSave(id: string | null, input: TestSuiteInput): Promise<TestSuite> {
+    return this.call("test_suite_save", { id, input });
+  }
+
+  testSuiteDelete(id: string): Promise<void> {
+    return this.call("test_suite_delete", { id });
   }
 
   /** Checks tool definitions for vague descriptions, missing `required` fields, overlap and size. */
