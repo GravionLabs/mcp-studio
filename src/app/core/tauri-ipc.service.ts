@@ -5,6 +5,8 @@ import type {
   CollectionTree,
   ConfigSource,
   ContextCost,
+  ExportConfig,
+  ExportStatus,
   HistoryEntry,
   HistoryFilter,
   ImportCandidate,
@@ -93,6 +95,23 @@ export class TauriIpcService {
 
   spansQuery(filter: SpanFilter): Promise<Span[]> {
     return this.call("spans_query", { filter });
+  }
+
+  traceExportConfig(): Promise<ExportConfig> {
+    return this.call("trace_export_config");
+  }
+
+  traceExportSetConfig(config: ExportConfig): Promise<ExportConfig> {
+    return this.call("trace_export_set_config", { config });
+  }
+
+  traceExportStatus(): Promise<ExportStatus> {
+    return this.call("trace_export_status");
+  }
+
+  /** Sends the waiting spans now. */
+  traceExportNow(): Promise<ExportStatus> {
+    return this.call("trace_export_now");
   }
 
   priceList(): Promise<Price[]> {

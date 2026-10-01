@@ -61,5 +61,12 @@ Tokens are measured at three points because each answers a different question.
 
 - Every session, flow run, and step is a span with a parent relation; messages attach to spans.
 - The UI shows a waterfall with duration, tokens, and errors per row.
+- Implemented: a session is a trace (`trace_id` = session id) with a `session` root span; every
+  `tools/call` is a `tool` child span from request to response (`error` or `cancelled` when it
+  fails or gets no answer). Messages point at their span through `messages.span_id`.
+- The OTLP exporter speaks OTLP over HTTP with JSON encoding (`POST <endpoint>/v1/traces`), is off
+  by default, sends only spans recorded after it is turned on, and sends metadata only (names,
+  ids, timing, status, estimated tokens), never payloads. Header values such as API keys are
+  keyring references.
 - Internally Rust uses `tracing`; an optional OTLP exporter sends spans to Jaeger, Tempo, or Langfuse
   following the OpenTelemetry GenAI semantic conventions.

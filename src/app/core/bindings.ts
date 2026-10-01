@@ -63,6 +63,23 @@ export type EnvironmentInput = {
 	variables: { [key in string]: string },
 };
 
+export type ExportConfig = {
+	enabled?: boolean,
+	/**  Collector address, for example `http://localhost:4318`; `/v1/traces` is added when missing. */
+	endpoint?: string,
+	/**  Extra HTTP headers. Values are plain text or `keyring:` references. */
+	headers?: { [key in string]: string },
+};
+
+/**  How the exporter is doing. */
+export type ExportStatus = {
+	lastAttemptAt: number | null,
+	lastSuccessAt: number | null,
+	lastError: string | null,
+	/**  Spans sent since the app started. */
+	exported: number,
+};
+
 export type Flow = {
 	version: number,
 	name: string,

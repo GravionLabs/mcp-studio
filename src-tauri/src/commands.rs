@@ -9,6 +9,7 @@ use mcp_studio_core::{
     metering::{self, ContextCost, SessionUsage},
     model::{AppInfo, JsonValue},
     oauth,
+    otlp::{ExportConfig, ExportStatus},
     prices::Price,
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput},
@@ -76,6 +77,30 @@ pub async fn spans_query(
     filter: SpanFilter,
 ) -> CommandResult<Vec<Span>> {
     Ok(query_spans(&state.db, &filter).await?)
+}
+
+#[tauri::command]
+pub async fn trace_export_config(state: State<'_, AppState>) -> CommandResult<ExportConfig> {
+    Ok(state.trace_exporter.config().await?)
+}
+
+#[tauri::command]
+pub async fn trace_export_set_config(
+    state: State<'_, AppState>,
+    config: ExportConfig,
+) -> CommandResult<ExportConfig> {
+    Ok(state.trace_exporter.set_config(config).await?)
+}
+
+#[tauri::command]
+pub fn trace_export_status(state: State<'_, AppState>) -> ExportStatus {
+    state.trace_exporter.status()
+}
+
+/// Sends the waiting spans now instead of at the next interval.
+#[tauri::command]
+pub async fn trace_export_now(state: State<'_, AppState>) -> CommandResult<ExportStatus> {
+    Ok(state.trace_exporter.export_now().await)
 }
 
 #[tauri::command]
