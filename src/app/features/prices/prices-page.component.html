@@ -73,4 +73,37 @@
       }
     </tbody>
   </table>
+
+  <h3>Exact token counts</h3>
+  <p class="muted">
+    Token counts are estimates by default. With an Anthropic API key you can replace the estimate of
+    a message with the exact count: use <strong>Count exactly</strong> in the inspector. That sends
+    the message's content (secrets masked) to Anthropic's token counting endpoint, only when you
+    click. The key is kept in the OS keyring.
+  </p>
+  <div class="counting">
+    <label>
+      <span>Model</span>
+      <input
+        aria-label="Model used for counting"
+        [value]="countingModel()"
+        (input)="countingModel.set(text($event))"
+      />
+    </label>
+    <label>
+      <span>API key</span>
+      <input
+        type="password"
+        autocomplete="off"
+        aria-label="Anthropic API key"
+        [placeholder]="hasKey() ? 'A key is stored; type to replace it' : 'sk-ant-…'"
+        [value]="countingKey()"
+        (input)="countingKey.set(text($event))"
+      />
+    </label>
+    <button type="button" class="primary" (click)="saveCounting()">Save</button>
+    @if (hasKey()) {
+      <button type="button" class="ghost" (click)="removeKey()">Remove key</button>
+    }
+  </div>
 </section>

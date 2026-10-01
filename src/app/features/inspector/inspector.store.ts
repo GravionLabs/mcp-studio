@@ -100,6 +100,13 @@ export class InspectorStore {
     });
   }
 
+  /** Shows an exact token count that the backend saved for a message. */
+  applyExactCount(id: number, tokens: number): void {
+    this._messages.update((list) =>
+      list.map((m) => (m.id === id ? { ...m, tokens, tokenSource: "exact" as const } : m)),
+    );
+  }
+
   private withDuration(message: MessageRecord): MessageRecord {
     if (message.method || message.durationMs != null || message.jsonrpcId === null) return message;
     const list = this._messages();

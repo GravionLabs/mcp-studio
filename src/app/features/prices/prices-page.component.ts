@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from "@angular/core";
 import { DialogService } from "../../core/dialog.service";
+import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { PriceDraft, draftToPrice, emptyDraft, toDraft } from "./prices.model";
@@ -19,6 +20,12 @@ export class PricesPageComponent implements OnInit {
   private readonly toasts = inject(ToastService);
   private readonly dialogs = inject(DialogService);
   private readonly tabs = inject(WorkspaceTabsService);
+  private readonly ipc = inject(TauriIpcService);
+
+  /** Exact token counts through Anthropic's token counting endpoint. */
+  protected readonly countingModel = signal("");
+  protected readonly countingKey = signal("");
+  protected readonly hasKey = signal(false);
 
   protected readonly drafts = signal<PriceDraft[]>([emptyDraft()]);
   protected readonly fields: { key: NumberField; label: string }[] = [
@@ -33,10 +40,39 @@ export class PricesPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.ipc.tokenCountingStatus().then(
+      (status) => {
+        this.countingModel.set(status.model);
+        this.hasKey.set(status.hasKey);
+      },
+      (error: unknown) => this.toasts.fail("Could not load the token counting settings", error),
+    );
     this.store.load().then(
       () => this.drafts.set([...this.store.prices().map(toDraft), emptyDraft()]),
       (error: unknown) => this.toasts.fail("Could not load prices", error),
     );
+  }
+
+  protected async saveCounting(): Promise<void> {
+    try {
+      await this.ipc.tokenCountingSetModel(this.countingModel());
+      if (this.countingKey().trim() !== "") await this.ipc.tokenCountingSetKey(this.countingKey());
+      this.countingKey.set("");
+      this.hasKey.set((await this.ipc.tokenCountingStatus()).hasKey);
+      this.toasts.success("Saved the token counting settings");
+    } catch (error) {
+      this.toasts.fail("Could not save the token counting settings", error);
+    }
+  }
+
+  protected async removeKey(): Promise<void> {
+    try {
+      await this.ipc.tokenCountingSetKey(null);
+      this.hasKey.set(false);
+      this.toasts.success("Removed the API key");
+    } catch (error) {
+      this.toasts.fail("Could not remove the API key", error);
+    }
   }
 
   protected edit(index: number, patch: Partial<PriceDraft>): void {

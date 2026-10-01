@@ -110,6 +110,20 @@ export class InspectorPanelComponent implements OnInit {
   protected tokens = formatTokens;
   protected tokenHint = tokenSourceHint;
   protected formatCost = formatCost;
+  protected readonly counting = signal(false);
+
+  /** Replaces the estimate with the provider's exact count. Sends the content to Anthropic. */
+  protected async countExactly(message: MessageRecord): Promise<void> {
+    this.counting.set(true);
+    try {
+      const tokens = await this.ipc.messageCountExact(message.id);
+      this.store.applyExactCount(message.id, tokens);
+    } catch (error) {
+      this.toasts.fail("Could not count tokens exactly", error);
+    } finally {
+      this.counting.set(false);
+    }
+  }
 
   /** Cost of one message at the chosen model's price, as text. */
   protected cost(message: MessageRecord): string | null {

@@ -46,6 +46,13 @@ export type Cost = {
 	currency: string,
 };
 
+/**  Whether exact counting is set up. */
+export type CountingStatus = {
+	model: string,
+	/**  An API key is stored in the keyring. The key itself never leaves the backend. */
+	hasKey: boolean,
+};
+
 /**  Direction of a message relative to the party that owns the transport. */
 export type Direction = 
 /**  Sent by us to the peer. */

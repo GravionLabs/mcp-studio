@@ -7,6 +7,7 @@ import type {
   ContextCost,
   ExportConfig,
   ExportStatus,
+  CountingStatus,
   HistoryEntry,
   HistoryFilter,
   ImportCandidate,
@@ -112,6 +113,24 @@ export class TauriIpcService {
   /** Sends the waiting spans now. */
   traceExportNow(): Promise<ExportStatus> {
     return this.call("trace_export_now");
+  }
+
+  tokenCountingStatus(): Promise<CountingStatus> {
+    return this.call("token_counting_status");
+  }
+
+  tokenCountingSetModel(model: string): Promise<void> {
+    return this.call("token_counting_set_model", { model });
+  }
+
+  /** Stores the Anthropic API key in the OS keyring; `null` removes it. */
+  tokenCountingSetKey(key: string | null): Promise<void> {
+    return this.call("token_counting_set_key", { key });
+  }
+
+  /** Asks Anthropic for the exact token count of a message and saves it. */
+  messageCountExact(messageId: number): Promise<number> {
+    return this.call("message_count_exact", { messageId });
   }
 
   priceList(): Promise<Price[]> {

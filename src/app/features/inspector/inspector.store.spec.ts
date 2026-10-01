@@ -124,4 +124,16 @@ describe("InspectorStore", () => {
     emit(message());
     expect(store.messages()).toHaveLength(1);
   });
+
+  it("replaces the estimate of a message with an exact count", async () => {
+    const { store } = create([
+      message({ id: 1, tokens: 7, tokenSource: "estimate" }),
+      message({ id: 2 }),
+    ]);
+    await store.load();
+    store.applyExactCount(1, 12);
+    const [first, second] = store.messages();
+    expect(first).toMatchObject({ tokens: 12, tokenSource: "exact" });
+    expect(second?.tokenSource).toBeNull();
+  });
 });

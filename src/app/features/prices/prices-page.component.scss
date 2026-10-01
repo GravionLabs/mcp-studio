@@ -37,3 +37,20 @@ td {
   display: flex;
   gap: 4px;
 }
+
+.counting {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  input {
+    min-width: 240px;
+  }
+}
