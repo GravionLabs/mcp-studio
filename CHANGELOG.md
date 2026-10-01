@@ -5,10 +5,41 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.5] — 2026-10-01
+
+### Bug Fixes
+- Take the collected SSE data instead of draining it
+- Let Angular's component styles load in installed builds (#199)
+
+
+### Documentation
+- Regenerate the changelog and list the commits inside squash merges (#195)
+
+
+### Features
+- Prompt flows (epic #105) (#203)
+- Import and export flows as YAML (#108) (#196)
+- Anthropic provider with streaming, tool use, and usage (#110) (#197)
+- Anthropic provider with streaming, tool use, and usage (#110)
+- OpenAI-compatible and Ollama providers (#111) (#198)
+- Run flows with confirmation and tracing (#115) (#200)
+- Replay runs with recorded tool results (#116) (#201)
+- Visual flow editor with @foblex/flow (#113) (#202)
+
+
 ## [0.1.3] — 2026-10-01
+
+### Documentation
+- Merge every pull request into the epic's release branch (#187)
+
 
 ### Features
 - Token metering and tracing (epic #96) (#193)
+- Show context cost per server and cost per call and session (#100) (#188)
+- Record sessions and tool calls as spans (#102) (#189)
+- Show sessions as a waterfall of spans (#103) (#190)
+- Export spans to an OpenTelemetry collector (#104) (#191)
+- Exact token counts through Anthropic's token counting endpoint (#99) (#192)
 
 
 ## [0.1.2] — 2026-10-01
@@ -26,8 +57,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [0.1.0] — 2026-10-01
 
 ### Bug Fixes
+- Keep playground input stable when saved requests or history reload (#77)
 - Stop the explorer effect from retriggering itself (#169) (#170)
 - Find stdio server programs like a shell does (#173) (#174)
+- Let the server detail view use the full pane width (#176)
 - Start release versioning at 0.1.0 (#181)
 
 
@@ -58,15 +91,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - Read resources and get prompts (#71) (#157)
 - Save requests in collections (#74) (#158)
 - Request history with search and rerun (#77) (#159)
+- Request history with search and rerun (#77)
 - Live message timeline in the inspector (#81) (#160)
 - Compare two recorded messages (#85) (#161)
 - Record real client sessions through a stdio proxy (#88) (#162)
+- Record real client sessions through a stdio proxy (#88)
 - Record remote servers through a local HTTP proxy (#92) (#163)
 - Copy client configuration for the proxy (#94) (#164)
 - Sign in to Streamable HTTP servers with OAuth 2.1 (#51) (#167)
 - Import servers from Claude Desktop and Claude Code configs (#40) (#168)
 - Flow graph model and validation (#107) (#175)
 - Pick the client for proxy setup snippets (#176) (#177)
+- Pick the client for proxy setup snippets (#176)
 
 
 
