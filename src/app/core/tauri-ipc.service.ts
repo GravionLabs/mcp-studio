@@ -200,6 +200,19 @@ export class TauriIpcService {
     return this.call("flow_run_start", request);
   }
 
+  /**
+   * Replays a run: tool calls are answered from what the run recorded, so no tool is called and
+   * nothing needs confirmation; model calls run live. Progress arrives like for any run.
+   */
+  flowRunReplay(request: {
+    runId: string;
+    sourceRunId: string;
+    useCurrentFlow: boolean;
+    environmentId: string | null;
+  }): Promise<void> {
+    return this.call("flow_run_replay", request);
+  }
+
   flowRunCancel(runId: string): Promise<boolean> {
     return this.call("flow_run_cancel", { runId });
   }

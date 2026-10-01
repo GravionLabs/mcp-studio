@@ -114,6 +114,19 @@
 
   @if (history().length > 0) {
     <h4>Earlier runs</h4>
+    <p class="muted">
+      <strong>Replay</strong> runs a run again with the tool results it recorded: no tool is called
+      and nothing asks for confirmation, only the model runs again. Useful to see what a changed
+      prompt or model does with the same tool data.
+    </p>
+    <label class="check">
+      <input
+        type="checkbox"
+        [checked]="useCurrentFlow()"
+        (change)="useCurrentFlow.set(!useCurrentFlow())"
+      />
+      Replay with the current version of the flow
+    </label>
     <ul class="history">
       @for (item of history(); track item.id) {
         <li>
@@ -123,6 +136,9 @@
             @if (item.replayOf) {
               <span class="muted">(replay)</span>
             }
+          </button>
+          <button type="button" class="ghost" [disabled]="running()" (click)="replay(item)">
+            Replay
           </button>
           <button type="button" class="ghost" (click)="remove(item)">Delete</button>
         </li>
