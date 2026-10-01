@@ -84,6 +84,8 @@ stops the release. The version comes from GitVersion. So `main` only receives fi
 - Put `+semver: major` (or `minor`) in a commit message to bump that part.
 - Merge `main` into the release branch if `main` changed in the meantime, and delete the release
   branch once it is merged.
+- The text of the GitHub release is the changelog entry of that version, made by the same git-cliff
+  configuration (`cliff.toml`), so the release page and `CHANGELOG.md` list the same items.
 - `CHANGELOG.md` is generated (`pnpm changelog`, git-cliff). After each release the pipeline
   regenerates it and commits it to `main` (`chore: update the changelog`).
 
