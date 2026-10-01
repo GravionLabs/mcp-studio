@@ -47,6 +47,21 @@ export type EnvironmentInput = {
 	variables: { [key in string]: string },
 };
 
+export type Flow = {
+	version: number,
+	name: string,
+	steps: Step[],
+};
+
+export type FlowIssue = {
+	/**  The offending step; `None` for problems with the flow itself. */
+	stepId: string | null,
+	code: FlowIssueCode,
+	message: string,
+};
+
+export type FlowIssueCode = "unsupportedVersion" | "emptyName" | "invalidStepId" | "duplicateStepId" | "multipleInputSteps" | "missingOutputStep" | "emptyField" | "unknownServer" | "unknownTool" | "missingArgument" | "unknownArgument" | "argumentType" | "unknownInput" | "unknownStep" | "cycle" | "malformedTemplate";
+
 export type HistoryEntry = {
 	id: number,
 	serverId: string,
@@ -99,6 +114,12 @@ export type ImportSummary = {
 	/**  Values (tokens, API keys) that were moved from the config into the OS keyring. */
 	secretsMoved: number,
 	failed: string[],
+};
+
+export type InputDecl = {
+	/**  JSON Schema primitive type name: `string`, `number`, `integer`, `boolean`, `array`, `object`. */
+	type: string,
+	description?: string | null,
 };
 
 /**  `mcp://list-changed`: the server sent `notifications/*\/list_changed`. */
@@ -278,6 +299,24 @@ export type StatusEvent = {
 	message: string | null,
 };
 
+export type Step = {
+	id: string,
+} & StepKind;
+
+export type StepKind = 
+/**  Declares the flow's input variables, available as `inputs.<name>`. */
+{ type: "input"; inputs?: { [key in string]: InputDecl } } | 
+/**  Calls a model; may expose MCP tools to it (agent step). */
+{ type: "llm"; model: string; prompt: string; system?: string | null; tools?: ToolRef[] } | 
+/**  Calls one MCP tool with templated arguments. */
+{ type: "tool"; server: string; tool: string; arguments?: { [key in string]: unknown } } | 
+/**  Branches on an expression; `then` / `else` name the steps to continue with. */
+{ type: "condition"; expression: string; then?: string | null; else?: string | null } | 
+/**  Maps or extracts values; each entry is a template. */
+{ type: "transform"; values?: { [key in string]: string } } | 
+/**  Declares the flow's result; each entry is a template. */
+{ type: "output"; outputs?: { [key in string]: string } };
+
 /**  A tool call to run. */
 export type ToolCallRequest = {
 	serverId: string,
@@ -308,6 +347,12 @@ export type ToolInfo = {
 	inputSchema?: unknown,
 	outputSchema?: unknown | null,
 	annotations?: unknown | null,
+};
+
+/**  A tool exposed to an `llm` step. */
+export type ToolRef = {
+	server: string,
+	tool: string,
 };
 
 /**  How a server is reached. */

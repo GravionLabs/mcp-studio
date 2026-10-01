@@ -7,6 +7,7 @@ pub mod db;
 pub mod environments;
 pub mod events;
 pub mod explorer;
+pub mod flow;
 pub mod history;
 pub mod http_proxy;
 pub mod message_store;
