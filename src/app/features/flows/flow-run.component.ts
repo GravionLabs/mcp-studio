@@ -52,6 +52,8 @@ export class FlowRunComponent implements OnInit, OnDestroy {
   protected readonly history = signal<RunSummary[]>([]);
   protected readonly running = computed(() => this.view()?.status === "running");
   protected readonly selectedStep = signal<string | null>(null);
+  /** Replay with the flow as it is now instead of as it was when the run started. */
+  protected readonly useCurrentFlow = signal(false);
   protected readonly detail = computed(() => {
     const run = this.stored();
     const id = this.selectedStep();
@@ -111,6 +113,25 @@ export class FlowRunComponent implements OnInit, OnDestroy {
     } catch (error) {
       this.view.set(null);
       this.toasts.fail("Could not start the run", error);
+    }
+  }
+
+  /** Runs a past run again with its recorded tool results; no tool is called. */
+  protected async replay(summary: RunSummary): Promise<void> {
+    const runId = crypto.randomUUID();
+    this.view.set(startView(runId, summary.flowName));
+    this.stored.set(null);
+    this.selectedStep.set(null);
+    try {
+      await this.ipc.flowRunReplay({
+        runId,
+        sourceRunId: summary.id,
+        useCurrentFlow: this.useCurrentFlow(),
+        environmentId: this.environments.activeId(),
+      });
+    } catch (error) {
+      this.view.set(null);
+      this.toasts.fail("Could not replay the run", error);
     }
   }
 

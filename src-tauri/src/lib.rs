@@ -160,6 +160,7 @@ pub fn run() {
             commands::flow_export,
             commands::flow_import,
             commands::flow_run_start,
+            commands::flow_run_replay,
             commands::flow_run_cancel,
             commands::flow_run_get,
             commands::flow_run_list,

@@ -107,6 +107,14 @@ the results back before it answers. Tool names are shown to the model as `server
 - A run is reproducible: the flow as it was, the inputs, the resolved prompts and arguments, every
   step's output, and every tool call with its result are stored. A run can be cancelled; the tool
   call in progress is cancelled on the server too.
-- A run can be replayed with recorded tool results instead of live calls.
+- A run can be replayed with recorded tool results instead of live calls (**Replay** in the list
+  of earlier runs). Templates, conditions and model calls run live; tool calls are answered from
+  the record by server and tool, in the order they were recorded, even if the replayed flow passes
+  other arguments. No tool is called, so nothing asks for confirmation and no server needs to be
+  connected. A call without a recorded result left, or one that was denied or never returned a
+  result in the original run, fails the step. A replay can use the flow as it was or the current
+  version from the library, which shows what a changed prompt, model, or flow would have done with
+  exactly the same tool data. A replay is a run of its own: it is stored, traced, and can be
+  replayed again.
 - Validation before a run: every referenced server and tool exists, and templated arguments match the
   tool's input schema.

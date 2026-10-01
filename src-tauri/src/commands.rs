@@ -5,6 +5,7 @@ use mcp_studio_core::{
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
     flow::Flow,
+    flow_replay::ReplayTools,
     flow_run::{self, Decision, FlowEngine, RunRequest, ToolPolicy},
     flow_runs::{FlowRun, RunSummary},
     flow_yaml,
@@ -306,14 +307,45 @@ pub async fn flow_run_start(
     if state.running_flows.lock().unwrap().contains_key(&run_id) {
         return Err(CommandError("this run is already going".into()));
     }
+    let tools = Arc::new(crate::flow_runtime::SessionTools {
+        sessions: state.sessions.clone(),
+        registry: state.registry.clone(),
+        environment_id,
+    });
+    spawn_run(
+        &app,
+        &state,
+        tools,
+        RunRequest {
+            run_id,
+            flow_id,
+            flow,
+            inputs,
+            replay_of: None,
+        },
+    )
+    .await
+}
+
+/// Starts a run in the background with the given way of calling tools.
+async fn spawn_run(
+    app: &AppHandle,
+    state: &State<'_, AppState>,
+    tools: Arc<dyn flow_run::ToolRunner>,
+    request: RunRequest,
+) -> CommandResult<()> {
+    if state
+        .running_flows
+        .lock()
+        .unwrap()
+        .contains_key(&request.run_id)
+    {
+        return Err(CommandError("this run is already going".into()));
+    }
     let settings = mcp_studio_llm::load_settings(&state.settings).await?;
     let engine = FlowEngine::new(
         state.db.clone(),
-        Arc::new(crate::flow_runtime::SessionTools {
-            sessions: state.sessions.clone(),
-            registry: state.registry.clone(),
-            environment_id,
-        }),
+        tools,
         Arc::new(crate::flow_runtime::ConfiguredModels {
             settings,
             secrets: state.secrets.clone(),
@@ -325,30 +357,68 @@ pub async fn flow_run_start(
         Arc::new(crate::flow_runtime::EmitProgress { app: app.clone() }),
     );
     let cancel = tokio_util::sync::CancellationToken::new();
+    let run_id = request.run_id.clone();
     state
         .running_flows
         .lock()
         .unwrap()
         .insert(run_id.clone(), cancel.clone());
+    let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let finished = run_id.clone();
-        let _ = engine
-            .run(
-                RunRequest {
-                    run_id,
-                    flow_id,
-                    flow,
-                    inputs,
-                    replay_of: None,
-                },
-                cancel,
-            )
-            .await;
+        let _ = engine.run(request, cancel).await;
         if let Some(state) = app.try_state::<AppState>() {
-            state.running_flows.lock().unwrap().remove(&finished);
+            state.running_flows.lock().unwrap().remove(&run_id);
         }
     });
     Ok(())
+}
+
+/// Replays a run: the flow runs again, but tool calls are answered from what the original run
+/// recorded, so no tool is called and nothing needs confirmation. Model calls run live. With
+/// `use_current_flow` the flow in the library is replayed instead of the one the run started with.
+#[tauri::command]
+pub async fn flow_run_replay(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    run_id: String,
+    source_run_id: String,
+    use_current_flow: bool,
+    environment_id: Option<String>,
+) -> CommandResult<()> {
+    let source = state.flow_runs.get(&source_run_id).await?;
+    let flow = if use_current_flow {
+        match &source.flow_id {
+            Some(id) => state.flows.get(id).await?.flow,
+            None => {
+                return Err(CommandError(
+                    "this run has no flow in the library to replay with".into(),
+                ))
+            }
+        }
+    } else {
+        source.flow.clone()
+    };
+    // Servers that are still around describe their tools; otherwise the record does.
+    let live = Arc::new(crate::flow_runtime::SessionTools {
+        sessions: state.sessions.clone(),
+        registry: state.registry.clone(),
+        environment_id,
+    });
+    let tools = Arc::new(ReplayTools::new(&source.calls, Some(live)));
+    let inputs = source.inputs.0.as_object().cloned().unwrap_or_default();
+    spawn_run(
+        &app,
+        &state,
+        tools,
+        RunRequest {
+            run_id,
+            flow_id: source.flow_id.clone(),
+            flow,
+            inputs,
+            replay_of: Some(source.id),
+        },
+    )
+    .await
 }
 
 /// Cancels a run in progress; returns whether it was still running.

@@ -31,7 +31,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     db::{new_id, now_ms, Db, DbError, DbResult},
     explorer::ToolInfo,
-    flow::{validate, Flow, InputDecl, Step, StepKind, ToolCatalog},
+    flow::{validate, Flow, FlowIssueCode, InputDecl, Step, StepKind, ToolCatalog},
     flow_expr::{evaluate_condition, render_text, render_value},
     flow_runs::{FlowRun, FlowRuns, RecordedCall, RunStatus, StepStatus},
     llm::{
@@ -468,16 +468,28 @@ impl FlowEngine {
     ) -> Result<Value, Stop> {
         let flow = &request.flow;
         // Look up the tools of every server the flow uses, then check the flow against them.
+        let replaying = request.replay_of.is_some();
         let mut catalog = ToolCatalog::new();
         for server in servers_of(flow) {
-            let tools = self
-                .tools
-                .list_tools(&server)
-                .await
-                .map_err(|e| Stop::Failed(format!("server {server:?} cannot be used: {e}")))?;
-            catalog.insert(server, tools);
+            match self.tools.list_tools(&server).await {
+                Ok(tools) => {
+                    catalog.insert(server, tools);
+                }
+                // A replay answers from the record, so a server that is gone does not matter.
+                Err(_) if replaying => {
+                    catalog.insert(server, Vec::new());
+                }
+                Err(e) => {
+                    return Err(Stop::Failed(format!(
+                        "server {server:?} cannot be used: {e}"
+                    )))
+                }
+            }
         }
-        let issues = validate(flow, &catalog);
+        let issues: Vec<_> = validate(flow, &catalog)
+            .into_iter()
+            .filter(|issue| !(replaying && is_tool_issue(issue.code)))
+            .collect();
         if !issues.is_empty() {
             let list: Vec<String> = issues
                 .iter()
@@ -998,6 +1010,18 @@ impl FlowEngine {
     }
 }
 
+/// Problems with servers and tools: a replay does not call them, so it does not check them.
+fn is_tool_issue(code: FlowIssueCode) -> bool {
+    matches!(
+        code,
+        FlowIssueCode::UnknownServer
+            | FlowIssueCode::UnknownTool
+            | FlowIssueCode::MissingArgument
+            | FlowIssueCode::UnknownArgument
+            | FlowIssueCode::ArgumentType
+    )
+}
+
 fn sum_options(a: Option<u32>, b: Option<u32>) -> Option<u32> {
     match (a, b) {
         (None, None) => None,
@@ -1045,7 +1069,10 @@ mod tests {
     use std::{collections::VecDeque, sync::Mutex, time::Duration};
 
     use super::*;
-    use crate::trace::{query_spans, SpanFilter};
+    use crate::{
+        flow_replay::ReplayTools,
+        trace::{query_spans, SpanFilter},
+    };
 
     // ---- fakes ----------------------------------------------------------------------------
 
@@ -2127,6 +2154,164 @@ mod tests {
                 .status,
             SpanStatus::Cancelled
         );
+    }
+
+    async fn replay(h: &Harness, source: &FlowRun, flow: Flow, tools: Arc<ReplayTools>) -> FlowRun {
+        let engine = FlowEngine::new(
+            h.db.clone(),
+            tools,
+            Arc::new(FakeModels(ScriptedProvider::new(vec![]))),
+            h.confirmer.clone(),
+            h.events.clone(),
+        );
+        engine
+            .run(
+                RunRequest {
+                    run_id: new_id(),
+                    flow_id: source.flow_id.clone(),
+                    flow,
+                    inputs: source.inputs.0.as_object().cloned().unwrap_or_default(),
+                    replay_of: Some(source.id.clone()),
+                },
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_replay_answers_tool_calls_from_the_record_without_asking_or_calling() {
+        let h = harness(
+            FakeTools::new(vec![Ok(text_result("3 open"))]),
+            ScriptedProvider::new(vec![]),
+            ScriptedConfirmer::answering(vec![Decision::Allow]),
+        )
+        .await;
+        let original = run(&h, tool_flow(), inputs(json!({ "repo": "a/b" }))).await;
+        assert_eq!(original.status, RunStatus::Succeeded);
+        assert_eq!(h.tools.called().len(), 1);
+
+        let tools = Arc::new(ReplayTools::new(&original.calls, None));
+        let again = replay(&h, &original, original.flow.clone(), tools.clone()).await;
+
+        assert_eq!(again.status, RunStatus::Succeeded, "{:?}", again.error);
+        assert_eq!(again.replay_of.as_deref(), Some(original.id.as_str()));
+        assert_eq!(again.outputs, original.outputs);
+        // Nothing live happened: no question, no call on the real runner.
+        assert_eq!(h.confirmer.asked().len(), 1, "only the original run asked");
+        assert_eq!(h.tools.called().len(), 1);
+        assert_eq!(tools.remaining(), 0);
+        // The replay records its own calls, so it can be replayed again.
+        assert_eq!(again.calls.len(), 1);
+        assert_eq!(again.calls[0].result, original.calls[0].result);
+        // And it is a trace of its own.
+        let spans = query_spans(
+            &h.db,
+            &SpanFilter {
+                trace_id: Some(again.id),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(spans.iter().any(|s| s.kind == SpanKind::Flow));
+    }
+
+    #[tokio::test]
+    async fn a_changed_flow_replays_with_the_same_tool_data() {
+        let h = harness(
+            FakeTools::new(vec![Ok(text_result("3 open"))]),
+            ScriptedProvider::new(vec![]),
+            ScriptedConfirmer::answering(vec![]),
+        )
+        .await;
+        let original = run(&h, tool_flow(), inputs(json!({ "repo": "a/b" }))).await;
+        let mut changed = original.flow.clone();
+        if let StepKind::Transform { values } = &mut changed.steps[2].kind {
+            values.insert("text".into(), "Now {{ steps.issues.result }}!".into());
+        }
+        let again = replay(
+            &h,
+            &original,
+            changed,
+            Arc::new(ReplayTools::new(&original.calls, None)),
+        )
+        .await;
+        assert_eq!(again.status, RunStatus::Succeeded, "{:?}", again.error);
+        assert_eq!(
+            again.outputs.unwrap().0,
+            json!({ "summary": "Now 3 open!" })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_replay_fails_when_the_flow_calls_more_than_was_recorded() {
+        let h = harness(
+            FakeTools::new(vec![]),
+            ScriptedProvider::new(vec![]),
+            ScriptedConfirmer::answering(vec![]),
+        )
+        .await;
+        let original = run(&h, tool_flow(), inputs(json!({ "repo": "a/b" }))).await;
+        let twice = flow(json!({
+            "version": 1, "name": "twice",
+            "steps": [
+                { "id": "a", "type": "tool", "server": "github", "tool": "list_issues", "arguments": { "repo": "r" } },
+                { "id": "b", "type": "tool", "server": "github", "tool": "list_issues", "arguments": { "repo": "r" } },
+                { "id": "o", "type": "output" }
+            ]
+        }));
+        let again = replay(
+            &h,
+            &original,
+            twice,
+            Arc::new(ReplayTools::new(&original.calls, None)),
+        )
+        .await;
+        assert_eq!(again.status, RunStatus::Failed);
+        assert!(again
+            .error
+            .unwrap()
+            .contains("no recorded result left for github/list_issues"));
+        assert_eq!(again.steps[0].status, StepStatus::Succeeded);
+    }
+
+    #[tokio::test]
+    async fn a_replay_needs_no_connected_servers() {
+        let h = harness(
+            FakeTools::new(vec![]),
+            ScriptedProvider::new(vec![]),
+            ScriptedConfirmer::answering(vec![]),
+        )
+        .await;
+        let original = run(&h, tool_flow(), inputs(json!({ "repo": "a/b" }))).await;
+        // Tools come from the record, and tool checks are skipped, so a gone server is fine.
+        let other_server = serde_json::from_value::<Flow>(
+            serde_json::to_value(&original.flow)
+                .unwrap()
+                .to_string()
+                .replace("github", "gone")
+                .parse::<Value>()
+                .unwrap(),
+        )
+        .unwrap();
+        let calls: Vec<RecordedCall> = original
+            .calls
+            .iter()
+            .cloned()
+            .map(|mut c| {
+                c.server = "gone".into();
+                c
+            })
+            .collect();
+        let again = replay(
+            &h,
+            &original,
+            other_server,
+            Arc::new(ReplayTools::new(&calls, None)),
+        )
+        .await;
+        assert_eq!(again.status, RunStatus::Succeeded, "{:?}", again.error);
     }
 
     #[tokio::test]
