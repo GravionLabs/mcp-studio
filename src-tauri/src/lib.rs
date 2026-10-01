@@ -13,6 +13,7 @@ use mcp_studio_core::{
     environments::Environments,
     http_proxy::{self, HttpProxy},
     message_store::{self, RetentionPolicy},
+    otlp::TraceExporter,
     prices::Prices,
     proxy::{discovery_path, ProxyService},
     registry::Registry,
@@ -28,6 +29,7 @@ pub struct AppState {
     pub environments: Environments,
     pub collections: Collections,
     pub prices: Prices,
+    pub trace_exporter: Arc<TraceExporter>,
     pub secrets: Arc<dyn SecretStore>,
     pub sessions: Arc<SessionManager>,
     pub proxy: ProxyService,
@@ -93,12 +95,15 @@ pub fn run() {
                 sink,
                 http_proxy::DEFAULT_PORT,
             ))?;
+            let trace_exporter = TraceExporter::new(db.clone(), secrets.clone());
+            tauri::async_runtime::spawn(trace_exporter.clone().run());
             app.manage(AppState {
                 db,
                 registry,
                 environments,
                 collections,
                 prices,
+                trace_exporter,
                 secrets,
                 sessions,
                 proxy,
@@ -113,6 +118,10 @@ pub fn run() {
             commands::update_check,
             commands::update_install,
             commands::spans_query,
+            commands::trace_export_config,
+            commands::trace_export_set_config,
+            commands::trace_export_status,
+            commands::trace_export_now,
             commands::price_list,
             commands::price_set,
             commands::price_remove,

@@ -12,12 +12,13 @@ import { ToastService } from "../../core/toast.service";
 import { JsonViewComponent } from "../../ui/json-view/json-view.component";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { formatTokens, tokenSourceHint } from "../inspector/inspector.model";
+import { TraceExportComponent } from "./trace-export.component";
 import { buildWaterfall, formatDuration } from "./waterfall.model";
 
 /** Sessions as traces: pick a session, see its calls as a waterfall of duration, tokens, and errors. */
 @Component({
   selector: "app-traces-page",
-  imports: [JsonViewComponent],
+  imports: [JsonViewComponent, TraceExportComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./traces-page.component.html",
   styleUrl: "./traces-page.component.scss",

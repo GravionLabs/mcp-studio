@@ -23,6 +23,7 @@ use crate::{
     message_store::MessageFilter,
     metering::{ContextCost, SessionUsage, ToolCost},
     model::AppInfo,
+    otlp::{ExportConfig, ExportStatus},
     prices::{Cost, Price},
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
@@ -87,6 +88,8 @@ pub fn ipc_types() -> Types {
         .register::<SpanKind>()
         .register::<SpanStatus>()
         .register::<SpanFilter>()
+        .register::<ExportConfig>()
+        .register::<ExportStatus>()
 }
 
 /// Renders the TypeScript bindings file.

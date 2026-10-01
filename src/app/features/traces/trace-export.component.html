@@ -1,0 +1,36 @@
+<details class="export">
+  <summary>OpenTelemetry export</summary>
+  <p class="muted">
+    Send spans to an OpenTelemetry collector or backend such as Jaeger, Tempo, or Langfuse (OTLP
+    over HTTP, JSON). Only names, timing, status, and estimated token counts are sent, never
+    arguments or results. Off by default; turning it on sends only spans recorded afterwards.
+  </p>
+  <label class="check">
+    <input type="checkbox" [checked]="enabled()" (change)="enabled.set(!enabled())" />
+    Export spans
+  </label>
+  <label class="field">
+    <span>Endpoint</span>
+    <input
+      [value]="endpoint()"
+      (input)="endpoint.set(text($event))"
+      placeholder="http://localhost:4318"
+      aria-label="Collector endpoint"
+    />
+  </label>
+  <div class="field">
+    <span>Headers, for example an API key (secret values are kept in the OS keyring)</span>
+    <app-key-value-editor
+      [rows]="rows()"
+      keyPlaceholder="header name"
+      (rowsChange)="rows.set($event)"
+    />
+  </div>
+  <div class="actions">
+    <button type="button" class="primary" [disabled]="busy()" (click)="save()">Save</button>
+    <button type="button" [disabled]="busy() || !enabled()" (click)="exportNow()">
+      Export now
+    </button>
+    <span class="muted status" role="status">{{ summary() }}</span>
+  </div>
+</details>

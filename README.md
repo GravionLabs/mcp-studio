@@ -23,7 +23,9 @@ keyring.
   token counts for tool definitions, arguments, and results, a JSON
   detail view, and a structural diff between two messages.
 - **Trace**: every session is a trace and every tool call a span. The **Traces** page shows a
-  waterfall with duration, estimated tokens, and errors per span.
+  waterfall with duration, estimated tokens, and errors per span. Optionally export spans to an
+  OpenTelemetry collector (off by default; only names, timing, status, and token estimates leave
+  the app).
 - **Cost**: every server shows how much context its tool definitions take, and calls and sessions
   show their estimated cost. You enter the price per million tokens of the models you use on the
   **Prices** page; none are built in because they change often.

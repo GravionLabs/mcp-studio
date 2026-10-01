@@ -150,38 +150,62 @@ pub async fn query_spans(db: &Db, filter: &SpanFilter) -> DbResult<Vec<Span>> {
         .push(" ORDER BY s.started_at DESC, s.rowid DESC LIMIT ")
         .push_bind(i64::from(filter.limit.unwrap_or(1000).clamp(1, 10_000)));
     let rows: Vec<SpanRow> = query.build_query_as().fetch_all(db.pool()).await?;
-    let mut spans: Vec<Span> = rows
-        .into_iter()
-        .map(
-            |(
-                id,
-                trace_id,
-                parent_id,
-                kind,
-                name,
-                started_at,
-                ended_at,
-                status,
-                attributes,
-                tokens,
-            )| {
-                Span {
-                    id,
-                    trace_id,
-                    parent_id,
-                    kind: SpanKind::parse(&kind),
-                    name,
-                    started_at,
-                    ended_at,
-                    status: SpanStatus::parse(&status),
-                    attributes: JsonValue(serde_json::from_str(&attributes).unwrap_or_default()),
-                    tokens,
-                }
-            },
-        )
-        .collect();
+    let mut spans: Vec<Span> = rows.into_iter().map(span_from_row).collect();
     spans.reverse();
     Ok(spans)
+}
+
+fn span_from_row(row: SpanRow) -> Span {
+    let (id, trace_id, parent_id, kind, name, started_at, ended_at, status, attributes, tokens) =
+        row;
+    Span {
+        id,
+        trace_id,
+        parent_id,
+        kind: SpanKind::parse(&kind),
+        name,
+        started_at,
+        ended_at,
+        status: SpanStatus::parse(&status),
+        attributes: JsonValue(serde_json::from_str(&attributes).unwrap_or_default()),
+        tokens,
+    }
+}
+
+/// Finished spans the OpenTelemetry exporter has not sent yet, oldest first.
+pub(crate) async fn unexported_spans(db: &Db, limit: u32) -> DbResult<Vec<Span>> {
+    let rows: Vec<SpanRow> = sqlx::query_as(
+        "SELECT s.id, s.trace_id, s.parent_id, s.kind, s.name, s.started_at, s.ended_at, s.status, s.attributes, \
+         CASE WHEN s.kind = 'session' \
+           THEN (SELECT SUM(m.tokens) FROM messages m WHERE m.session_id = s.trace_id) \
+           ELSE (SELECT SUM(m.tokens) FROM messages m WHERE m.span_id = s.id) END AS tokens \
+         FROM spans s WHERE s.exported = 0 AND s.ended_at IS NOT NULL \
+         ORDER BY s.started_at, s.rowid LIMIT ?",
+    )
+    .bind(i64::from(limit))
+    .fetch_all(db.pool())
+    .await?;
+    Ok(rows.into_iter().map(span_from_row).collect())
+}
+
+pub(crate) async fn mark_exported(db: &Db, ids: &[String]) -> DbResult<()> {
+    let mut tx = db.pool().begin().await?;
+    for id in ids {
+        sqlx::query("UPDATE spans SET exported = 1 WHERE id = ?")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Treats everything recorded so far as exported, so a newly enabled exporter starts from now.
+pub(crate) async fn mark_all_exported(db: &Db) -> DbResult<()> {
+    sqlx::query("UPDATE spans SET exported = 1 WHERE exported = 0")
+        .execute(db.pool())
+        .await?;
+    Ok(())
 }
 
 /// The parts of a recorded message the tracker needs.

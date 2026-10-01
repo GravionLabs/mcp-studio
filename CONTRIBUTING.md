@@ -91,7 +91,8 @@ replaces AppImage, Windows, and macOS installs.
 ## Principles
 
 - **Local first**: no telemetry, no network calls except to the servers and LLM providers the user
-  configured, and the update check the user starts themselves.
+  configured, the update check the user starts themselves, and the OpenTelemetry export the user
+  turns on.
 - **Secrets stay in the OS keyring**: the database and logs only ever contain `keyring:` references or
   masked values.
 - **Rust owns connections**: the webview never spawns processes or sees credentials.
