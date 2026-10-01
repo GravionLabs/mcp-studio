@@ -30,6 +30,8 @@ keyring.
   waterfall with duration, estimated tokens, and errors per span. Optionally export spans to an
   OpenTelemetry collector (off by default; only names, timing, status, and token estimates leave
   the app).
+- **Tool quality**: every connected server is checked for vague tool descriptions, missing
+  `required` fields, overlapping tools, and oversized definitions (offline, no model needed).
 - **Cost**: every server shows how much context its tool definitions take, and calls and sessions
   show their estimated cost. You enter the price per million tokens of the models you use on the
   **Prices** page; none are built in because they change often. Token counts are estimates; with an
@@ -94,6 +96,7 @@ tools. The design is described in
 - [Data model](docs/specs/data-model.md)
 - [Recording, proxy, token metering, and tracing](docs/specs/recording-and-observability.md)
 - [Prompt flows](docs/specs/flows.md)
+- [AI assistance](docs/specs/ai-assistance.md)
 - [ADR 0001 — Stack and architecture](docs/adr/0001-stack-and-architecture.md)
 - [ADR 0002 — Record at the rmcp transport layer](docs/adr/0002-recording-at-the-rmcp-transport-layer.md)
 
