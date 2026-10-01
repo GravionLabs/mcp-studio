@@ -5,6 +5,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.0] — 2026-10-01
+
+### Features
+- AI assistance (epic #117) (#209)
+- Lint tool descriptions (#120) (#204)
+- Generate Markdown documentation per server (#119) (#205)
+- Test suites per server (#122) (#206)
+- Compare prompt and tool description variants (#123) (#207)
+- Generate a flow from a natural-language goal (#125) (#208)
+- GitHub Models as an OpenAI-compatible provider preset
+- GitHub Models preset and release notes from the changelog (#210)
+
+
 ## [0.1.5] — 2026-10-01
 
 ### Bug Fixes
