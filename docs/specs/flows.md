@@ -85,6 +85,16 @@ only sent to their provider; the addresses are set on the **Providers** page.
 | `anthropic:claude-opus-5-5` | Anthropic                                                    |
 | `openai:gpt-4o`             | an OpenAI-compatible endpoint (OpenAI, LM Studio, vLLM, ...) |
 | `ollama:llama3.1:8b`        | local Ollama; only the first colon is a prefix, tags stay    |
+| `openai:openai/gpt-4o`      | GitHub Models (see below); the part after the prefix is kept |
+
+The address of the OpenAI-compatible endpoint decides the path: a bare host
+(`http://localhost:1234`) gets `/v1/chat/completions`; an address with a path (`https://openrouter.ai/api/v1`,
+`https://models.github.ai/inference`) is used as the API root and gets `/chat/completions`.
+
+**GitHub Models.** The Providers page has a **Use GitHub Models** button that fills in
+`https://models.github.ai/inference`. The key is a GitHub personal access token with the `models`
+permission (kept in the OS keyring). This is GitHub Models, not a GitHub Copilot subscription:
+Copilot has no API for other applications. GitHub's rate limits apply.
 
 All providers offer the same to flows: a completion or a stream, tool use in both directions, and
 the exact `usage` the provider reports.

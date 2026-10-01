@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProviderTestResult } from "../../core/bindings";
-import { describeTest, qualifiedModel } from "./providers.model";
+import { GITHUB_MODELS_URL, describeTest, qualifiedModel } from "./providers.model";
 
 describe("qualifiedModel", () => {
   it("leaves Anthropic models without a prefix", () => {
@@ -33,5 +33,12 @@ describe("describeTest", () => {
     expect(describeTest(result({ reply: "", model: "" }))).toBe(
       "The model answered nothing (21 tokens in, 2 out)",
     );
+  });
+});
+
+describe("GitHub Models", () => {
+  it("names its models with the openai prefix", () => {
+    expect(qualifiedModel("openai", "openai/gpt-4o")).toBe("openai:openai/gpt-4o");
+    expect(GITHUB_MODELS_URL).toBe("https://models.github.ai/inference");
   });
 });

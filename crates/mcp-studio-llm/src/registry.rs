@@ -91,11 +91,13 @@ fn normalize_url(label: &str, value: &str, default: &str) -> DbResult<String> {
                 "the {label} address must be a URL such as {default}"
             ))
         })?;
-    Ok(url
-        .as_str()
-        .trim_end_matches('/')
-        .trim_end_matches("/v1")
-        .to_owned())
+    // A bare host with a trailing `/v1` means the same as the bare host; other paths are kept
+    // because they name the API root (for example `https://models.github.ai/inference`).
+    let text = url.as_str().trim_end_matches('/');
+    let bare = text
+        .strip_suffix("/v1")
+        .filter(|rest| Url::parse(rest).is_ok_and(|u| u.path() == "/"));
+    Ok(bare.unwrap_or(text).to_owned())
 }
 
 /// Trims, validates, and fills in defaults for empty addresses.
@@ -258,6 +260,20 @@ mod tests {
         .unwrap();
         assert_eq!(normalized.ollama_url, "http://gpu-box:11434");
         assert_eq!(normalized.openai_url, "http://localhost:1234");
+
+        // A path names the API root and is kept.
+        let github = normalize_settings(ProviderSettings {
+            ollama_url: String::new(),
+            openai_url: "https://models.github.ai/inference/".into(),
+        })
+        .unwrap();
+        assert_eq!(github.openai_url, "https://models.github.ai/inference");
+        let nested = normalize_settings(ProviderSettings {
+            ollama_url: String::new(),
+            openai_url: "https://openrouter.ai/api/v1".into(),
+        })
+        .unwrap();
+        assert_eq!(nested.openai_url, "https://openrouter.ai/api/v1");
 
         let defaults = normalize_settings(ProviderSettings {
             ollama_url: "".into(),

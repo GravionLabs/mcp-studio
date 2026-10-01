@@ -18,3 +18,6 @@ export function describeTest(result: ProviderTestResult): string {
   const reply = result.reply.trim() === "" ? "nothing" : `"${result.reply.trim()}"`;
   return `${result.model || "The model"} answered ${reply} (${inputTokens} tokens in, ${outputTokens} out)`;
 }
+
+/** Address of GitHub Models, which speaks the OpenAI chat completions API. */
+export const GITHUB_MODELS_URL = "https://models.github.ai/inference";
