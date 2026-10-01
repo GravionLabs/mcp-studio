@@ -54,6 +54,21 @@ outputs:
 - Importing adds a flow to the library and never overwrites one: a name that is taken gets a
   number (`my-flow (2)`). Reading a file does not check servers and tools; that is validation.
 
+## Models and providers
+
+The `model` of an `llm` step names the provider with a prefix. Keys live in the OS keyring and are
+only sent to their provider; the addresses are set on the **Providers** page.
+
+| `model`                     | Provider                                                     |
+| --------------------------- | ------------------------------------------------------------ |
+| `claude-sonnet-5-5`         | Anthropic (a name without a known prefix means Anthropic)    |
+| `anthropic:claude-opus-5-5` | Anthropic                                                    |
+| `openai:gpt-4o`             | an OpenAI-compatible endpoint (OpenAI, LM Studio, vLLM, ...) |
+| `ollama:llama3.1:8b`        | local Ollama; only the first colon is a prefix, tags stay    |
+
+All providers offer the same to flows: a completion or a stream, tool use in both directions, and
+the exact `usage` the provider reports.
+
 ## Execution rules
 
 - Every run is a trace; every step is a span (see

@@ -22,8 +22,8 @@ use crate::{
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
     llm::{
-        Completion, CompletionRequest, ContentBlock, Message, ProviderTestResult, Role, StopReason,
-        StreamEvent, ToolDefinition, Usage,
+        Completion, CompletionRequest, ContentBlock, Message, ProviderSettings, ProviderStatus,
+        ProviderTestResult, Role, StopReason, StreamEvent, ToolDefinition, Usage,
     },
     message_store::MessageFilter,
     metering::{ContextCost, SessionUsage, ToolCost},
@@ -107,6 +107,8 @@ pub fn ipc_types() -> Types {
         .register::<Completion>()
         .register::<StreamEvent>()
         .register::<ProviderTestResult>()
+        .register::<ProviderSettings>()
+        .register::<ProviderStatus>()
 }
 
 /// Renders the TypeScript bindings file.

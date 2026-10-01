@@ -6,6 +6,7 @@ import { ImportPageComponent } from "./features/import/import-page.component";
 import { PricesPageComponent } from "./features/prices/prices-page.component";
 import { TracesPageComponent } from "./features/traces/traces-page.component";
 import { FlowsPageComponent } from "./features/flows/flows-page.component";
+import { ProvidersPageComponent } from "./features/providers/providers-page.component";
 import { ServerDetailComponent } from "./features/servers/server-detail.component";
 import { ServerFormComponent } from "./features/servers/server-form.component";
 import { WelcomeComponent } from "./features/welcome/welcome.component";
@@ -15,6 +16,7 @@ export const routes: Routes = [
   { path: "environments", component: EnvironmentsPageComponent },
   { path: "history", component: HistoryPageComponent },
   { path: "flows", component: FlowsPageComponent },
+  { path: "providers", component: ProvidersPageComponent },
   { path: "prices", component: PricesPageComponent },
   { path: "traces", component: TracesPageComponent },
   { path: "servers/import", component: ImportPageComponent },

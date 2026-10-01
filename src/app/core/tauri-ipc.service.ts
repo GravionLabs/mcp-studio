@@ -25,6 +25,8 @@ import type {
   ProxyInfo,
   PromptInfo,
   Price,
+  ProviderSettings,
+  ProviderStatus,
   ProviderTestResult,
   ResourceInfo,
   ResourceTemplateInfo,
@@ -126,14 +128,27 @@ export class TauriIpcService {
     return this.call("token_counting_set_model", { model });
   }
 
-  /** Stores the Anthropic API key in the OS keyring; `null` removes it. */
-  tokenCountingSetKey(key: string | null): Promise<void> {
-    return this.call("token_counting_set_key", { key });
+  providerStatus(): Promise<ProviderStatus> {
+    return this.call("provider_status");
   }
 
-  /** Sends a tiny request to Anthropic with the stored key to check that it works. */
-  providerTestAnthropic(model: string | null): Promise<ProviderTestResult> {
-    return this.call("provider_test_anthropic", { model });
+  providerSetSettings(settings: ProviderSettings): Promise<ProviderSettings> {
+    return this.call("provider_set_settings", { settings });
+  }
+
+  /** Stores the API key of `anthropic` or `openai` in the OS keyring; `null` removes it. */
+  providerSetKey(provider: "anthropic" | "openai", key: string | null): Promise<void> {
+    return this.call("provider_set_key", { provider, key });
+  }
+
+  /** The models installed in the configured Ollama. */
+  ollamaModels(): Promise<string[]> {
+    return this.call("ollama_models");
+  }
+
+  /** Sends a tiny request to the provider of `model` (for example `ollama:llama3.1:8b`). */
+  providerTest(model: string): Promise<ProviderTestResult> {
+    return this.call("provider_test", { model });
   }
 
   /** Asks Anthropic for the exact token count of a message and saves it. */

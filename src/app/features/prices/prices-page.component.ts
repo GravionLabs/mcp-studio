@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from "@ang
 import { DialogService } from "../../core/dialog.service";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
+import { RouterLink } from "@angular/router";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { PriceDraft, draftToPrice, emptyDraft, toDraft } from "./prices.model";
 import { PricesStore } from "./prices.store";
@@ -11,6 +12,7 @@ type NumberField = "input" | "output" | "cacheRead" | "cacheWrite";
 /** Edit the price per million tokens of each model; costs in the app use the model marked "Use". */
 @Component({
   selector: "app-prices-page",
+  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./prices-page.component.html",
   styleUrl: "./prices-page.component.scss",
@@ -24,7 +26,6 @@ export class PricesPageComponent implements OnInit {
 
   /** Exact token counts through Anthropic's token counting endpoint. */
   protected readonly countingModel = signal("");
-  protected readonly countingKey = signal("");
   protected readonly hasKey = signal(false);
 
   protected readonly drafts = signal<PriceDraft[]>([emptyDraft()]);
@@ -56,39 +57,9 @@ export class PricesPageComponent implements OnInit {
   protected async saveCounting(): Promise<void> {
     try {
       await this.ipc.tokenCountingSetModel(this.countingModel());
-      if (this.countingKey().trim() !== "") await this.ipc.tokenCountingSetKey(this.countingKey());
-      this.countingKey.set("");
-      this.hasKey.set((await this.ipc.tokenCountingStatus()).hasKey);
-      this.toasts.success("Saved the token counting settings");
+      this.toasts.success("Saved the model for exact token counts");
     } catch (error) {
-      this.toasts.fail("Could not save the token counting settings", error);
-    }
-  }
-
-  protected readonly testing = signal(false);
-
-  protected async testKey(): Promise<void> {
-    this.testing.set(true);
-    try {
-      const result = await this.ipc.providerTestAnthropic(this.countingModel() || null);
-      const usage = result.usage;
-      this.toasts.success(
-        `${result.model} answered "${result.reply.trim()}" (${usage.inputTokens} in, ${usage.outputTokens} out)`,
-      );
-    } catch (error) {
-      this.toasts.fail("The Anthropic API key does not work", error);
-    } finally {
-      this.testing.set(false);
-    }
-  }
-
-  protected async removeKey(): Promise<void> {
-    try {
-      await this.ipc.tokenCountingSetKey(null);
-      this.hasKey.set(false);
-      this.toasts.success("Removed the API key");
-    } catch (error) {
-      this.toasts.fail("Could not remove the API key", error);
+      this.toasts.fail("Could not save the model", error);
     }
   }
 
