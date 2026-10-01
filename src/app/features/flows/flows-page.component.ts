@@ -1,15 +1,17 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from "@angular/core";
-import type { FlowRecord } from "../../core/bindings";
+import type { FlowRecord, ToolPolicy } from "../../core/bindings";
 import { DialogService } from "../../core/dialog.service";
 import { FileDialogService, fileNameFor } from "../../core/file-dialog.service";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
+import { FlowRunComponent } from "./flow-run.component";
 import { describeFlow, newFlow } from "./flows.model";
 
 /** The flow library: create, import from and export to YAML files, delete. */
 @Component({
   selector: "app-flows-page",
+  imports: [FlowRunComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flows-page.component.html",
   styleUrl: "./flows-page.component.scss",
@@ -23,6 +25,10 @@ export class FlowsPageComponent implements OnInit {
 
   protected readonly flows = signal<FlowRecord[]>([]);
   protected readonly newName = signal("");
+  /** The flow whose run panel is open. */
+  protected readonly running = signal<FlowRecord | null>(null);
+  protected readonly policy = signal<ToolPolicy>({ allow: [] });
+  protected readonly newAllowed = signal("");
   protected describe = describeFlow;
 
   constructor() {
@@ -31,6 +37,38 @@ export class FlowsPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.refresh();
+    void this.loadPolicy();
+  }
+
+  protected toggleRun(record: FlowRecord): void {
+    this.running.update((current) => (current?.id === record.id ? null : record));
+  }
+
+  private async loadPolicy(): Promise<void> {
+    try {
+      this.policy.set(await this.ipc.toolPolicyGet());
+    } catch (error) {
+      this.toasts.fail("Could not load the allowed tools", error);
+    }
+  }
+
+  private async savePolicy(allow: string[]): Promise<void> {
+    try {
+      this.policy.set(await this.ipc.toolPolicySet({ allow }));
+    } catch (error) {
+      this.toasts.fail("Could not save the allowed tools", error);
+    }
+  }
+
+  protected async allowEntry(): Promise<void> {
+    const entry = this.newAllowed().trim();
+    if (entry === "") return;
+    await this.savePolicy([...(this.policy().allow ?? []), entry]);
+    this.newAllowed.set("");
+  }
+
+  protected removeEntry(entry: string): Promise<void> {
+    return this.savePolicy((this.policy().allow ?? []).filter((e) => e !== entry));
   }
 
   protected async refresh(): Promise<void> {
@@ -88,6 +126,7 @@ export class FlowsPageComponent implements OnInit {
     if (!confirmed) return;
     try {
       await this.ipc.flowDelete(record.id);
+      if (this.running()?.id === record.id) this.running.set(null);
       await this.refresh();
     } catch (error) {
       this.toasts.fail("Could not delete the flow", error);

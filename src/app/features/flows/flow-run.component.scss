@@ -1,0 +1,111 @@
+.run {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+
+  h3,
+  h4 {
+    margin: 0 0 8px;
+  }
+}
+
+.inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 520px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.small {
+  font-size: 11px;
+}
+
+.problem {
+  color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.status {
+  display: inline-block;
+  min-width: 70px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+
+  &.succeeded {
+    color: var(--ok);
+  }
+
+  &.failed {
+    color: var(--danger);
+  }
+
+  &.running {
+    color: var(--warn);
+  }
+
+  &.cancelled,
+  &.skipped {
+    color: var(--text-muted);
+  }
+}
+
+.steps,
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+
+  &.selected {
+    background: var(--bg-active);
+  }
+}
+
+.spacer {
+  margin-left: auto;
+}
+
+.text {
+  margin: 2px 0 6px 78px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.detail,
+.outputs {
+  margin-top: 8px;
+}
+
+.history li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

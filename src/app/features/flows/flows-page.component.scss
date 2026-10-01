@@ -34,3 +34,16 @@
 .spacer {
   flex: 1;
 }
+
+.allowed {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 0;
+  }
+}

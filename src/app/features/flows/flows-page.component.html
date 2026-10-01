@@ -24,9 +24,40 @@
         <span class="name">{{ record.flow.name }}</span>
         <span class="muted">{{ describe(record.flow) }}</span>
         <span class="spacer"></span>
+        <button type="button" (click)="toggleRun(record)">
+          {{ running()?.id === record.id ? "Hide run" : "Run…" }}
+        </button>
         <button type="button" class="ghost" (click)="exportFile(record)">Export YAML…</button>
         <button type="button" class="ghost" (click)="remove(record)">Delete</button>
       </li>
     }
   </ul>
+
+  @if (running(); as record) {
+    <app-flow-run [record]="record" />
+  }
+
+  <h3>Tools that run without asking</h3>
+  <p class="muted">
+    Every tool call of a flow asks you first. Tools you allow here run without asking: write
+    <code>server</code> for all tools of a server or <code>server/tool</code> for one tool. You can
+    also allow them when a flow asks.
+  </p>
+  <ul class="allowed">
+    @for (entry of policy().allow ?? []; track entry) {
+      <li>
+        <span class="mono">{{ entry }}</span>
+        <button type="button" class="ghost" (click)="removeEntry(entry)">Remove</button>
+      </li>
+    }
+  </ul>
+  <form class="toolbar" (submit)="$event.preventDefault(); allowEntry()">
+    <input
+      aria-label="Server or server/tool to allow"
+      placeholder="github or github/list_issues"
+      [value]="newAllowed()"
+      (input)="newAllowed.set(text($event))"
+    />
+    <button type="submit" [disabled]="newAllowed().trim() === ''">Allow</button>
+  </form>
 </section>
