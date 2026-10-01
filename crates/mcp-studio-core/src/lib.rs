@@ -8,6 +8,8 @@ pub mod environments;
 pub mod events;
 pub mod explorer;
 pub mod flow;
+pub mod flow_yaml;
+pub mod flows;
 pub mod history;
 pub mod http_proxy;
 pub mod message_store;

@@ -11,6 +11,7 @@ use mcp_studio_core::{
     collections::Collections,
     db::Db,
     environments::Environments,
+    flows::Flows,
     http_proxy::{self, HttpProxy},
     message_store::{self, RetentionPolicy},
     otlp::TraceExporter,
@@ -30,6 +31,7 @@ pub struct AppState {
     pub environments: Environments,
     pub collections: Collections,
     pub prices: Prices,
+    pub flows: Flows,
     pub trace_exporter: Arc<TraceExporter>,
     pub settings: Settings,
     pub secrets: Arc<dyn SecretStore>,
@@ -68,6 +70,7 @@ pub fn run() {
             let environments = Environments::new(db.clone());
             let collections = Collections::new(db.clone());
             let prices = Prices::new(db.clone());
+            let flows = Flows::new(db.clone());
             let settings = Settings::new(db.clone());
             let secrets: Arc<dyn SecretStore> =
                 Arc::new(KeyringStore::new("dev.gravionlabs.mcp-studio"));
@@ -106,6 +109,7 @@ pub fn run() {
                 environments,
                 collections,
                 prices,
+                flows,
                 trace_exporter,
                 settings,
                 secrets,
@@ -130,6 +134,14 @@ pub fn run() {
             commands::token_counting_set_model,
             commands::token_counting_set_key,
             commands::message_count_exact,
+            commands::flow_list,
+            commands::flow_get,
+            commands::flow_save,
+            commands::flow_delete,
+            commands::flow_export,
+            commands::flow_import,
+            commands::flow_to_yaml,
+            commands::flow_from_yaml,
             commands::price_list,
             commands::price_set,
             commands::price_remove,

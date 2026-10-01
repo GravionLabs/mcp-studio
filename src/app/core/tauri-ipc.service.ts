@@ -7,6 +7,8 @@ import type {
   ContextCost,
   ExportConfig,
   ExportStatus,
+  Flow,
+  FlowRecord,
   CountingStatus,
   HistoryEntry,
   HistoryFilter,
@@ -131,6 +133,39 @@ export class TauriIpcService {
   /** Asks Anthropic for the exact token count of a message and saves it. */
   messageCountExact(messageId: number): Promise<number> {
     return this.call("message_count_exact", { messageId });
+  }
+
+  flowList(): Promise<FlowRecord[]> {
+    return this.call("flow_list");
+  }
+
+  flowGet(id: string): Promise<FlowRecord> {
+    return this.call("flow_get", { id });
+  }
+
+  /** Creates a flow (`id` null) or replaces an existing one. */
+  flowSave(id: string | null, flow: Flow): Promise<FlowRecord> {
+    return this.call("flow_save", { id, flow });
+  }
+
+  flowDelete(id: string): Promise<void> {
+    return this.call("flow_delete", { id });
+  }
+
+  flowExport(id: string, path: string): Promise<void> {
+    return this.call("flow_export", { id, path });
+  }
+
+  flowImport(path: string): Promise<FlowRecord> {
+    return this.call("flow_import", { path });
+  }
+
+  flowToYaml(flow: Flow): Promise<string> {
+    return this.call("flow_to_yaml", { flow });
+  }
+
+  flowFromYaml(yaml: string): Promise<Flow> {
+    return this.call("flow_from_yaml", { yaml });
   }
 
   priceList(): Promise<Price[]> {
