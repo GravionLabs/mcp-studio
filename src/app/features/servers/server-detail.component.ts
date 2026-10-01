@@ -16,6 +16,7 @@ import { DialogService } from "../../core/dialog.service";
 import { ToastService } from "../../core/toast.service";
 import { EnvironmentsStore } from "../environments/environments.store";
 import { ExplorerComponent } from "../explorer/explorer.component";
+import { ContextCostComponent } from "../prices/context-cost.component";
 import { ProxyPanelComponent } from "../proxy/proxy-panel.component";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { ServersStore } from "./servers.store";
@@ -23,7 +24,7 @@ import { ServersStore } from "./servers.store";
 /** Summary of one server. The explorer takes over this page in a later PBI. */
 @Component({
   selector: "app-server-detail",
-  imports: [RouterLink, ExplorerComponent, ProxyPanelComponent],
+  imports: [RouterLink, ExplorerComponent, ProxyPanelComponent, ContextCostComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./server-detail.component.html",
   styleUrl: "./server-detail.component.scss",

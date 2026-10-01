@@ -6,8 +6,10 @@ use mcp_studio_core::{
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
     history::{HistoryEntry, HistoryFilter},
     message_store::{query_messages, MessageFilter},
+    metering::{self, ContextCost, SessionUsage},
     model::{AppInfo, JsonValue},
     oauth,
+    prices::Price,
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
@@ -65,6 +67,50 @@ pub async fn update_install(app: AppHandle, state: State<'_, AppState>) -> Comma
         .await
         .map_err(|e| CommandError(format!("Could not install the update: {e}")))?;
     app.restart()
+}
+
+#[tauri::command]
+pub async fn price_list(state: State<'_, AppState>) -> CommandResult<Vec<Price>> {
+    Ok(state.prices.list().await?)
+}
+
+#[tauri::command]
+pub async fn price_set(state: State<'_, AppState>, price: Price) -> CommandResult<Price> {
+    Ok(state.prices.set(price).await?)
+}
+
+#[tauri::command]
+pub async fn price_remove(state: State<'_, AppState>, model: String) -> CommandResult<()> {
+    Ok(state.prices.delete(&model).await?)
+}
+
+/// Tokens (and, with a price model, the cost of one request) of a server's tool definitions. Pure
+/// computation on the given tools; nothing is sent to the server.
+#[tauri::command]
+pub async fn tools_context_cost(
+    state: State<'_, AppState>,
+    tools: Vec<ToolInfo>,
+    model: Option<String>,
+) -> CommandResult<ContextCost> {
+    let price = match model {
+        Some(model) => state.prices.get(&model).await.ok(),
+        None => None,
+    };
+    Ok(metering::context_cost(&tools, price.as_ref()))
+}
+
+/// Tokens and cost of the tool calls of one session.
+#[tauri::command]
+pub async fn session_usage(
+    state: State<'_, AppState>,
+    session_id: String,
+    model: Option<String>,
+) -> CommandResult<SessionUsage> {
+    let price = match model {
+        Some(model) => state.prices.get(&model).await.ok(),
+        None => None,
+    };
+    Ok(metering::session_usage(&state.db, &session_id, price.as_ref()).await?)
 }
 
 #[tauri::command]
