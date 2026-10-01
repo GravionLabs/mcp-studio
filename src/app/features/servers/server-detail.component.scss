@@ -2,12 +2,10 @@
   padding: 20px;
 }
 
-/* Keep the text parts readable; the recording panel and logs use the full width. */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 800px;
 }
 
 .actions {
@@ -28,7 +26,6 @@ dl {
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 4px 16px;
-  max-width: 800px;
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
