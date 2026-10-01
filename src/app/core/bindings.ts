@@ -116,6 +116,15 @@ export type EnvironmentInput = {
 	variables: { [key in string]: string },
 };
 
+/**  What should happen for a case. */
+export type Expectation = 
+/**  The model calls this tool first. */
+{ kind: "tool"; name: string } | 
+/**  The model answers without calling a tool. */
+{ kind: "noTool" } | 
+/**  The model answers with text that contains this (ignoring case). */
+{ kind: "answer"; contains: string };
+
 export type ExportConfig = {
 	enabled?: boolean,
 	/**  Collector address, for example `http://localhost:4318`; `/v1/traces` is added when missing. */
@@ -628,6 +637,38 @@ export type StreamEvent = { type: "text_delta"; text: string } |
 { type: "tool_use_start"; id: string; name: string } | 
 /**  A fragment of the JSON arguments of the tool call that is being generated. */
 { type: "tool_input_delta"; partial_json: string };
+
+export type TestCase = {
+	id: string,
+	input: string,
+	expectation: Expectation,
+	notes: string | null,
+};
+
+export type TestCaseInput = {
+	/**  The id of an existing case; new cases have none. */
+	id: string | null,
+	input: string,
+	expectation: Expectation,
+	notes: string | null,
+};
+
+export type TestSuite = {
+	id: string,
+	serverId: string,
+	name: string,
+	/**  The system prompt that is tested together with the tool descriptions. */
+	systemPrompt: string | null,
+	cases: TestCase[],
+	updatedAt: number,
+};
+
+export type TestSuiteInput = {
+	serverId: string,
+	name: string,
+	systemPrompt: string | null,
+	cases: TestCaseInput[],
+};
 
 /**  Where a token count comes from. */
 export type TokenSource = 

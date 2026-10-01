@@ -27,6 +27,7 @@ use mcp_studio_core::{
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
+    test_suites::{TestSuite, TestSuiteInput},
     tokens::{self, CountingStatus},
     trace::{query_spans, Span, SpanFilter},
     update::UpdateInfo,
@@ -560,6 +561,29 @@ pub async fn server_docs_export(
     let markdown = render_server_docs(&state, &server_id, &tools).await?;
     std::fs::write(&path, markdown)
         .map_err(|e| CommandError(format!("could not write {path}: {e}")))
+}
+
+#[tauri::command]
+pub async fn test_suite_list(
+    state: State<'_, AppState>,
+    server_id: String,
+) -> CommandResult<Vec<TestSuite>> {
+    Ok(state.test_suites.list(&server_id).await?)
+}
+
+/// Creates a suite (`id` is null) or replaces an existing one with all its cases.
+#[tauri::command]
+pub async fn test_suite_save(
+    state: State<'_, AppState>,
+    id: Option<String>,
+    input: TestSuiteInput,
+) -> CommandResult<TestSuite> {
+    Ok(state.test_suites.save(id.as_deref(), input).await?)
+}
+
+#[tauri::command]
+pub async fn test_suite_delete(state: State<'_, AppState>, id: String) -> CommandResult<()> {
+    Ok(state.test_suites.delete(&id).await?)
 }
 
 /// Checks tool definitions for vague descriptions, missing `required` fields, overlapping tools and
