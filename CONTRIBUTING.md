@@ -62,9 +62,10 @@ Work is tracked as Epic → Feature → PBI → Task using GitHub sub-issues.
 
 ## Releases
 
-Releases are cut per epic, not per pull request. Every merge to `main` builds installers for all
-platforms and publishes a GitHub release (see `.github/workflows/release.yml`); the version comes
-from GitVersion. So `main` only receives finished epics:
+Releases are cut per epic, not per pull request. There is one pipeline (`.github/workflows/ci.yml`):
+every pull request runs the lint, test, and Rust checks, and every merge to `main` runs the same
+checks, then builds installers for all platforms, then publishes a GitHub release. A failing check
+stops the release. The version comes from GitVersion. So `main` only receives finished epics:
 
 - Each epic has a **release branch** named `epic/<issue>-<short-description>`, created from `main`.
 - **Every pull request targets the release branch**, not `main`. CI runs on all pull requests.
@@ -74,6 +75,8 @@ from GitVersion. So `main` only receives finished epics:
 - Put `+semver: major` (or `minor`) in a commit message to bump that part.
 - Merge `main` into the release branch if `main` changed in the meantime, and delete the release
   branch once it is merged.
+- `CHANGELOG.md` is generated (`pnpm changelog`, git-cliff). After each release the pipeline
+  regenerates it and commits it to `main` (`chore: update the changelog`).
 
 The app updates itself from the latest release (`latest.json`, checked only when the user clicks
 **Check for updates**). Update packages are signed with a Tauri updater key:
