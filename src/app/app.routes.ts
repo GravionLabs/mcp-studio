@@ -16,6 +16,12 @@ export const routes: Routes = [
   { path: "environments", component: EnvironmentsPageComponent },
   { path: "history", component: HistoryPageComponent },
   { path: "flows", component: FlowsPageComponent },
+  {
+    // The graph library is large, so the editor is loaded when it is opened.
+    path: "flows/:id/edit",
+    loadComponent: () =>
+      import("./features/flows/flow-editor.component").then((m) => m.FlowEditorComponent),
+  },
   { path: "providers", component: ProvidersPageComponent },
   { path: "prices", component: PricesPageComponent },
   { path: "traces", component: TracesPageComponent },
