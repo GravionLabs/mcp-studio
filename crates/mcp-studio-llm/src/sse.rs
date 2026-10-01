@@ -31,7 +31,7 @@ impl SseParser {
                 if self.event.is_some() || !self.data.is_empty() {
                     events.push(SseEvent {
                         event: self.event.take(),
-                        data: self.data.drain(..).collect::<Vec<_>>().join("\n"),
+                        data: std::mem::take(&mut self.data).join("\n"),
                     });
                 }
             } else if line.starts_with(':') {
