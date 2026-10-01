@@ -1,0 +1,28 @@
+.generate {
+  margin: 12px 0;
+}
+
+.field,
+.servers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.servers {
+  flex-flow: row wrap;
+  gap: 12px;
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.failed pre {
+  white-space: pre-wrap;
+}

@@ -37,6 +37,8 @@ keyring.
 - **Test suites**: per server, inputs with the tool or answer a model should give, and a **Compare**
   page that runs them against prompt and tool description variants (proposed by a model) with
   accuracy and tokens side by side.
+- **Flow generation**: describe a goal and a model writes a flow from the tools of the servers you
+  choose. It is validated before it opens in the editor and is never run unprompted.
 - **Cost**: every server shows how much context its tool definitions take, and calls and sessions
   show their estimated cost. You enter the price per million tokens of the models you use on the
   **Prices** page; none are built in because they change often. Token counts are estimates; with an

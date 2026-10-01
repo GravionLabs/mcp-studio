@@ -71,3 +71,19 @@ descriptions and shows accuracy and tokens side by side.
 - The table shows accuracy, passed cases, input and output tokens, and the estimated size of the tool
   definitions; the most accurate variant (then the cheapest) is marked. A matrix lists what the model
   did per case and variant. Proposed variants can be copied as Markdown.
+
+## Flow generation
+
+**Generate a flow from a goal** on the Flows page turns a sentence into a flow.
+
+- You describe the goal and choose the servers whose tools the flow may use (they are connected on
+  demand) and the model.
+- One model call gets the goal, the flow format, and a short description of every tool (name,
+  description, parameter names and types, required parameters). The goal and these definitions are
+  sent to the provider of that model. Tools are only described, never called.
+- The answer is parsed (unknown keys are errors) and validated with the same checks that run before a
+  flow runs: servers, tools, required arguments, argument types, references, cycles. If there are
+  problems, the model gets one chance to repair them (a second call).
+- A flow without problems is saved to the library and opened in the graph editor. A flow with
+  problems is **not** opened: the problems and the model's YAML are shown instead.
+- Generating never runs a flow. Running it is a separate step and still asks before every tool call.
