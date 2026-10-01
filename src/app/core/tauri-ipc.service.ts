@@ -26,6 +26,8 @@ import type {
   ServerDetails,
   ServerInput,
   SessionUsage,
+  Span,
+  SpanFilter,
   ToolCallRequest,
   ToolCallResult,
   ToolInfo,
@@ -87,6 +89,10 @@ export class TauriIpcService {
   /** Downloads and installs the update found by the last check; the app restarts afterwards. */
   updateInstall(): Promise<void> {
     return this.call("update_install");
+  }
+
+  spansQuery(filter: SpanFilter): Promise<Span[]> {
+    return this.call("spans_query", { filter });
   }
 
   priceList(): Promise<Price[]> {

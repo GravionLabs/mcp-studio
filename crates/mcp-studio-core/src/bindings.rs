@@ -28,6 +28,7 @@ use crate::{
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
     tokens::TokenSource,
+    trace::{Span, SpanFilter, SpanKind, SpanStatus},
     update::UpdateInfo,
 };
 
@@ -82,6 +83,10 @@ pub fn ipc_types() -> Types {
         .register::<ToolCost>()
         .register::<ContextCost>()
         .register::<SessionUsage>()
+        .register::<Span>()
+        .register::<SpanKind>()
+        .register::<SpanStatus>()
+        .register::<SpanFilter>()
 }
 
 /// Renders the TypeScript bindings file.

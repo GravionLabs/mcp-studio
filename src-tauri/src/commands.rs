@@ -14,6 +14,7 @@ use mcp_studio_core::{
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
+    trace::{query_spans, Span, SpanFilter},
     update::UpdateInfo,
 };
 use std::collections::BTreeMap;
@@ -67,6 +68,14 @@ pub async fn update_install(app: AppHandle, state: State<'_, AppState>) -> Comma
         .await
         .map_err(|e| CommandError(format!("Could not install the update: {e}")))?;
     app.restart()
+}
+
+#[tauri::command]
+pub async fn spans_query(
+    state: State<'_, AppState>,
+    filter: SpanFilter,
+) -> CommandResult<Vec<Span>> {
+    Ok(query_spans(&state.db, &filter).await?)
 }
 
 #[tauri::command]

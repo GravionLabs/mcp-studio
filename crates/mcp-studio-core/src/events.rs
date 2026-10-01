@@ -52,6 +52,8 @@ pub struct MessageRecord {
     pub tokens: Option<i64>,
     /// Whether `tokens` is an offline estimate or an exact count.
     pub token_source: Option<TokenSource>,
+    /// The span this message belongs to: its tool call, or the session.
+    pub span_id: Option<String>,
 }
 
 /// Where a log line came from.
