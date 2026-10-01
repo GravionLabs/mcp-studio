@@ -4,6 +4,9 @@ use mcp_studio_core::{
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
+    flow::Flow,
+    flow_yaml,
+    flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
     message_store::{query_messages, MessageFilter},
     metering::{self, ContextCost, SessionUsage},
@@ -159,6 +162,62 @@ pub fn trace_export_status(state: State<'_, AppState>) -> ExportStatus {
 #[tauri::command]
 pub async fn trace_export_now(state: State<'_, AppState>) -> CommandResult<ExportStatus> {
     Ok(state.trace_exporter.export_now().await)
+}
+
+#[tauri::command]
+pub async fn flow_list(state: State<'_, AppState>) -> CommandResult<Vec<FlowRecord>> {
+    Ok(state.flows.list().await?)
+}
+
+#[tauri::command]
+pub async fn flow_get(state: State<'_, AppState>, id: String) -> CommandResult<FlowRecord> {
+    Ok(state.flows.get(&id).await?)
+}
+
+/// Creates a flow (`id` is null) or replaces an existing one.
+#[tauri::command]
+pub async fn flow_save(
+    state: State<'_, AppState>,
+    id: Option<String>,
+    flow: Flow,
+) -> CommandResult<FlowRecord> {
+    Ok(state.flows.save(id.as_deref(), flow).await?)
+}
+
+#[tauri::command]
+pub async fn flow_delete(state: State<'_, AppState>, id: String) -> CommandResult<()> {
+    Ok(state.flows.delete(&id).await?)
+}
+
+/// Writes a flow as a YAML file.
+#[tauri::command]
+pub async fn flow_export(
+    state: State<'_, AppState>,
+    id: String,
+    path: String,
+) -> CommandResult<()> {
+    let yaml = state.flows.export_yaml(&id).await?;
+    std::fs::write(&path, yaml).map_err(|e| CommandError(format!("could not write {path}: {e}")))
+}
+
+/// Adds the flow in a YAML file to the library.
+#[tauri::command]
+pub async fn flow_import(state: State<'_, AppState>, path: String) -> CommandResult<FlowRecord> {
+    let yaml = std::fs::read_to_string(&path)
+        .map_err(|e| CommandError(format!("could not read {path}: {e}")))?;
+    Ok(state.flows.import_yaml(&yaml).await?)
+}
+
+/// The YAML text of a flow, for the editor's YAML view.
+#[tauri::command]
+pub fn flow_to_yaml(flow: Flow) -> CommandResult<String> {
+    Ok(flow_yaml::to_yaml(&flow)?)
+}
+
+/// Parses YAML text into a flow, for the editor's YAML view.
+#[tauri::command]
+pub fn flow_from_yaml(yaml: String) -> CommandResult<Flow> {
+    Ok(flow_yaml::from_yaml(&yaml)?)
 }
 
 #[tauri::command]

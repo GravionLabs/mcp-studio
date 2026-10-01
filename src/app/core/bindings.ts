@@ -102,6 +102,14 @@ export type FlowIssue = {
 
 export type FlowIssueCode = "unsupportedVersion" | "emptyName" | "invalidStepId" | "duplicateStepId" | "multipleInputSteps" | "missingOutputStep" | "emptyField" | "unknownServer" | "unknownTool" | "missingArgument" | "unknownArgument" | "argumentType" | "unknownInput" | "unknownStep" | "cycle" | "malformedTemplate";
 
+/**  A flow in the library. */
+export type FlowRecord = {
+	id: string,
+	flow: Flow,
+	/**  Unix milliseconds. */
+	updatedAt: number,
+};
+
 export type HistoryEntry = {
 	id: number,
 	serverId: string,

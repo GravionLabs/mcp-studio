@@ -19,6 +19,7 @@ use crate::{
         PromptArgumentInfo, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo,
     },
     flow::{Flow, FlowIssue, FlowIssueCode, InputDecl, Step, StepKind, ToolRef},
+    flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
     message_store::MessageFilter,
     metering::{ContextCost, SessionUsage, ToolCost},
@@ -77,6 +78,7 @@ pub fn ipc_types() -> Types {
         .register::<ToolRef>()
         .register::<FlowIssue>()
         .register::<FlowIssueCode>()
+        .register::<FlowRecord>()
         .register::<UpdateInfo>()
         .register::<TokenSource>()
         .register::<CountingStatus>()
