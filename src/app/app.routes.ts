@@ -7,6 +7,7 @@ import { PricesPageComponent } from "./features/prices/prices-page.component";
 import { TracesPageComponent } from "./features/traces/traces-page.component";
 import { FlowsPageComponent } from "./features/flows/flows-page.component";
 import { ProvidersPageComponent } from "./features/providers/providers-page.component";
+import { ComparePageComponent } from "./features/compare/compare-page.component";
 import { SuitesPageComponent } from "./features/suites/suites-page.component";
 import { ServerDetailComponent } from "./features/servers/server-detail.component";
 import { ServerFormComponent } from "./features/servers/server-form.component";
@@ -18,6 +19,7 @@ export const routes: Routes = [
   { path: "history", component: HistoryPageComponent },
   { path: "flows", component: FlowsPageComponent },
   { path: "suites", component: SuitesPageComponent },
+  { path: "compare", component: ComparePageComponent },
   {
     // The graph library is large, so the editor is loaded when it is opened.
     path: "flows/:id/edit",

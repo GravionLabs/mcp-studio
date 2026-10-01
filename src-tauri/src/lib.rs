@@ -185,6 +185,8 @@ pub fn run() {
             commands::test_suite_list,
             commands::test_suite_save,
             commands::test_suite_delete,
+            commands::variants_propose,
+            commands::variants_run,
             commands::tools_lint,
             commands::price_list,
             commands::price_set,

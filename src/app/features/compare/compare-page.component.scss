@@ -1,0 +1,54 @@
+.page {
+  padding: 16px 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.bar,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+table {
+  border-collapse: collapse;
+  margin: 12px 0;
+  width: 100%;
+
+  th,
+  td {
+    text-align: left;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.best {
+  background: var(--bg-active);
+}
+
+.badge {
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+.pass {
+  color: var(--ok, inherit);
+}
+
+.fail {
+  color: var(--error, inherit);
+}
+
+pre {
+  white-space: pre-wrap;
+}

@@ -9,6 +9,7 @@ use specta_typescript::Typescript;
 use crate::{
     client_import::{ConfigSource, ImportCandidate, ImportSummary},
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
+    compare::{CaseResult, EvalEvent, Variant, VariantResult},
     environments::{Environment, EnvironmentInput},
     events::ProgressEvent,
     events::{
@@ -129,6 +130,10 @@ pub fn ipc_types() -> Types {
         .register::<Severity>()
         .register::<LintFinding>()
         .register::<LintReport>()
+        .register::<Variant>()
+        .register::<CaseResult>()
+        .register::<VariantResult>()
+        .register::<EvalEvent>()
         .register::<Expectation>()
         .register::<TestCase>()
         .register::<TestCaseInput>()

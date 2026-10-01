@@ -46,6 +46,8 @@ import type {
   TestSuite,
   TestSuiteInput,
   ToolInfo,
+  Variant,
+  CaseResult,
   ToolPolicy,
   UpdateInfo,
 } from "./bindings";
@@ -279,6 +281,35 @@ export class TauriIpcService {
 
   testSuiteDelete(id: string): Promise<void> {
     return this.call("test_suite_delete", { id });
+  }
+
+  /**
+   * Asks a model for variants of the prompt and tool descriptions of a suite, aimed at the cases
+   * that currently fail. Sends the tool definitions and those cases to the model's provider.
+   */
+  variantsPropose(request: {
+    suiteId: string;
+    model: string;
+    count: number;
+    failing: CaseResult[];
+    environmentId: string | null;
+  }): Promise<Variant[]> {
+    return this.call("variants_propose", request);
+  }
+
+  /**
+   * Runs a suite with each variant in the background; progress arrives as `eval://event`. Every
+   * case of every variant is one call to the model's provider; tools are never called. Cancel it
+   * with {@link flowRunCancel} (runs share the id space).
+   */
+  variantsRun(request: {
+    runId: string;
+    suiteId: string;
+    model: string;
+    variants: Variant[];
+    environmentId: string | null;
+  }): Promise<void> {
+    return this.call("variants_run", request);
   }
 
   /** Checks tool definitions for vague descriptions, missing `required` fields, overlap and size. */
