@@ -21,8 +21,9 @@ keyring.
   content type (text, JSON, images, audio, resources, structured content).
 - **Inspect**: a live, filterable timeline of every JSON-RPC message with durations, sizes, a JSON
   detail view, and a structural diff between two messages.
-- **Record real clients**: route Claude Code, Claude Desktop, or an IDE through MCP Studio with a local
-  stdio proxy or HTTP proxy and watch the traffic. Ready-made configuration snippets included.
+- **Record real clients**: route Claude Code, Claude Desktop, GitHub Copilot, OpenCode, or another
+  client through MCP Studio with a local stdio proxy or HTTP proxy and watch the traffic.
+  Ready-made configuration snippets included (see [Record a real client](#record-a-real-client)).
 - **Collections and history**: save requests in folders, share them as JSON files, and rerun anything
   from the history.
 
@@ -37,6 +38,38 @@ pnpm tauri dev
 ```
 
 `pnpm bundle` builds installers including the proxy program as a sidecar.
+
+## Record a real client
+
+MCP Studio can sit between a real client and a server, record every JSON-RPC message in both
+directions, and forward the bytes unchanged. Use it to see exactly what Claude Code, Claude Desktop,
+GitHub Copilot, or OpenCode send to your server.
+
+1. **Start MCP Studio and keep it running.** The proxy only works while the app is open. In
+   development, `cargo build --workspace` also builds the proxy program, then run `pnpm tauri dev`.
+2. **Register the real server** (or import it from a Claude config with the import button).
+3. **Open the server's detail page** and scroll to **Record a real client**.
+4. **Choose your client**, pick a setup variant (for Claude: the `claude mcp add` command,
+   `.mcp.json`, or Claude Desktop), and press **Copy**.
+5. **Put the snippet into the client's configuration** and restart the client if it needs it.
+6. **Use the client as usual**, for example let it call a tool of the server.
+7. **Watch the traffic** in the inspector. Recorded sessions are stored with origin `proxy`.
+
+How the two transports work:
+
+- **stdio servers**: the client starts `mcp-studio-proxy --server <name>` instead of the real server.
+  That program connects to the running app, which starts the real server and records and forwards
+  everything.
+- **HTTP servers**: the client talks to `http://127.0.0.1:<port>/mcp/<server>`; MCP Studio forwards
+  to the real URL and adds the server's headers.
+
+If the panel says that `mcp-studio-proxy` was not found, run `cargo build -p mcp-studio-proxy` or
+set `MCP_STUDIO_PROXY_BIN` to its path.
+
+To try it without a real client, register the reference server
+`target/debug/mcp-studio-testserver` (stdio; `--http <port>` for HTTP) and call its `echo` and `add`
+tools. The design is described in
+[Recording, proxy, token metering, and tracing](docs/specs/recording-and-observability.md).
 
 ## Documents
 
