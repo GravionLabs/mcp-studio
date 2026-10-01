@@ -11,16 +11,21 @@ pub mod flow;
 pub mod history;
 pub mod http_proxy;
 pub mod message_store;
+pub mod metering;
 pub mod model;
 pub mod oauth;
+pub mod otlp;
 pub mod path_env;
 pub mod placeholders;
+pub mod prices;
 pub mod proxy;
 pub mod recording;
 pub mod registry;
 pub mod secrets;
 pub mod session;
+pub mod settings;
 pub mod tokens;
+pub mod trace;
 pub mod update;
 
 /// Returns the crate version, used by the app shell and smoke tests.

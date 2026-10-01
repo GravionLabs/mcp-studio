@@ -5,9 +5,12 @@
 //! Everything computed here is stored with [`TokenSource::Estimate`] and labeled as an estimate in the
 //! UI. Exact counts come from the provider's token-counting endpoint (a later PBI).
 
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use specta::Type;
+
+use crate::db::{Db, DbError, DbResult};
 
 /// Where a token count comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -67,15 +70,15 @@ pub fn estimate_value(value: &Value) -> u32 {
     estimate_text(&value.to_string())
 }
 
-/// Estimates the tokens a JSON-RPC message adds to a model's context, ignoring the envelope
+/// The part of a JSON-RPC message that adds to a model's context, without the envelope
 /// (`jsonrpc`, `id`):
 ///
 /// - `tools/call` request: the arguments
 /// - `tools/list` response: the tool definitions
 /// - other responses: the `result`; error responses: the `error`
 /// - other requests and notifications: the `params`
-pub fn message_tokens(payload: &Value) -> u32 {
-    let content = if payload.get("method").and_then(Value::as_str) == Some("tools/call") {
+pub fn message_content(payload: &Value) -> Option<&Value> {
+    if payload.get("method").and_then(Value::as_str) == Some("tools/call") {
         payload["params"].get("arguments")
     } else if let Some(result) = payload.get("result") {
         Some(result.get("tools").unwrap_or(result))
@@ -83,8 +86,61 @@ pub fn message_tokens(payload: &Value) -> u32 {
         Some(error)
     } else {
         payload.get("params")
+    }
+}
+
+/// Estimates the tokens a JSON-RPC message adds to a model's context (see [`message_content`]).
+pub fn message_tokens(payload: &Value) -> u32 {
+    message_content(payload).map_or(0, estimate_value)
+}
+
+/// Name of the keyring entry that holds the Anthropic API key used for exact counts.
+pub const ANTHROPIC_KEY_NAME: &str = "anthropic-api-key";
+
+/// Setting that holds the model whose tokenizer is used for exact counts.
+pub const COUNTING_MODEL_SETTING: &str = "token_counting_model";
+
+/// Whether exact counting is set up.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct CountingStatus {
+    pub model: String,
+    /// An API key is stored in the keyring. The key itself never leaves the backend.
+    pub has_key: bool,
+}
+
+/// Counts tokens with a model provider's own token-counting endpoint.
+#[async_trait]
+pub trait TokenCounter: Send + Sync {
+    /// Tokens of `text` as the provider's model counts them.
+    async fn count_text(&self, text: &str) -> DbResult<u32>;
+}
+
+/// Replaces the estimate of a stored message with the provider's count and marks it
+/// [`TokenSource::Exact`]. The text counted is the stored (secret-masked) content that the
+/// estimate is based on, so both numbers describe the same thing. Returns the new count.
+pub async fn count_message_exact(
+    db: &Db,
+    counter: &dyn TokenCounter,
+    message_id: i64,
+) -> DbResult<u32> {
+    let payload: Option<String> = sqlx::query_scalar("SELECT payload FROM messages WHERE id = ?")
+        .bind(message_id)
+        .fetch_optional(db.pool())
+        .await?;
+    let payload = payload.ok_or_else(|| DbError::NotFound(format!("message {message_id}")))?;
+    let value: Value = serde_json::from_str(&payload).unwrap_or(Value::Null);
+    let tokens = match message_content(&value) {
+        Some(content) => counter.count_text(&content.to_string()).await?,
+        None => 0,
     };
-    content.map_or(0, estimate_value)
+    sqlx::query("UPDATE messages SET tokens = ?, token_source = ? WHERE id = ?")
+        .bind(i64::from(tokens))
+        .bind(TokenSource::Exact.as_str())
+        .bind(message_id)
+        .execute(db.pool())
+        .await?;
+    Ok(tokens)
 }
 
 #[cfg(test)]
@@ -179,5 +235,76 @@ mod tests {
             assert_eq!(TokenSource::parse(source.as_str()), Some(source));
         }
         assert_eq!(TokenSource::parse("other"), None);
+    }
+
+    struct Fixed(Result<u32, String>, std::sync::Mutex<Vec<String>>);
+
+    #[async_trait]
+    impl TokenCounter for Fixed {
+        async fn count_text(&self, text: &str) -> DbResult<u32> {
+            self.1.lock().unwrap().push(text.to_owned());
+            self.0.clone().map_err(DbError::Connection)
+        }
+    }
+
+    async fn db_with(payload: Value) -> Db {
+        let db = Db::open_in_memory().await.unwrap();
+        let now = crate::db::now_ms();
+        sqlx::query("INSERT INTO servers (id, name, transport, command, created_at, updated_at) VALUES ('srv', 'S', 'stdio', 'x', ?, ?)")
+            .bind(now).bind(now).execute(db.pool()).await.unwrap();
+        sqlx::query("INSERT INTO sessions (id, server_id, origin, started_at) VALUES ('sess', 'srv', 'studio', ?)")
+            .bind(now).execute(db.pool()).await.unwrap();
+        sqlx::query("INSERT INTO messages (id, session_id, direction, payload, bytes, tokens, token_source, ts) VALUES (1, 'sess', 'out', ?, 1, 7, 'estimate', ?)")
+            .bind(payload.to_string()).bind(now).execute(db.pool()).await.unwrap();
+        db
+    }
+
+    async fn stored(db: &Db) -> (i64, String) {
+        sqlx::query_as("SELECT tokens, token_source FROM messages WHERE id = 1")
+            .fetch_one(db.pool())
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn exact_counts_replace_the_estimate_and_are_labeled() {
+        let payload = json!({"id": 1, "method": "tools/call", "params": {"name": "echo", "arguments": {"message": "hi"}}});
+        let db = db_with(payload).await;
+        let counter = Fixed(Ok(11), Default::default());
+        assert_eq!(count_message_exact(&db, &counter, 1).await.unwrap(), 11);
+        assert_eq!(stored(&db).await, (11, "exact".into()));
+        // Only the content that the estimate is based on is sent, not the envelope.
+        assert_eq!(
+            *counter.1.lock().unwrap(),
+            vec![r#"{"message":"hi"}"#.to_owned()]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_failing_provider_leaves_the_estimate_alone() {
+        let db =
+            db_with(json!({"id": 1, "method": "tools/call", "params": {"arguments": {}}})).await;
+        let counter = Fixed(Err("rate limited".into()), Default::default());
+        assert!(count_message_exact(&db, &counter, 1).await.is_err());
+        assert_eq!(stored(&db).await, (7, "estimate".into()));
+    }
+
+    #[tokio::test]
+    async fn messages_without_content_are_zero_without_calling_the_provider() {
+        let db = db_with(json!({"id": 1, "method": "ping"})).await;
+        let counter = Fixed(Ok(99), Default::default());
+        assert_eq!(count_message_exact(&db, &counter, 1).await.unwrap(), 0);
+        assert!(counter.1.lock().unwrap().is_empty());
+        assert_eq!(stored(&db).await, (0, "exact".into()));
+    }
+
+    #[tokio::test]
+    async fn unknown_messages_are_not_found() {
+        let db = db_with(json!({})).await;
+        let counter = Fixed(Ok(1), Default::default());
+        assert!(matches!(
+            count_message_exact(&db, &counter, 42).await,
+            Err(DbError::NotFound(_))
+        ));
     }
 }

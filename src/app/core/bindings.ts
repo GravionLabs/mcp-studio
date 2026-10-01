@@ -30,6 +30,29 @@ export type ConfigSource = {
 /**  Connection state of one server. */
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
+/**  The context a server's tool definitions take. */
+export type ContextCost = {
+	tokens: number,
+	/**  Largest definitions first. */
+	tools: ToolCost[],
+	tokenSource: TokenSource,
+	/**  Cost of sending the definitions once, when a price was chosen. */
+	cost: Cost | null,
+};
+
+/**  An amount of money. */
+export type Cost = {
+	amount: number | null,
+	currency: string,
+};
+
+/**  Whether exact counting is set up. */
+export type CountingStatus = {
+	model: string,
+	/**  An API key is stored in the keyring. The key itself never leaves the backend. */
+	hasKey: boolean,
+};
+
 /**  Direction of a message relative to the party that owns the transport. */
 export type Direction = 
 /**  Sent by us to the peer. */
@@ -45,6 +68,23 @@ export type EnvironmentInput = {
 	name: string,
 	/**  Values are plain text or `keyring:` references. */
 	variables: { [key in string]: string },
+};
+
+export type ExportConfig = {
+	enabled?: boolean,
+	/**  Collector address, for example `http://localhost:4318`; `/v1/traces` is added when missing. */
+	endpoint?: string,
+	/**  Extra HTTP headers. Values are plain text or `keyring:` references. */
+	headers?: { [key in string]: string },
+};
+
+/**  How the exporter is doing. */
+export type ExportStatus = {
+	lastAttemptAt: number | null,
+	lastSuccessAt: number | null,
+	lastError: string | null,
+	/**  Spans sent since the app started. */
+	exported: number,
 };
 
 export type Flow = {
@@ -161,6 +201,8 @@ export type MessageFilter = {
 	/**  Exact JSON-RPC method, e.g. `tools/call`. Responses match through their request. */
 	method?: string | null,
 	direction?: Direction | null,
+	/**  Only messages of one span (a tool call or a session). */
+	spanId?: string | null,
 	errorsOnly?: boolean,
 	/**  Case-insensitive text search over the raw payload. */
 	search?: string | null,
@@ -191,6 +233,19 @@ export type MessageRecord = {
 	tokens: number | null,
 	/**  Whether `tokens` is an offline estimate or an exact count. */
 	tokenSource: TokenSource | null,
+	/**  The span this message belongs to: its tool call, or the session. */
+	spanId: string | null,
+};
+
+/**  Price of one model, in `currency` per million tokens. */
+export type Price = {
+	model: string,
+	inputPerMtok: number | null,
+	outputPerMtok: number | null,
+	cacheReadPerMtok: number | null,
+	cacheWritePerMtok: number | null,
+	/**  Currency code such as `USD`. */
+	currency: string,
 };
 
 /**  `mcp://progress`: progress of a running tool call. */
@@ -295,6 +350,53 @@ export type ServerInput = {
 	oauth?: boolean,
 };
 
+/**  Tokens and cost of one session. */
+export type SessionUsage = {
+	calls: number,
+	/**  Tokens of tool call arguments. */
+	argumentTokens: number,
+	/**  Tokens of tool call results. */
+	resultTokens: number,
+	/**  Tokens of tool lists received (counted once per `tools/list` response). */
+	definitionTokens: number,
+	tokenSource: TokenSource,
+	cost: Cost | null,
+};
+
+export type Span = {
+	id: string,
+	traceId: string,
+	parentId: string | null,
+	kind: SpanKind,
+	name: string,
+	/**  Unix milliseconds. */
+	startedAt: number,
+	/**  Unix milliseconds; `None` while the span is still open. */
+	endedAt: number | null,
+	status: SpanStatus,
+	attributes: unknown,
+	/**  Estimated tokens of the messages in this span (a session span counts the whole session). */
+	tokens: number | null,
+};
+
+/**  Filters for [`query_spans`]. Fields are combined with AND. */
+export type SpanFilter = {
+	/**  Spans of one trace (for sessions: the session id). */
+	traceId?: string | null,
+	/**  Spans of the sessions of one server. */
+	serverId?: string | null,
+	/**  Only root spans (the sessions), for listing traces. */
+	rootsOnly?: boolean,
+	/**  Maximum number of rows (default 1000, max 10000), newest first. */
+	limit?: number | null,
+};
+
+export type SpanKind = "session" | "flow" | "step" | "llm" | "tool";
+
+export type SpanStatus = "ok" | "error" | 
+/**  The span was still open when its session ended (for example a cancelled call). */
+"cancelled";
+
 /**  `mcp://status` */
 export type StatusEvent = {
 	serverId: string,
@@ -348,6 +450,11 @@ export type ToolCallResult = {
 	isError: boolean,
 	cancelled: boolean,
 	durationMs: number,
+};
+
+export type ToolCost = {
+	name: string,
+	tokens: number,
 };
 
 export type ToolInfo = {

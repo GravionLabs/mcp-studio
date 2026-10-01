@@ -51,18 +51,29 @@ to regenerate `src/app/core/bindings.ts` (a test fails when it is stale).
 
 Work is tracked as Epic → Feature → PBI → Task using GitHub sub-issues.
 
-1. Pick an open PBI (or a bug) and create a branch named `<type>/<issue>-<short-description>`.
+1. Pick an open PBI (or a bug) and create a branch named `<type>/<issue>-<short-description>` from
+   the epic's release branch (see [Releases](#releases)).
 2. Write tests with the change: happy path, edge cases, and error cases. Logic that does not need
    Angular or Tauri belongs in plain functions or in `mcp-studio-core`, where it is easy to test.
 3. Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, ...);
    the changelog is generated from them.
-4. Open one pull request per PBI. Reference the PBI and its tasks with `Closes #N`.
+4. Open one pull request per PBI, **against the epic's release branch**. Reference the PBI and its
+   tasks with `Closes #N`.
 
 ## Releases
 
-Every merge to `main` builds installers for all platforms and publishes a GitHub release (see
-`.github/workflows/release.yml`); the version comes from GitVersion. Put `+semver: major` (or
-`minor`) in a commit message to bump that part.
+Releases are cut per epic, not per pull request. Every merge to `main` builds installers for all
+platforms and publishes a GitHub release (see `.github/workflows/release.yml`); the version comes
+from GitVersion. So `main` only receives finished epics:
+
+- Each epic has a **release branch** named `epic/<issue>-<short-description>`, created from `main`.
+- **Every pull request targets the release branch**, not `main`. CI runs on all pull requests.
+- When all PBIs of the epic are merged, open one pull request from the release branch into `main`
+  and merge it with a **merge commit** (not squash) so the conventional commits reach the
+  changelog. That merge publishes the release.
+- Put `+semver: major` (or `minor`) in a commit message to bump that part.
+- Merge `main` into the release branch if `main` changed in the meantime, and delete the release
+  branch once it is merged.
 
 The app updates itself from the latest release (`latest.json`, checked only when the user clicks
 **Check for updates**). Update packages are signed with a Tauri updater key:
@@ -80,7 +91,8 @@ replaces AppImage, Windows, and macOS installs.
 ## Principles
 
 - **Local first**: no telemetry, no network calls except to the servers and LLM providers the user
-  configured, and the update check the user starts themselves.
+  configured, the update check the user starts themselves, the OpenTelemetry export the user turns
+  on, and the exact token counts the user asks Anthropic for.
 - **Secrets stay in the OS keyring**: the database and logs only ever contain `keyring:` references or
   masked values.
 - **Rust owns connections**: the webview never spawns processes or sees credentials.

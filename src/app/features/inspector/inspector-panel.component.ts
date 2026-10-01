@@ -3,11 +3,13 @@ import {
   Component,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
 } from "@angular/core";
-import type { MessageRecord } from "../../core/bindings";
+import type { MessageRecord, SessionUsage } from "../../core/bindings";
+import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { JsonDiffComponent } from "../../ui/json-diff/json-diff.component";
 import { JsonViewComponent } from "../../ui/json-view/json-view.component";
@@ -22,6 +24,8 @@ import {
   tokenSourceHint,
 } from "./inspector.model";
 import { InspectorStore } from "./inspector.store";
+import { callCost, formatCost, messageCost } from "../prices/prices.model";
+import { PricesStore } from "../prices/prices.store";
 
 const METHODS = [
   "initialize",
@@ -46,9 +50,13 @@ export class InspectorPanelComponent implements OnInit {
   protected readonly store = inject(InspectorStore);
   protected readonly servers = inject(ServersStore);
   private readonly toasts = inject(ToastService);
+  private readonly ipc = inject(TauriIpcService);
+  private readonly prices = inject(PricesStore);
   private readonly list = viewChild(VirtualListComponent);
 
   protected readonly methods = METHODS;
+  /** Totals of the selected message's session. */
+  protected readonly usage = signal<SessionUsage | null>(null);
   protected readonly follow = signal(true);
   protected readonly compareOpen = signal(false);
   protected readonly ignoreId = signal(true);
@@ -70,6 +78,22 @@ export class InspectorPanelComponent implements OnInit {
     return message ? { message, text: prettyPayload(message.payload) } : null;
   });
 
+  constructor() {
+    void this.prices.load().catch(() => undefined);
+    effect(() => {
+      const selected = this.store.selected();
+      const model = this.prices.activeModel();
+      if (!selected) {
+        this.usage.set(null);
+        return;
+      }
+      this.ipc.sessionUsage(selected.sessionId, model).then(
+        (usage) => this.usage.set(usage),
+        () => this.usage.set(null),
+      );
+    });
+  }
+
   ngOnInit(): void {
     this.store
       .startLive()
@@ -85,6 +109,39 @@ export class InspectorPanelComponent implements OnInit {
   protected bytes = formatBytes;
   protected tokens = formatTokens;
   protected tokenHint = tokenSourceHint;
+  protected formatCost = formatCost;
+  protected readonly counting = signal(false);
+
+  /** Replaces the estimate with the provider's exact count. Sends the content to Anthropic. */
+  protected async countExactly(message: MessageRecord): Promise<void> {
+    this.counting.set(true);
+    try {
+      const tokens = await this.ipc.messageCountExact(message.id);
+      this.store.applyExactCount(message.id, tokens);
+    } catch (error) {
+      this.toasts.fail("Could not count tokens exactly", error);
+    } finally {
+      this.counting.set(false);
+    }
+  }
+
+  /** Cost of one message at the chosen model's price, as text. */
+  protected cost(message: MessageRecord): string | null {
+    const cost = messageCost(message, this.prices.activePrice());
+    return cost ? formatCost(cost) : null;
+  }
+
+  /** Cost of the whole tool call a message belongs to (arguments and result), as text. */
+  protected callCost(message: MessageRecord): string | null {
+    if (this.store.requestMethod(message) !== "tools/call") return null;
+    const cost = callCost(this.store.messages(), message, this.prices.activePrice());
+    return cost ? formatCost(cost) : null;
+  }
+
+  protected totalTokens(usage: SessionUsage): number {
+    return usage.argumentTokens + usage.resultTokens + usage.definitionTokens;
+  }
+
   protected trackById = (message: MessageRecord) => message.id;
 
   protected serverName(id: string): string {

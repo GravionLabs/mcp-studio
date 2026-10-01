@@ -6,12 +6,17 @@ use mcp_studio_core::{
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
     history::{HistoryEntry, HistoryFilter},
     message_store::{query_messages, MessageFilter},
+    metering::{self, ContextCost, SessionUsage},
     model::{AppInfo, JsonValue},
     oauth,
+    otlp::{ExportConfig, ExportStatus},
+    prices::Price,
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
+    tokens::{self, CountingStatus},
+    trace::{query_spans, Span, SpanFilter},
     update::UpdateInfo,
 };
 use std::collections::BTreeMap;
@@ -65,6 +70,139 @@ pub async fn update_install(app: AppHandle, state: State<'_, AppState>) -> Comma
         .await
         .map_err(|e| CommandError(format!("Could not install the update: {e}")))?;
     app.restart()
+}
+
+#[tauri::command]
+pub async fn spans_query(
+    state: State<'_, AppState>,
+    filter: SpanFilter,
+) -> CommandResult<Vec<Span>> {
+    Ok(query_spans(&state.db, &filter).await?)
+}
+
+async fn counting_model(state: &AppState) -> CommandResult<String> {
+    Ok(state
+        .settings
+        .get(tokens::COUNTING_MODEL_SETTING)
+        .await?
+        .filter(|m| !m.trim().is_empty())
+        .unwrap_or_else(|| mcp_studio_llm::DEFAULT_MODEL.to_owned()))
+}
+
+#[tauri::command]
+pub async fn token_counting_status(state: State<'_, AppState>) -> CommandResult<CountingStatus> {
+    Ok(CountingStatus {
+        model: counting_model(&state).await?,
+        has_key: state.secrets.get(tokens::ANTHROPIC_KEY_NAME)?.is_some(),
+    })
+}
+
+#[tauri::command]
+pub async fn token_counting_set_model(
+    state: State<'_, AppState>,
+    model: String,
+) -> CommandResult<()> {
+    Ok(state
+        .settings
+        .set(tokens::COUNTING_MODEL_SETTING, model.trim())
+        .await?)
+}
+
+/// Stores the Anthropic API key in the keyring, or removes it when `key` is empty or missing.
+#[tauri::command]
+pub fn token_counting_set_key(
+    state: State<'_, AppState>,
+    key: Option<String>,
+) -> CommandResult<()> {
+    match key.map(|k| k.trim().to_owned()).filter(|k| !k.is_empty()) {
+        Some(key) => state.secrets.set(tokens::ANTHROPIC_KEY_NAME, &key)?,
+        None => state.secrets.delete(tokens::ANTHROPIC_KEY_NAME)?,
+    }
+    Ok(())
+}
+
+/// Asks Anthropic for the exact token count of a stored message and saves it. Sends the message's
+/// (secret-masked) content to Anthropic, so it only runs when the user asks for it.
+#[tauri::command]
+pub async fn message_count_exact(
+    state: State<'_, AppState>,
+    message_id: u32,
+) -> CommandResult<u32> {
+    let Some(key) = state.secrets.get(tokens::ANTHROPIC_KEY_NAME)? else {
+        return Err(CommandError(
+            "Add an Anthropic API key on the Prices page to count tokens exactly".into(),
+        ));
+    };
+    let counter = mcp_studio_llm::AnthropicCounter::new(key, counting_model(&state).await?);
+    Ok(tokens::count_message_exact(&state.db, &counter, i64::from(message_id)).await?)
+}
+
+#[tauri::command]
+pub async fn trace_export_config(state: State<'_, AppState>) -> CommandResult<ExportConfig> {
+    Ok(state.trace_exporter.config().await?)
+}
+
+#[tauri::command]
+pub async fn trace_export_set_config(
+    state: State<'_, AppState>,
+    config: ExportConfig,
+) -> CommandResult<ExportConfig> {
+    Ok(state.trace_exporter.set_config(config).await?)
+}
+
+#[tauri::command]
+pub fn trace_export_status(state: State<'_, AppState>) -> ExportStatus {
+    state.trace_exporter.status()
+}
+
+/// Sends the waiting spans now instead of at the next interval.
+#[tauri::command]
+pub async fn trace_export_now(state: State<'_, AppState>) -> CommandResult<ExportStatus> {
+    Ok(state.trace_exporter.export_now().await)
+}
+
+#[tauri::command]
+pub async fn price_list(state: State<'_, AppState>) -> CommandResult<Vec<Price>> {
+    Ok(state.prices.list().await?)
+}
+
+#[tauri::command]
+pub async fn price_set(state: State<'_, AppState>, price: Price) -> CommandResult<Price> {
+    Ok(state.prices.set(price).await?)
+}
+
+#[tauri::command]
+pub async fn price_remove(state: State<'_, AppState>, model: String) -> CommandResult<()> {
+    Ok(state.prices.delete(&model).await?)
+}
+
+/// Tokens (and, with a price model, the cost of one request) of a server's tool definitions. Pure
+/// computation on the given tools; nothing is sent to the server.
+#[tauri::command]
+pub async fn tools_context_cost(
+    state: State<'_, AppState>,
+    tools: Vec<ToolInfo>,
+    model: Option<String>,
+) -> CommandResult<ContextCost> {
+    let price = match model {
+        Some(model) => state.prices.get(&model).await.ok(),
+        None => None,
+    };
+    Ok(metering::context_cost(&tools, price.as_ref()))
+}
+
+/// Tokens and cost of the tool calls of one session.
+#[tauri::command]
+pub async fn session_usage(
+    state: State<'_, AppState>,
+    session_id: String,
+    model: Option<String>,
+) -> CommandResult<SessionUsage> {
+    let price = match model {
+        Some(model) => state.prices.get(&model).await.ok(),
+        None => None,
+    };
+    Ok(metering::session_usage(&state.db, &session_id, price.as_ref()).await?)
 }
 
 #[tauri::command]

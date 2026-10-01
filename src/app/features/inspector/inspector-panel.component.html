@@ -91,6 +91,11 @@
             tokens(message.tokens, message.tokenSource)
           }}</span>
         }
+        @if (cost(message); as money) {
+          <span class="meta muted" title="Estimated cost of this message at the chosen price">{{
+            money
+          }}</span>
+        }
         <span class="meta muted">{{ bytes(message.bytes) }}</span>
       </div>
     </ng-template>
@@ -128,8 +133,33 @@
             }}</span>
           }
         </span>
+        @if (d.message.tokens !== null && d.message.tokenSource !== "exact") {
+          <button
+            type="button"
+            class="ghost"
+            [disabled]="counting()"
+            title="Sends this message's content to Anthropic's token counting endpoint (needs an API key on the Prices page)"
+            (click)="countExactly(d.message)"
+          >
+            Count exactly
+          </button>
+        }
         <button type="button" class="ghost" (click)="copy(d.text)">Copy JSON</button>
       </div>
+      @if (callCost(d.message); as call) {
+        <p class="muted summary">
+          This call (arguments and result): <strong>{{ call }}</strong>
+        </p>
+      }
+      @if (usage(); as u) {
+        <p class="muted summary" [title]="tokenHint(u.tokenSource)">
+          Session: {{ u.calls }} {{ u.calls === 1 ? "call" : "calls" }} ·
+          {{ tokens(totalTokens(u), u.tokenSource) }}
+          @if (u.cost; as money) {
+            · <strong>{{ formatCost(money) }}</strong>
+          }
+        </p>
+      }
       <app-json-view class="json" [value]="d.text" />
     } @else {
       <p class="muted pad">Select a message to see its JSON.</p>

@@ -4,6 +4,10 @@ import type {
   CollectionNode,
   CollectionTree,
   ConfigSource,
+  ContextCost,
+  ExportConfig,
+  ExportStatus,
+  CountingStatus,
   HistoryEntry,
   HistoryFilter,
   ImportCandidate,
@@ -18,11 +22,15 @@ import type {
   MessageRecord,
   ProxyInfo,
   PromptInfo,
+  Price,
   ResourceInfo,
   ResourceTemplateInfo,
   ServerDefinition,
   ServerDetails,
   ServerInput,
+  SessionUsage,
+  Span,
+  SpanFilter,
   ToolCallRequest,
   ToolCallResult,
   ToolInfo,
@@ -84,6 +92,66 @@ export class TauriIpcService {
   /** Downloads and installs the update found by the last check; the app restarts afterwards. */
   updateInstall(): Promise<void> {
     return this.call("update_install");
+  }
+
+  spansQuery(filter: SpanFilter): Promise<Span[]> {
+    return this.call("spans_query", { filter });
+  }
+
+  traceExportConfig(): Promise<ExportConfig> {
+    return this.call("trace_export_config");
+  }
+
+  traceExportSetConfig(config: ExportConfig): Promise<ExportConfig> {
+    return this.call("trace_export_set_config", { config });
+  }
+
+  traceExportStatus(): Promise<ExportStatus> {
+    return this.call("trace_export_status");
+  }
+
+  /** Sends the waiting spans now. */
+  traceExportNow(): Promise<ExportStatus> {
+    return this.call("trace_export_now");
+  }
+
+  tokenCountingStatus(): Promise<CountingStatus> {
+    return this.call("token_counting_status");
+  }
+
+  tokenCountingSetModel(model: string): Promise<void> {
+    return this.call("token_counting_set_model", { model });
+  }
+
+  /** Stores the Anthropic API key in the OS keyring; `null` removes it. */
+  tokenCountingSetKey(key: string | null): Promise<void> {
+    return this.call("token_counting_set_key", { key });
+  }
+
+  /** Asks Anthropic for the exact token count of a message and saves it. */
+  messageCountExact(messageId: number): Promise<number> {
+    return this.call("message_count_exact", { messageId });
+  }
+
+  priceList(): Promise<Price[]> {
+    return this.call("price_list");
+  }
+
+  priceSet(price: Price): Promise<Price> {
+    return this.call("price_set", { price });
+  }
+
+  priceRemove(model: string): Promise<void> {
+    return this.call("price_remove", { model });
+  }
+
+  /** Tokens of the given tool definitions; with `model`, also the cost of sending them once. */
+  toolsContextCost(tools: ToolInfo[], model: string | null): Promise<ContextCost> {
+    return this.call("tools_context_cost", { tools, model });
+  }
+
+  sessionUsage(sessionId: string, model: string | null): Promise<SessionUsage> {
+    return this.call("session_usage", { sessionId, model });
   }
 
   serverList(): Promise<ServerDefinition[]> {

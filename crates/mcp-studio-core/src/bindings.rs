@@ -21,11 +21,15 @@ use crate::{
     flow::{Flow, FlowIssue, FlowIssueCode, InputDecl, Step, StepKind, ToolRef},
     history::{HistoryEntry, HistoryFilter},
     message_store::MessageFilter,
+    metering::{ContextCost, SessionUsage, ToolCost},
     model::AppInfo,
+    otlp::{ExportConfig, ExportStatus},
+    prices::{Cost, Price},
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
-    tokens::TokenSource,
+    tokens::{CountingStatus, TokenSource},
+    trace::{Span, SpanFilter, SpanKind, SpanStatus},
     update::UpdateInfo,
 };
 
@@ -75,6 +79,18 @@ pub fn ipc_types() -> Types {
         .register::<FlowIssueCode>()
         .register::<UpdateInfo>()
         .register::<TokenSource>()
+        .register::<CountingStatus>()
+        .register::<Price>()
+        .register::<Cost>()
+        .register::<ToolCost>()
+        .register::<ContextCost>()
+        .register::<SessionUsage>()
+        .register::<Span>()
+        .register::<SpanKind>()
+        .register::<SpanStatus>()
+        .register::<SpanFilter>()
+        .register::<ExportConfig>()
+        .register::<ExportStatus>()
 }
 
 /// Renders the TypeScript bindings file.

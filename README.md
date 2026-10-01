@@ -22,6 +22,15 @@ keyring.
 - **Inspect**: a live, filterable timeline of every JSON-RPC message with durations, sizes, estimated
   token counts for tool definitions, arguments, and results, a JSON
   detail view, and a structural diff between two messages.
+- **Trace**: every session is a trace and every tool call a span. The **Traces** page shows a
+  waterfall with duration, estimated tokens, and errors per span. Optionally export spans to an
+  OpenTelemetry collector (off by default; only names, timing, status, and token estimates leave
+  the app).
+- **Cost**: every server shows how much context its tool definitions take, and calls and sessions
+  show their estimated cost. You enter the price per million tokens of the models you use on the
+  **Prices** page; none are built in because they change often. Token counts are estimates; with an
+  Anthropic API key, **Count exactly** in the inspector replaces a message's estimate with the exact
+  count (only when you click).
 - **Record real clients**: route Claude Code, Claude Desktop, GitHub Copilot, OpenCode, or another
   client through MCP Studio with a local stdio proxy or HTTP proxy and watch the traffic.
   Ready-made configuration snippets included (see [Record a real client](#record-a-real-client)).
