@@ -22,6 +22,10 @@ keyring.
 - **Inspect**: a live, filterable timeline of every JSON-RPC message with durations, sizes, estimated
   token counts for tool definitions, arguments, and results, a JSON
   detail view, and a structural diff between two messages.
+- **Flows**: a flow combines LLM calls and tool calls. The **Flows** page keeps a library and
+  imports and exports flows as YAML files for sharing in Git Edit flows as a graph (with the YAML beside it) and run them from the Flows page: every tool call asks you first, and every run is stored and traced. The
+  **Providers** page sets up the models flows use: Anthropic with your own API key, any
+  OpenAI-compatible endpoint, and local Ollama.
 - **Trace**: every session is a trace and every tool call a span. The **Traces** page shows a
   waterfall with duration, estimated tokens, and errors per span. Optionally export spans to an
   OpenTelemetry collector (off by default; only names, timing, status, and token estimates leave

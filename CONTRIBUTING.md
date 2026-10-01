@@ -19,6 +19,15 @@ cargo build --workspace          # also builds the reference server and the prox
 pnpm tauri dev                   # starts the app with hot reload
 ```
 
+## Release builds and the CSP
+
+`pnpm tauri dev` runs without a Content Security Policy (`devCsp` is `null`), but installed builds
+apply the one in `src-tauri/tauri.conf.json`. Problems that only appear there look like a missing
+stylesheet or script. Tauri adds nonces and hashes to the CSP for inline `<style>` tags, and once a
+hash is present browsers ignore `'unsafe-inline'`, which blocks Angular's component styles. That is
+why `style-src` is excluded with `dangerousDisableAssetCspModification`. Scripts stay protected.
+Before a release, try an installed build (or `pnpm tauri build --debug`), not only `tauri dev`.
+
 ## Layout
 
 | Path                            | Contents                                                                      |

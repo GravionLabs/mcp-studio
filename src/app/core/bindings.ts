@@ -19,6 +19,22 @@ export type CollectionTree = {
 	requests: SavedRequest[],
 };
 
+export type Completion = {
+	model: string,
+	content: ContentBlock[],
+	stopReason: StopReason,
+	usage: Usage,
+};
+
+export type CompletionRequest = {
+	model: string,
+	system: string | null,
+	messages: Message[],
+	tools: ToolDefinition[],
+	maxTokens: number,
+	temperature: number | null,
+};
+
 /**  A configuration file that may contain servers. */
 export type ConfigSource = {
 	/**  "Claude Desktop" or "Claude Code (user)". */
@@ -27,8 +43,30 @@ export type ConfigSource = {
 	exists: boolean,
 };
 
+/**  A question for the user, with the id the answer must carry. */
+export type ConfirmEvent = {
+	id: string,
+	request: ConfirmRequest,
+};
+
+/**  A tool call that waits for the user's decision. */
+export type ConfirmRequest = {
+	runId: string,
+	stepId: string,
+	server: string,
+	tool: string,
+	arguments: unknown,
+};
+
 /**  Connection state of one server. */
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
+
+/**  One piece of a message. */
+export type ContentBlock = { type: "text"; text: string } | 
+/**  The model asks to call a tool. */
+{ type: "tool_use"; id: string; name: string; input: unknown } | 
+/**  The result of a tool call, sent back to the model. */
+{ type: "tool_result"; tool_use_id: string; content: string; is_error: boolean };
 
 /**  The context a server's tool definitions take. */
 export type ContextCost = {
@@ -52,6 +90,14 @@ export type CountingStatus = {
 	/**  An API key is stored in the keyring. The key itself never leaves the backend. */
 	hasKey: boolean,
 };
+
+export type Decision = 
+/**  This call only. */
+"allow" | 
+/**  This tool from now on, without asking. */
+"allow_tool" | 
+/**  Every tool of this server from now on. */
+"allow_server" | "deny";
 
 /**  Direction of a message relative to the party that owns the transport. */
 export type Direction = 
@@ -100,7 +146,41 @@ export type FlowIssue = {
 	message: string,
 };
 
-export type FlowIssueCode = "unsupportedVersion" | "emptyName" | "invalidStepId" | "duplicateStepId" | "multipleInputSteps" | "missingOutputStep" | "emptyField" | "unknownServer" | "unknownTool" | "missingArgument" | "unknownArgument" | "argumentType" | "unknownInput" | "unknownStep" | "cycle" | "malformedTemplate";
+export type FlowIssueCode = "unsupportedVersion" | "emptyName" | "invalidStepId" | "duplicateStepId" | "multipleInputSteps" | "missingOutputStep" | "emptyField" | "unknownServer" | "unknownTool" | "missingArgument" | "unknownArgument" | "argumentType" | "unknownInput" | "unknownStep" | "cycle" | "malformedTemplate" | 
+/**  A condition jumps to itself or to an earlier step; jumps only go forward. */
+"backwardJump";
+
+/**  A flow in the library. */
+export type FlowRecord = {
+	id: string,
+	flow: Flow,
+	/**  Unix milliseconds. */
+	updatedAt: number,
+};
+
+export type FlowRun = {
+	id: string,
+	flowId: string | null,
+	/**  The flow as it was when the run started. */
+	flow: Flow,
+	inputs: unknown,
+	status: RunStatus,
+	startedAt: number,
+	endedAt: number | null,
+	outputs: unknown | null,
+	error: string | null,
+	/**  The run whose tool results this run replays. */
+	replayOf: string | null,
+	steps: StepRun[],
+	calls: RecordedCall[],
+};
+
+/**  The result of checking a flow in the editor. */
+export type FlowValidation = {
+	issues: FlowIssue[],
+	/**  Servers the flow uses that are not connected, so their tools were not checked. */
+	uncheckedServers: string[],
+};
 
 export type HistoryEntry = {
 	id: number,
@@ -190,6 +270,11 @@ export type LogSource =
 /**  MCP Studio itself (spawn, reconnect, ...). */
 "studio";
 
+export type Message = {
+	role: Role,
+	content: ContentBlock[],
+};
+
 /**  Filters for [`query_messages`]. All fields are optional and combined with AND. */
 export type MessageFilter = {
 	sessionId?: string | null,
@@ -270,6 +355,36 @@ export type PromptInfo = {
 	arguments?: PromptArgumentInfo[],
 };
 
+/**
+ *  Where the providers other than Anthropic are reached. Keys are not part of this: they live in
+ *  the OS keyring.
+ */
+export type ProviderSettings = {
+	/**  Base address of Ollama, without `/v1`. */
+	ollamaUrl: string,
+	/**  Base address of an OpenAI-compatible API, without `/v1` (OpenAI, LM Studio, vLLM, ...). */
+	openaiUrl: string,
+};
+
+/**  Which providers are set up. */
+export type ProviderStatus = {
+	settings: ProviderSettings,
+	/**  An Anthropic API key is stored in the keyring. */
+	anthropicKey: boolean,
+	/**
+	 *  An API key for the OpenAI-compatible endpoint is stored in the keyring (local endpoints
+	 *  often need none).
+	 */
+	openaiKey: boolean,
+};
+
+/**  Result of checking that a provider and its key work. */
+export type ProviderTestResult = {
+	model: string,
+	reply: string,
+	usage: Usage,
+};
+
 /**  What the UI needs to help the user configure a client. */
 export type ProxyInfo = {
 	/**  Loopback port the stdio proxy program connects to. */
@@ -279,6 +394,20 @@ export type ProxyInfo = {
 	discoveryFile: string,
 	/**  Port of the local HTTP proxy for HTTP servers (`http://127.0.0.1:<port>/mcp/<server>`). */
 	httpPort: number,
+};
+
+/**  A tool call made by a run, with its result. */
+export type RecordedCall = {
+	seq: number,
+	stepId: string,
+	server: string,
+	tool: string,
+	arguments: unknown,
+	/**  The MCP `CallToolResult`; `None` when the call was denied or failed before it ran. */
+	result: unknown | null,
+	isError: boolean,
+	/**  The user did not allow the call. */
+	denied: boolean,
 };
 
 export type ResourceInfo = {
@@ -295,6 +424,27 @@ export type ResourceTemplateInfo = {
 	title?: string | null,
 	description?: string | null,
 	mimeType?: string | null,
+};
+
+export type Role = "user" | "assistant";
+
+/**  Progress of a run, for the UI. */
+export type RunEvent = { type: "run_started"; runId: string; flowName: string } | { type: "step_started"; runId: string; stepId: string; kind: string } | { type: "step_finished"; runId: string; stepId: string; status: StepStatus; error: string | null } | 
+/**  A piece of the answer of an LLM step, as the model writes it. */
+{ type: "text_delta"; runId: string; stepId: string; text: string } | { type: "run_finished"; runId: string; status: RunStatus; error: string | null };
+
+export type RunStatus = "running" | "succeeded" | "failed" | "cancelled";
+
+/**  A run in a list. */
+export type RunSummary = {
+	id: string,
+	flowId: string | null,
+	flowName: string,
+	status: RunStatus,
+	startedAt: number,
+	endedAt: number | null,
+	error: string | null,
+	replayOf: string | null,
 };
 
 export type SavedRequest = {
@@ -385,7 +535,7 @@ export type SpanFilter = {
 	traceId?: string | null,
 	/**  Spans of the sessions of one server. */
 	serverId?: string | null,
-	/**  Only root spans (the sessions), for listing traces. */
+	/**  Only root spans (sessions and flow runs), for listing traces. */
 	rootsOnly?: boolean,
 	/**  Maximum number of rows (default 1000, max 10000), newest first. */
 	limit?: number | null,
@@ -423,6 +573,41 @@ export type StepKind =
 /**  Declares the flow's result; each entry is a template. */
 { type: "output"; outputs?: { [key in string]: string } };
 
+export type StepRun = {
+	seq: number,
+	stepId: string,
+	/**  The step type: `input`, `llm`, `tool`, ... */
+	kind: string,
+	status: StepStatus,
+	startedAt: number,
+	endedAt: number | null,
+	/**  What the step was asked to do once templates were filled in. */
+	resolved: unknown | null,
+	output: unknown | null,
+	error: string | null,
+	spanId: string | null,
+};
+
+export type StepStatus = "running" | "succeeded" | "failed" | 
+/**  Not run because a condition jumped over it. */
+"skipped" | "cancelled";
+
+/**  Why the model stopped. */
+export type StopReason = 
+/**  The model finished its answer. */
+"end_turn" | 
+/**  The model wants tools called; the answer contains `ToolUse` blocks. */
+"tool_use" | 
+/**  The answer was cut off at `max_tokens`. */
+"max_tokens" | { other: string };
+
+/**  Progress of a streamed answer. */
+export type StreamEvent = { type: "text_delta"; text: string } | 
+/**  The model starts a tool call; its arguments follow as they are generated. */
+{ type: "tool_use_start"; id: string; name: string } | 
+/**  A fragment of the JSON arguments of the tool call that is being generated. */
+{ type: "tool_input_delta"; partial_json: string };
+
 /**  Where a token count comes from. */
 export type TokenSource = 
 /**  Approximated offline; see [`estimate_text`]. */
@@ -457,6 +642,14 @@ export type ToolCost = {
 	tokens: number,
 };
 
+/**  A tool the model may call. */
+export type ToolDefinition = {
+	name: string,
+	description: string,
+	/**  JSON Schema of the arguments. */
+	inputSchema: unknown,
+};
+
 export type ToolInfo = {
 	name: string,
 	title?: string | null,
@@ -465,6 +658,14 @@ export type ToolInfo = {
 	inputSchema?: unknown,
 	outputSchema?: unknown | null,
 	annotations?: unknown | null,
+};
+
+/**
+ *  The tools and servers that were allowed to run without asking. Entries are `server` or
+ *  `server/tool`.
+ */
+export type ToolPolicy = {
+	allow?: string[],
 };
 
 /**  A tool exposed to an `llm` step. */
@@ -485,4 +686,12 @@ export type UpdateInfo = {
 	notes: string | null,
 	/**  Publication date as an RFC 3339 string, if known. */
 	date: string | null,
+};
+
+/**  Tokens the provider reported for a request. Always exact, unlike the estimates of the inspector. */
+export type Usage = {
+	inputTokens: number,
+	outputTokens: number,
+	cacheReadTokens: number | null,
+	cacheWriteTokens: number | null,
 };

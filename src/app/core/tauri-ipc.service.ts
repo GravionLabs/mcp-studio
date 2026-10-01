@@ -7,7 +7,12 @@ import type {
   ContextCost,
   ExportConfig,
   ExportStatus,
+  Flow,
+  FlowRecord,
+  FlowValidation,
+  FlowRun,
   CountingStatus,
+  Decision,
   HistoryEntry,
   HistoryFilter,
   ImportCandidate,
@@ -23,6 +28,10 @@ import type {
   ProxyInfo,
   PromptInfo,
   Price,
+  ProviderSettings,
+  ProviderStatus,
+  ProviderTestResult,
+  RunSummary,
   ResourceInfo,
   ResourceTemplateInfo,
   ServerDefinition,
@@ -34,6 +43,7 @@ import type {
   ToolCallRequest,
   ToolCallResult,
   ToolInfo,
+  ToolPolicy,
   UpdateInfo,
 } from "./bindings";
 import { IpcError, describeError } from "./ipc-error";
@@ -123,14 +133,127 @@ export class TauriIpcService {
     return this.call("token_counting_set_model", { model });
   }
 
-  /** Stores the Anthropic API key in the OS keyring; `null` removes it. */
-  tokenCountingSetKey(key: string | null): Promise<void> {
-    return this.call("token_counting_set_key", { key });
+  providerStatus(): Promise<ProviderStatus> {
+    return this.call("provider_status");
+  }
+
+  providerSetSettings(settings: ProviderSettings): Promise<ProviderSettings> {
+    return this.call("provider_set_settings", { settings });
+  }
+
+  /** Stores the API key of `anthropic` or `openai` in the OS keyring; `null` removes it. */
+  providerSetKey(provider: "anthropic" | "openai", key: string | null): Promise<void> {
+    return this.call("provider_set_key", { provider, key });
+  }
+
+  /** The models installed in the configured Ollama. */
+  ollamaModels(): Promise<string[]> {
+    return this.call("ollama_models");
+  }
+
+  /** Sends a tiny request to the provider of `model` (for example `ollama:llama3.1:8b`). */
+  providerTest(model: string): Promise<ProviderTestResult> {
+    return this.call("provider_test", { model });
   }
 
   /** Asks Anthropic for the exact token count of a message and saves it. */
   messageCountExact(messageId: number): Promise<number> {
     return this.call("message_count_exact", { messageId });
+  }
+
+  flowList(): Promise<FlowRecord[]> {
+    return this.call("flow_list");
+  }
+
+  flowGet(id: string): Promise<FlowRecord> {
+    return this.call("flow_get", { id });
+  }
+
+  /** Creates a flow (`id` null) or replaces an existing one. */
+  flowSave(id: string | null, flow: Flow): Promise<FlowRecord> {
+    return this.call("flow_save", { id, flow });
+  }
+
+  flowDelete(id: string): Promise<void> {
+    return this.call("flow_delete", { id });
+  }
+
+  flowExport(id: string, path: string): Promise<void> {
+    return this.call("flow_export", { id, path });
+  }
+
+  flowImport(path: string): Promise<FlowRecord> {
+    return this.call("flow_import", { path });
+  }
+
+  /**
+   * Starts a run in the background. Progress arrives as `flow://event` events and questions as
+   * `flow://confirm`. The caller chooses `runId` so it can listen before the run begins. Pass `flow`
+   * to run an unsaved flow, otherwise `flowId` is run.
+   */
+  flowRunStart(request: {
+    runId: string;
+    flowId: string | null;
+    flow: Flow | null;
+    inputs: Record<string, unknown>;
+    environmentId: string | null;
+  }): Promise<void> {
+    return this.call("flow_run_start", request);
+  }
+
+  /**
+   * Replays a run: tool calls are answered from what the run recorded, so no tool is called and
+   * nothing needs confirmation; model calls run live. Progress arrives like for any run.
+   */
+  flowRunReplay(request: {
+    runId: string;
+    sourceRunId: string;
+    useCurrentFlow: boolean;
+    environmentId: string | null;
+  }): Promise<void> {
+    return this.call("flow_run_replay", request);
+  }
+
+  flowRunCancel(runId: string): Promise<boolean> {
+    return this.call("flow_run_cancel", { runId });
+  }
+
+  flowRunGet(runId: string): Promise<FlowRun> {
+    return this.call("flow_run_get", { runId });
+  }
+
+  flowRunList(flowId: string | null, limit: number | null = null): Promise<RunSummary[]> {
+    return this.call("flow_run_list", { flowId, limit });
+  }
+
+  flowRunDelete(runId: string): Promise<void> {
+    return this.call("flow_run_delete", { runId });
+  }
+
+  /** Answers a question of a run; returns whether it was still waiting. */
+  flowConfirm(id: string, decision: Decision): Promise<boolean> {
+    return this.call("flow_confirm", { id, decision });
+  }
+
+  toolPolicyGet(): Promise<ToolPolicy> {
+    return this.call("tool_policy_get");
+  }
+
+  toolPolicySet(policy: ToolPolicy): Promise<ToolPolicy> {
+    return this.call("tool_policy_set", { policy });
+  }
+
+  /** Checks a flow against the servers that are connected; the others are reported as unchecked. */
+  flowValidate(flow: Flow): Promise<FlowValidation> {
+    return this.call("flow_validate", { flow });
+  }
+
+  flowToYaml(flow: Flow): Promise<string> {
+    return this.call("flow_to_yaml", { flow });
+  }
+
+  flowFromYaml(yaml: string): Promise<Flow> {
+    return this.call("flow_from_yaml", { yaml });
   }
 
   priceList(): Promise<Price[]> {

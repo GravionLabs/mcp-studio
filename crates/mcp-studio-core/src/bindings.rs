@@ -18,8 +18,15 @@ use crate::{
     explorer::{
         PromptArgumentInfo, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo,
     },
-    flow::{Flow, FlowIssue, FlowIssueCode, InputDecl, Step, StepKind, ToolRef},
+    flow::{Flow, FlowIssue, FlowIssueCode, FlowValidation, InputDecl, Step, StepKind, ToolRef},
+    flow_run::{ConfirmEvent, ConfirmRequest, Decision, RunEvent, ToolPolicy},
+    flow_runs::{FlowRun, RecordedCall, RunStatus, RunSummary, StepRun, StepStatus},
+    flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
+    llm::{
+        Completion, CompletionRequest, ContentBlock, Message, ProviderSettings, ProviderStatus,
+        ProviderTestResult, Role, StopReason, StreamEvent, ToolDefinition, Usage,
+    },
     message_store::MessageFilter,
     metering::{ContextCost, SessionUsage, ToolCost},
     model::AppInfo,
@@ -77,6 +84,19 @@ pub fn ipc_types() -> Types {
         .register::<ToolRef>()
         .register::<FlowIssue>()
         .register::<FlowIssueCode>()
+        .register::<FlowValidation>()
+        .register::<FlowRecord>()
+        .register::<ConfirmEvent>()
+        .register::<ConfirmRequest>()
+        .register::<Decision>()
+        .register::<RunEvent>()
+        .register::<ToolPolicy>()
+        .register::<FlowRun>()
+        .register::<RecordedCall>()
+        .register::<RunStatus>()
+        .register::<RunSummary>()
+        .register::<StepRun>()
+        .register::<StepStatus>()
         .register::<UpdateInfo>()
         .register::<TokenSource>()
         .register::<CountingStatus>()
@@ -91,6 +111,18 @@ pub fn ipc_types() -> Types {
         .register::<SpanFilter>()
         .register::<ExportConfig>()
         .register::<ExportStatus>()
+        .register::<Role>()
+        .register::<ContentBlock>()
+        .register::<Message>()
+        .register::<ToolDefinition>()
+        .register::<CompletionRequest>()
+        .register::<StopReason>()
+        .register::<Usage>()
+        .register::<Completion>()
+        .register::<StreamEvent>()
+        .register::<ProviderTestResult>()
+        .register::<ProviderSettings>()
+        .register::<ProviderStatus>()
 }
 
 /// Renders the TypeScript bindings file.

@@ -1,0 +1,221 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+
+  .name {
+    font-size: 16px;
+    font-weight: 600;
+    min-width: 260px;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) 360px;
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.small {
+  font-size: 11px;
+}
+
+.canvas {
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+
+  f-flow {
+    display: block;
+    height: 100%;
+    min-height: 420px;
+  }
+}
+
+.inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+
+  .active {
+    background: var(--bg-active);
+  }
+}
+
+.form,
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  gap: 4px;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.yaml {
+  flex: 1;
+  min-height: 320px;
+  white-space: pre;
+  resize: vertical;
+}
+
+.problem {
+  margin: 0;
+  color: var(--danger);
+}
+
+.ok {
+  margin: 0;
+  color: var(--ok);
+}
+
+.validation {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.pad {
+  padding: 16px;
+}
+
+/* The nodes and connections of the canvas. Their DOM is created by the library, so these rules are
+   global to the component's view. */
+.node {
+  position: relative;
+  width: 210px;
+  padding: 8px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: grab;
+
+  &.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  &.bad {
+    border-color: var(--danger);
+  }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .type {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .summary {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .branches {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+
+  .branch {
+    position: relative;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding-bottom: 8px;
+  }
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-elevated);
+  cursor: crosshair;
+
+  &.in {
+    position: absolute;
+    top: -7px;
+    left: calc(50% - 6px);
+  }
+
+  &.out {
+    position: absolute;
+    bottom: -7px;
+  }
+
+  &.out.center {
+    left: calc(50% - 6px);
+  }
+}
+
+.branch .dot.out {
+  left: calc(50% - 6px);
+}

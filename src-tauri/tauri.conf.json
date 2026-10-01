@@ -31,7 +31,8 @@
         "media-src": "'self' data: blob:",
         "connect-src": "ipc: http://ipc.localhost"
       },
-      "devCsp": null
+      "devCsp": null,
+      "dangerousDisableAssetCspModification": ["style-src"]
     }
   },
   "bundle": {
