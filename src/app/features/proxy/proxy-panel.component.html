@@ -1,11 +1,19 @@
 <section class="proxy">
   <h3>Record a real client</h3>
   <p class="muted">
-    Use this server through MCP Studio from Claude Code, Claude Desktop, or an IDE. Every message
-    shows up in the inspector while the client works.
+    Use this server through MCP Studio from Claude, GitHub Copilot, OpenCode, or another client.
+    Every message shows up in the inspector while the client works.
   </p>
   @if (info(); as i) {
     @if (snippets().length > 0) {
+      <label class="client">
+        Client
+        <select aria-label="Client" (change)="selectClient($event)">
+          @for (c of clients; track c.id) {
+            <option [value]="c.id" [selected]="c.id === client()">{{ c.label }}</option>
+          }
+        </select>
+      </label>
       <div class="tabs" role="tablist">
         @for (snippet of snippets(); track snippet.title; let index = $index) {
           <button
