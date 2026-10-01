@@ -357,3 +357,14 @@ export type ToolRef = {
 
 /**  How a server is reached. */
 export type TransportKind = "stdio" | "http";
+
+export type UpdateInfo = {
+	/**  Version that would be installed. */
+	version: string,
+	/**  Version that is running now. */
+	currentVersion: string,
+	/**  Release notes, if the release has any. */
+	notes: string | null,
+	/**  Publication date as an RFC 3339 string, if known. */
+	date: string | null,
+};

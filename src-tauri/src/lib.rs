@@ -2,7 +2,10 @@ mod commands;
 mod error;
 mod sink;
 
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use mcp_studio_core::{
     collections::Collections,
@@ -28,6 +31,8 @@ pub struct AppState {
     pub proxy: ProxyService,
     pub http_proxy: HttpProxy,
     pub discovery_file: PathBuf,
+    /// The update found by the last check, waiting to be installed.
+    pub pending_update: Mutex<Option<tauri_plugin_updater::Update>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -36,6 +41,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -94,11 +100,14 @@ pub fn run() {
                 proxy,
                 http_proxy,
                 discovery_file,
+                pending_update: Mutex::new(None),
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            commands::update_check,
+            commands::update_install,
             commands::server_list,
             commands::server_get,
             commands::server_add,

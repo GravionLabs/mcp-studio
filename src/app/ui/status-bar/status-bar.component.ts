@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { ConnectionStatusService } from "../../core/connection-status.service";
+import { UpdateService } from "../../core/update.service";
 
 @Component({
   selector: "app-status-bar",
@@ -9,4 +10,5 @@ import { ConnectionStatusService } from "../../core/connection-status.service";
 })
 export class StatusBarComponent {
   protected readonly status = inject(ConnectionStatusService);
+  protected readonly updates = inject(UpdateService);
 }

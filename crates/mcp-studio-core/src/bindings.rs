@@ -25,6 +25,7 @@ use crate::{
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
+    update::UpdateInfo,
 };
 
 /// All types exposed to the frontend.
@@ -71,6 +72,7 @@ pub fn ipc_types() -> Types {
         .register::<ToolRef>()
         .register::<FlowIssue>()
         .register::<FlowIssueCode>()
+        .register::<UpdateInfo>()
 }
 
 /// Renders the TypeScript bindings file.

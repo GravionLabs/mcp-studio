@@ -46,5 +46,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyMkRGQUE1MzM2QjBGNTAKUldSUUQyc3pwZm90WWlPOGtyeTZPZ3lVbjh6TjVVSkFtR25QNHJaN1ZPUXZCalkzL0h3UUE3bFIK",
+      "endpoints": [
+        "https://github.com/GravionLabs/mcp-studio/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

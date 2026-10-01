@@ -26,6 +26,7 @@ import type {
   ToolCallRequest,
   ToolCallResult,
   ToolInfo,
+  UpdateInfo,
 } from "./bindings";
 import { IpcError, describeError } from "./ipc-error";
 import { IPC_INVOKE, IPC_LISTEN } from "./ipc.tokens";
@@ -73,6 +74,16 @@ export class TauriIpcService {
 
   appInfo(): Promise<AppInfo> {
     return this.call<AppInfo>("app_info");
+  }
+
+  /** The newest available version, or `null` when this one is current. */
+  updateCheck(): Promise<UpdateInfo | null> {
+    return this.call<UpdateInfo | null>("update_check");
+  }
+
+  /** Downloads and installs the update found by the last check; the app restarts afterwards. */
+  updateInstall(): Promise<void> {
+    return this.call("update_install");
   }
 
   serverList(): Promise<ServerDefinition[]> {
