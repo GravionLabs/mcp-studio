@@ -216,12 +216,27 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The release notes are the changelog entry of this version, in the same format and made by
+      # the same configuration as CHANGELOG.md.
+      - name: Generate the release notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --unreleased --tag v${{ needs.determine-version.outputs.semver }} --strip header
+        env:
+          OUTPUT: RELEASE_NOTES.md
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release edit "v${{ needs.determine-version.outputs.semver }}" \
             --repo "${{ github.repository }}" \
+            --notes-file RELEASE_NOTES.md \
             --draft=false
 
   update-changelog:

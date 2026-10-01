@@ -16,20 +16,33 @@ use serde_json::{json, Value};
 
 use crate::sse::SseParser;
 
-/// Talks to an endpoint that implements `POST /v1/chat/completions`.
+/// Talks to an endpoint that implements `POST <root>/chat/completions` (root is usually `/v1`).
 pub struct OpenAiCompatProvider {
     client: reqwest::Client,
     name: &'static str,
     /// What to call the endpoint in error messages, for example `Ollama`.
     label: String,
-    /// Address without `/v1`.
+    /// The address as configured, without a trailing slash.
     base_url: String,
     /// `None` for local endpoints that need no key.
     api_key: Option<String>,
 }
 
+/// Where chat completions are posted. A bare host (`http://localhost:1234`) gets the usual `/v1`;
+/// an address with a path (`.../v1`, `https://models.github.ai/inference`) already names the API
+/// root and only gets `/chat/completions`.
+pub fn chat_completions_url(base_url: &str) -> String {
+    let base = base_url.trim_end_matches('/');
+    let bare_host = reqwest::Url::parse(base).is_ok_and(|u| u.path() == "/");
+    if bare_host {
+        format!("{base}/v1/chat/completions")
+    } else {
+        format!("{base}/chat/completions")
+    }
+}
+
 impl OpenAiCompatProvider {
-    /// An OpenAI-compatible endpoint at `base_url` (without `/v1`).
+    /// An OpenAI-compatible endpoint at `base_url` (see [`chat_completions_url`]).
     pub fn new(base_url: impl Into<String>, api_key: Option<String>) -> Self {
         Self::build(
             "openai",
@@ -54,10 +67,7 @@ impl OpenAiCompatProvider {
                 .unwrap_or_default(),
             name,
             label: label.to_owned(),
-            base_url: base_url
-                .trim_end_matches('/')
-                .trim_end_matches("/v1")
-                .to_owned(),
+            base_url: base_url.trim_end_matches('/').to_owned(),
             api_key: api_key.filter(|k| !k.trim().is_empty()),
         }
     }
@@ -111,7 +121,7 @@ impl OpenAiCompatProvider {
     async fn send(&self, body: &Value) -> Result<reqwest::Response, LlmError> {
         let mut request = self
             .client
-            .post(format!("{}/v1/chat/completions", self.base_url))
+            .post(chat_completions_url(&self.base_url))
             .header("content-type", "application/json")
             .body(body.to_string());
         if let Some(key) = &self.api_key {
@@ -778,6 +788,26 @@ mod tests {
         assert_eq!(
             stop_reason(Some("content_filter")),
             StopReason::Other("content_filter".into())
+        );
+    }
+
+    #[test]
+    fn the_endpoint_follows_the_address() {
+        assert_eq!(
+            chat_completions_url("http://localhost:1234"),
+            "http://localhost:1234/v1/chat/completions"
+        );
+        assert_eq!(
+            chat_completions_url("http://localhost:1234/"),
+            "http://localhost:1234/v1/chat/completions"
+        );
+        assert_eq!(
+            chat_completions_url("https://openrouter.ai/api/v1"),
+            "https://openrouter.ai/api/v1/chat/completions"
+        );
+        assert_eq!(
+            chat_completions_url("https://models.github.ai/inference/"),
+            "https://models.github.ai/inference/chat/completions"
         );
     }
 }

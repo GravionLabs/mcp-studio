@@ -6,8 +6,8 @@ A desktop tool for registering, testing, debugging, and orchestrating
 Built with Tauri 2, a Rust core, and Angular 22. Everything runs locally; secrets live in your OS
 keyring.
 
-> Status: MVP (v0.1). Flows, token metering, tracing, and AI assistance are planned for later
-> milestones — see the [product spec](docs/specs/product-spec.md).
+> Status: 1.0. Flows, token metering, tracing, and AI assistance are in; see the
+> [product spec](docs/specs/product-spec.md) for the design.
 
 ## Features
 
@@ -25,7 +25,7 @@ keyring.
 - **Flows**: a flow combines LLM calls and tool calls. The **Flows** page keeps a library and
   imports and exports flows as YAML files for sharing in Git Edit flows as a graph (with the YAML beside it) and run them from the Flows page: every tool call asks you first, and every run is stored and traced. The
   **Providers** page sets up the models flows use: Anthropic with your own API key, any
-  OpenAI-compatible endpoint, and local Ollama.
+  OpenAI-compatible endpoint (including GitHub Models with a GitHub token), and local Ollama.
 - **Trace**: every session is a trace and every tool call a span. The **Traces** page shows a
   waterfall with duration, estimated tokens, and errors per span. Optionally export spans to an
   OpenTelemetry collector (off by default; only names, timing, status, and token estimates leave

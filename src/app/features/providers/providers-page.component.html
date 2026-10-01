@@ -49,7 +49,15 @@
   <section class="card">
     <h3>OpenAI-compatible endpoint</h3>
     <p class="muted">
-      OpenAI, LM Studio, vLLM, or any server with <code>/v1/chat/completions</code>.
+      OpenAI, LM Studio, vLLM, or any server with <code>/v1/chat/completions</code>. An address with
+      a path, such as <code>…/api/v1</code>, is used as the API root.
+    </p>
+    <p class="muted">
+      <button type="button" class="ghost" (click)="useGithubModels()">Use GitHub Models</button>
+      fills in the address of GitHub Models. As the key, use a GitHub personal access token with the
+      <code>models</code> permission, and write models as <code>openai:openai/gpt-4o</code>. This
+      uses GitHub Models, not a GitHub Copilot subscription (Copilot has no API for other apps), and
+      GitHub's own rate limits apply.
     </p>
     <div class="row">
       <label>

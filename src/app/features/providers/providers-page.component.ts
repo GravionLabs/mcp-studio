@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from "@ang
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
-import { ProviderId, describeTest, qualifiedModel } from "./providers.model";
+import { GITHUB_MODELS_URL, ProviderId, describeTest, qualifiedModel } from "./providers.model";
 
 /** Where flows get their models: Anthropic, an OpenAI-compatible endpoint, and local Ollama. */
 @Component({
@@ -48,6 +48,12 @@ export class ProvidersPageComponent implements OnInit {
 
   protected text(event: Event): string {
     return (event.target as HTMLInputElement | HTMLSelectElement).value;
+  }
+
+  /** Fills in the address of GitHub Models; the key is a GitHub token with the `models` scope. */
+  protected useGithubModels(): void {
+    this.openaiUrl.set(GITHUB_MODELS_URL);
+    this.setModel("openai", "openai/gpt-4o");
   }
 
   protected setModel(provider: ProviderId, value: string): void {
