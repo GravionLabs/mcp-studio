@@ -13,6 +13,7 @@ use mcp_studio_core::{
     environments::Environments,
     http_proxy::{self, HttpProxy},
     message_store::{self, RetentionPolicy},
+    prices::Prices,
     proxy::{discovery_path, ProxyService},
     registry::Registry,
     secrets::{KeyringStore, SecretStore},
@@ -26,6 +27,7 @@ pub struct AppState {
     pub registry: Registry,
     pub environments: Environments,
     pub collections: Collections,
+    pub prices: Prices,
     pub secrets: Arc<dyn SecretStore>,
     pub sessions: Arc<SessionManager>,
     pub proxy: ProxyService,
@@ -61,6 +63,7 @@ pub fn run() {
             let registry = Registry::new(db.clone());
             let environments = Environments::new(db.clone());
             let collections = Collections::new(db.clone());
+            let prices = Prices::new(db.clone());
             let secrets: Arc<dyn SecretStore> =
                 Arc::new(KeyringStore::new("dev.gravionlabs.mcp-studio"));
             let sink = Arc::new(sink::TauriSink {
@@ -95,6 +98,7 @@ pub fn run() {
                 registry,
                 environments,
                 collections,
+                prices,
                 secrets,
                 sessions,
                 proxy,
@@ -108,6 +112,11 @@ pub fn run() {
             commands::app_info,
             commands::update_check,
             commands::update_install,
+            commands::price_list,
+            commands::price_set,
+            commands::price_remove,
+            commands::tools_context_cost,
+            commands::session_usage,
             commands::server_list,
             commands::server_get,
             commands::server_add,

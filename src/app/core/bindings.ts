@@ -30,6 +30,22 @@ export type ConfigSource = {
 /**  Connection state of one server. */
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
+/**  The context a server's tool definitions take. */
+export type ContextCost = {
+	tokens: number,
+	/**  Largest definitions first. */
+	tools: ToolCost[],
+	tokenSource: TokenSource,
+	/**  Cost of sending the definitions once, when a price was chosen. */
+	cost: Cost | null,
+};
+
+/**  An amount of money. */
+export type Cost = {
+	amount: number | null,
+	currency: string,
+};
+
 /**  Direction of a message relative to the party that owns the transport. */
 export type Direction = 
 /**  Sent by us to the peer. */
@@ -193,6 +209,17 @@ export type MessageRecord = {
 	tokenSource: TokenSource | null,
 };
 
+/**  Price of one model, in `currency` per million tokens. */
+export type Price = {
+	model: string,
+	inputPerMtok: number | null,
+	outputPerMtok: number | null,
+	cacheReadPerMtok: number | null,
+	cacheWritePerMtok: number | null,
+	/**  Currency code such as `USD`. */
+	currency: string,
+};
+
 /**  `mcp://progress`: progress of a running tool call. */
 export type ProgressEvent = {
 	serverId: string,
@@ -295,6 +322,19 @@ export type ServerInput = {
 	oauth?: boolean,
 };
 
+/**  Tokens and cost of one session. */
+export type SessionUsage = {
+	calls: number,
+	/**  Tokens of tool call arguments. */
+	argumentTokens: number,
+	/**  Tokens of tool call results. */
+	resultTokens: number,
+	/**  Tokens of tool lists received (counted once per `tools/list` response). */
+	definitionTokens: number,
+	tokenSource: TokenSource,
+	cost: Cost | null,
+};
+
 /**  `mcp://status` */
 export type StatusEvent = {
 	serverId: string,
@@ -348,6 +388,11 @@ export type ToolCallResult = {
 	isError: boolean,
 	cancelled: boolean,
 	durationMs: number,
+};
+
+export type ToolCost = {
+	name: string,
+	tokens: number,
 };
 
 export type ToolInfo = {

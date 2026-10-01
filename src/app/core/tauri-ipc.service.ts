@@ -4,6 +4,7 @@ import type {
   CollectionNode,
   CollectionTree,
   ConfigSource,
+  ContextCost,
   HistoryEntry,
   HistoryFilter,
   ImportCandidate,
@@ -18,11 +19,13 @@ import type {
   MessageRecord,
   ProxyInfo,
   PromptInfo,
+  Price,
   ResourceInfo,
   ResourceTemplateInfo,
   ServerDefinition,
   ServerDetails,
   ServerInput,
+  SessionUsage,
   ToolCallRequest,
   ToolCallResult,
   ToolInfo,
@@ -84,6 +87,27 @@ export class TauriIpcService {
   /** Downloads and installs the update found by the last check; the app restarts afterwards. */
   updateInstall(): Promise<void> {
     return this.call("update_install");
+  }
+
+  priceList(): Promise<Price[]> {
+    return this.call("price_list");
+  }
+
+  priceSet(price: Price): Promise<Price> {
+    return this.call("price_set", { price });
+  }
+
+  priceRemove(model: string): Promise<void> {
+    return this.call("price_remove", { model });
+  }
+
+  /** Tokens of the given tool definitions; with `model`, also the cost of sending them once. */
+  toolsContextCost(tools: ToolInfo[], model: string | null): Promise<ContextCost> {
+    return this.call("tools_context_cost", { tools, model });
+  }
+
+  sessionUsage(sessionId: string, model: string | null): Promise<SessionUsage> {
+    return this.call("session_usage", { sessionId, model });
   }
 
   serverList(): Promise<ServerDefinition[]> {

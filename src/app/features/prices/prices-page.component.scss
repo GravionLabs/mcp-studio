@@ -1,0 +1,39 @@
+.page {
+  padding: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-weight: normal;
+  color: var(--text-muted);
+  padding: 4px 6px;
+}
+
+td {
+  padding: 3px 6px;
+}
+
+.model {
+  width: 100%;
+  min-width: 160px;
+}
+
+.number {
+  width: 90px;
+}
+
+.currency {
+  width: 52px;
+  text-transform: uppercase;
+}
+
+.actions {
+  white-space: nowrap;
+  display: flex;
+  gap: 4px;
+}

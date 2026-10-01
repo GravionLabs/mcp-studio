@@ -21,7 +21,9 @@ use crate::{
     flow::{Flow, FlowIssue, FlowIssueCode, InputDecl, Step, StepKind, ToolRef},
     history::{HistoryEntry, HistoryFilter},
     message_store::MessageFilter,
+    metering::{ContextCost, SessionUsage, ToolCost},
     model::AppInfo,
+    prices::{Cost, Price},
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
@@ -75,6 +77,11 @@ pub fn ipc_types() -> Types {
         .register::<FlowIssueCode>()
         .register::<UpdateInfo>()
         .register::<TokenSource>()
+        .register::<Price>()
+        .register::<Cost>()
+        .register::<ToolCost>()
+        .register::<ContextCost>()
+        .register::<SessionUsage>()
 }
 
 /// Renders the TypeScript bindings file.
