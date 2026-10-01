@@ -17,6 +17,8 @@ const message = (overrides: Partial<MessageRecord> = {}): MessageRecord => ({
   isError: false,
   ts: 1000,
   durationMs: null,
+  tokens: null,
+  tokenSource: null,
   ...overrides,
 });
 

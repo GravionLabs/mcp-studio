@@ -49,6 +49,19 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
+/** Token count for display. Estimates are prefixed with `~` so they are never mistaken for exact. */
+export function formatTokens(tokens: number, source: "estimate" | "exact" | null): string {
+  const text = tokens < 1000 ? String(tokens) : `${(tokens / 1000).toFixed(1)}k`;
+  return `${source === "exact" ? "" : "~"}${text} tokens`;
+}
+
+/** Explains where a token count comes from, for tooltips. */
+export function tokenSourceHint(source: "estimate" | "exact" | null): string {
+  return source === "exact"
+    ? "Exact count reported by the provider"
+    : "Estimated offline, not an exact count";
+}
+
 export interface RowLabel {
   /** Short text for the timeline row. */
   text: string;

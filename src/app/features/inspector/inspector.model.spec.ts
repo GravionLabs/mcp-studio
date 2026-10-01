@@ -4,6 +4,8 @@ import {
   NO_FILTER,
   formatBytes,
   formatClock,
+  formatTokens,
+  tokenSourceHint,
   labelFor,
   matchesFilter,
   prettyPayload,
@@ -92,5 +94,26 @@ describe("formatting", () => {
   it("pretty-prints JSON and keeps other text", () => {
     expect(prettyPayload('{"a":1}')).toBe('{\n  "a": 1\n}');
     expect(prettyPayload("nope")).toBe("nope");
+  });
+});
+
+describe("formatTokens", () => {
+  it("marks estimates with a tilde", () => {
+    expect(formatTokens(42, "estimate")).toBe("~42 tokens");
+    expect(formatTokens(0, "estimate")).toBe("~0 tokens");
+  });
+
+  it("shortens large counts", () => {
+    expect(formatTokens(1234, "estimate")).toBe("~1.2k tokens");
+  });
+
+  it("shows exact counts without a tilde", () => {
+    expect(formatTokens(1234, "exact")).toBe("1.2k tokens");
+    expect(formatTokens(7, "exact")).toBe("7 tokens");
+  });
+
+  it("explains the source", () => {
+    expect(tokenSourceHint("estimate")).toContain("Estimated");
+    expect(tokenSourceHint("exact")).toContain("Exact");
   });
 });

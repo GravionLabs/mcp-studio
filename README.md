@@ -19,7 +19,8 @@ keyring.
 - **Test**: call tools with a form generated from the JSON Schema (or raw JSON in an editor), with
   validation, progress, and cancellation. Read resources and get prompts. Results are rendered by
   content type (text, JSON, images, audio, resources, structured content).
-- **Inspect**: a live, filterable timeline of every JSON-RPC message with durations, sizes, a JSON
+- **Inspect**: a live, filterable timeline of every JSON-RPC message with durations, sizes, estimated
+  token counts for tool definitions, arguments, and results, a JSON
   detail view, and a structural diff between two messages.
 - **Record real clients**: route Claude Code, Claude Desktop, GitHub Copilot, OpenCode, or another
   client through MCP Studio with a local stdio proxy or HTTP proxy and watch the traffic.

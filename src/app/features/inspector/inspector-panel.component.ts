@@ -13,7 +13,14 @@ import { JsonDiffComponent } from "../../ui/json-diff/json-diff.component";
 import { JsonViewComponent } from "../../ui/json-view/json-view.component";
 import { VirtualListComponent } from "../../ui/virtual-list/virtual-list.component";
 import { ServersStore } from "../servers/servers.store";
-import { formatBytes, formatClock, labelFor, prettyPayload } from "./inspector.model";
+import {
+  formatBytes,
+  formatClock,
+  formatTokens,
+  labelFor,
+  prettyPayload,
+  tokenSourceHint,
+} from "./inspector.model";
 import { InspectorStore } from "./inspector.store";
 
 const METHODS = [
@@ -76,6 +83,8 @@ export class InspectorPanelComponent implements OnInit {
 
   protected clock = formatClock;
   protected bytes = formatBytes;
+  protected tokens = formatTokens;
+  protected tokenHint = tokenSourceHint;
   protected trackById = (message: MessageRecord) => message.id;
 
   protected serverName(id: string): string {

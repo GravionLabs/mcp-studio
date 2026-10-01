@@ -86,6 +86,11 @@
         @if (message.durationMs !== null) {
           <span class="meta muted">{{ message.durationMs }} ms</span>
         }
+        @if (message.tokens !== null) {
+          <span class="meta muted" [title]="tokenHint(message.tokenSource)">{{
+            tokens(message.tokens, message.tokenSource)
+          }}</span>
+        }
         <span class="meta muted">{{ bytes(message.bytes) }}</span>
       </div>
     </ng-template>
@@ -115,8 +120,14 @@
         >
         <span class="muted"
           >{{ serverName(d.message.serverId) }} · {{ clock(d.message.ts) }} ·
-          {{ bytes(d.message.bytes) }}</span
-        >
+          {{ bytes(d.message.bytes) }}
+          @if (d.message.tokens !== null) {
+            ·
+            <span [title]="tokenHint(d.message.tokenSource)">{{
+              tokens(d.message.tokens, d.message.tokenSource)
+            }}</span>
+          }
+        </span>
         <button type="button" class="ghost" (click)="copy(d.text)">Copy JSON</button>
       </div>
       <app-json-view class="json" [value]="d.text" />
