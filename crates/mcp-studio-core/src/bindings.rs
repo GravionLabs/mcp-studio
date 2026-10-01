@@ -18,6 +18,7 @@ use crate::{
     explorer::{
         PromptArgumentInfo, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo,
     },
+    flow::{Flow, FlowIssue, FlowIssueCode, InputDecl, Step, StepKind, ToolRef},
     history::{HistoryEntry, HistoryFilter},
     message_store::MessageFilter,
     model::AppInfo,
@@ -63,6 +64,13 @@ pub fn ipc_types() -> Types {
         .register::<ImportSummary>()
         .register::<HistoryEntry>()
         .register::<HistoryFilter>()
+        .register::<Flow>()
+        .register::<Step>()
+        .register::<StepKind>()
+        .register::<InputDecl>()
+        .register::<ToolRef>()
+        .register::<FlowIssue>()
+        .register::<FlowIssueCode>()
 }
 
 /// Renders the TypeScript bindings file.
