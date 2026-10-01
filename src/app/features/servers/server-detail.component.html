@@ -41,6 +41,7 @@
     @if (state() === "connected") {
       <app-explorer [serverId]="s.id" />
       <app-context-cost [serverId]="s.id" />
+      <app-tool-lint [serverId]="s.id" />
     }
 
     <dl>

@@ -18,6 +18,7 @@ import type {
   ImportCandidate,
   ImportReport,
   ImportSummary,
+  LintReport,
   SavedRequest,
   SavedRequestInput,
   Environment,
@@ -254,6 +255,11 @@ export class TauriIpcService {
 
   flowFromYaml(yaml: string): Promise<Flow> {
     return this.call("flow_from_yaml", { yaml });
+  }
+
+  /** Checks tool definitions for vague descriptions, missing `required` fields, overlap and size. */
+  toolsLint(tools: ToolInfo[]): Promise<LintReport> {
+    return this.call("tools_lint", { tools });
   }
 
   priceList(): Promise<Price[]> {

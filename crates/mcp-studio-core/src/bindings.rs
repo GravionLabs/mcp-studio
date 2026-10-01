@@ -23,6 +23,7 @@ use crate::{
     flow_runs::{FlowRun, RecordedCall, RunStatus, RunSummary, StepRun, StepStatus},
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
+    lint::{LintFinding, LintReport, LintRule, Severity},
     llm::{
         Completion, CompletionRequest, ContentBlock, Message, ProviderSettings, ProviderStatus,
         ProviderTestResult, Role, StopReason, StreamEvent, ToolDefinition, Usage,
@@ -123,6 +124,10 @@ pub fn ipc_types() -> Types {
         .register::<ProviderTestResult>()
         .register::<ProviderSettings>()
         .register::<ProviderStatus>()
+        .register::<LintRule>()
+        .register::<Severity>()
+        .register::<LintFinding>()
+        .register::<LintReport>()
 }
 
 /// Renders the TypeScript bindings file.

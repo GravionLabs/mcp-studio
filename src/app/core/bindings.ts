@@ -242,6 +242,25 @@ export type InputDecl = {
 	description?: string | null,
 };
 
+export type LintFinding = {
+	/**  The tool the finding is about; `None` for the server as a whole. */
+	tool: string | null,
+	rule: LintRule,
+	severity: Severity,
+	message: string,
+	/**  Other tools that are part of the finding (the overlapping ones). */
+	related: string[],
+};
+
+export type LintReport = {
+	findings: LintFinding[],
+	toolsChecked: number,
+	/**  Estimated tokens of all definitions. */
+	totalTokens: number,
+};
+
+export type LintRule = "missingDescription" | "vagueDescription" | "undescribedParameter" | "missingRequired" | "unknownRequired" | "overlappingTools" | "oversizedDefinition" | "oversizedServer";
+
 /**  `mcp://list-changed`: the server sent `notifications/*\/list_changed`. */
 export type ListChangedEvent = {
 	serverId: string,
@@ -512,6 +531,8 @@ export type SessionUsage = {
 	tokenSource: TokenSource,
 	cost: Cost | null,
 };
+
+export type Severity = "info" | "warning" | "error";
 
 export type Span = {
 	id: string,

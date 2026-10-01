@@ -11,6 +11,7 @@ use mcp_studio_core::{
     flow_yaml,
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
+    lint::{self, LintReport},
     llm::{
         CompletionRequest, Message, ProviderSettings, ProviderStatus, ProviderTestResult,
         OPENAI_KEY_NAME,
@@ -510,6 +511,13 @@ pub fn flow_to_yaml(flow: Flow) -> CommandResult<String> {
 #[tauri::command]
 pub fn flow_from_yaml(yaml: String) -> CommandResult<Flow> {
     Ok(flow_yaml::from_yaml(&yaml)?)
+}
+
+/// Checks tool definitions for vague descriptions, missing `required` fields, overlapping tools and
+/// oversized definitions. Pure computation on the given tools; nothing is sent anywhere.
+#[tauri::command]
+pub fn tools_lint(tools: Vec<ToolInfo>) -> LintReport {
+    lint::lint_tools(&tools)
 }
 
 #[tauri::command]
