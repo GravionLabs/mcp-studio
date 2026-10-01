@@ -9,6 +9,7 @@ use specta_typescript::Typescript;
 use crate::{
     client_import::{ConfigSource, ImportCandidate, ImportSummary},
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
+    compare::{CaseResult, EvalEvent, Variant, VariantResult},
     environments::{Environment, EnvironmentInput},
     events::ProgressEvent,
     events::{
@@ -19,10 +20,12 @@ use crate::{
         PromptArgumentInfo, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo,
     },
     flow::{Flow, FlowIssue, FlowIssueCode, FlowValidation, InputDecl, Step, StepKind, ToolRef},
+    flow_gen::GeneratedFlow,
     flow_run::{ConfirmEvent, ConfirmRequest, Decision, RunEvent, ToolPolicy},
     flow_runs::{FlowRun, RecordedCall, RunStatus, RunSummary, StepRun, StepStatus},
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
+    lint::{LintFinding, LintReport, LintRule, Severity},
     llm::{
         Completion, CompletionRequest, ContentBlock, Message, ProviderSettings, ProviderStatus,
         ProviderTestResult, Role, StopReason, StreamEvent, ToolDefinition, Usage,
@@ -35,6 +38,7 @@ use crate::{
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
+    test_suites::{Expectation, TestCase, TestCaseInput, TestSuite, TestSuiteInput},
     tokens::{CountingStatus, TokenSource},
     trace::{Span, SpanFilter, SpanKind, SpanStatus},
     update::UpdateInfo,
@@ -123,6 +127,20 @@ pub fn ipc_types() -> Types {
         .register::<ProviderTestResult>()
         .register::<ProviderSettings>()
         .register::<ProviderStatus>()
+        .register::<LintRule>()
+        .register::<Severity>()
+        .register::<LintFinding>()
+        .register::<LintReport>()
+        .register::<Variant>()
+        .register::<CaseResult>()
+        .register::<VariantResult>()
+        .register::<GeneratedFlow>()
+        .register::<EvalEvent>()
+        .register::<Expectation>()
+        .register::<TestCase>()
+        .register::<TestCaseInput>()
+        .register::<TestSuite>()
+        .register::<TestSuiteInput>()
 }
 
 /// Renders the TypeScript bindings file.

@@ -18,6 +18,7 @@ import type {
   ImportCandidate,
   ImportReport,
   ImportSummary,
+  LintReport,
   SavedRequest,
   SavedRequestInput,
   Environment,
@@ -42,7 +43,12 @@ import type {
   SpanFilter,
   ToolCallRequest,
   ToolCallResult,
+  TestSuite,
+  TestSuiteInput,
   ToolInfo,
+  Variant,
+  CaseResult,
+  GeneratedFlow,
   ToolPolicy,
   UpdateInfo,
 } from "./bindings";
@@ -248,12 +254,81 @@ export class TauriIpcService {
     return this.call("flow_validate", { flow });
   }
 
+  /**
+   * Asks a model to write a flow for a goal using the tools of the chosen servers. Sends the goal
+   * and the tool definitions to the model's provider. Nothing is saved or run.
+   */
+  flowGenerate(request: {
+    goal: string;
+    model: string;
+    serverIds: string[];
+    environmentId: string | null;
+  }): Promise<GeneratedFlow> {
+    return this.call("flow_generate", request);
+  }
+
   flowToYaml(flow: Flow): Promise<string> {
     return this.call("flow_to_yaml", { flow });
   }
 
   flowFromYaml(yaml: string): Promise<Flow> {
     return this.call("flow_from_yaml", { yaml });
+  }
+
+  /** Markdown documentation of a server's tools, with examples and error cases from its history. */
+  serverDocs(serverId: string, tools: ToolInfo[]): Promise<string> {
+    return this.call("server_docs", { serverId, tools });
+  }
+
+  serverDocsExport(serverId: string, tools: ToolInfo[], path: string): Promise<void> {
+    return this.call("server_docs_export", { serverId, tools, path });
+  }
+
+  testSuiteList(serverId: string): Promise<TestSuite[]> {
+    return this.call("test_suite_list", { serverId });
+  }
+
+  /** Creates a suite (`id` null) or replaces an existing one with all its cases. */
+  testSuiteSave(id: string | null, input: TestSuiteInput): Promise<TestSuite> {
+    return this.call("test_suite_save", { id, input });
+  }
+
+  testSuiteDelete(id: string): Promise<void> {
+    return this.call("test_suite_delete", { id });
+  }
+
+  /**
+   * Asks a model for variants of the prompt and tool descriptions of a suite, aimed at the cases
+   * that currently fail. Sends the tool definitions and those cases to the model's provider.
+   */
+  variantsPropose(request: {
+    suiteId: string;
+    model: string;
+    count: number;
+    failing: CaseResult[];
+    environmentId: string | null;
+  }): Promise<Variant[]> {
+    return this.call("variants_propose", request);
+  }
+
+  /**
+   * Runs a suite with each variant in the background; progress arrives as `eval://event`. Every
+   * case of every variant is one call to the model's provider; tools are never called. Cancel it
+   * with {@link flowRunCancel} (runs share the id space).
+   */
+  variantsRun(request: {
+    runId: string;
+    suiteId: string;
+    model: string;
+    variants: Variant[];
+    environmentId: string | null;
+  }): Promise<void> {
+    return this.call("variants_run", request);
+  }
+
+  /** Checks tool definitions for vague descriptions, missing `required` fields, overlap and size. */
+  toolsLint(tools: ToolInfo[]): Promise<LintReport> {
+    return this.call("tools_lint", { tools });
   }
 
   priceList(): Promise<Price[]> {

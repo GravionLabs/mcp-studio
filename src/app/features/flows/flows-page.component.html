@@ -15,6 +15,8 @@
     <button type="button" (click)="importFile()">Import YAML…</button>
   </form>
 
+  <app-flow-generate (saved)="refresh()" />
+
   @if (flows().length === 0) {
     <p class="muted">No flows yet. Create one or import a YAML file.</p>
   }

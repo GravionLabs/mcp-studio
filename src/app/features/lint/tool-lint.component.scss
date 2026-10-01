@@ -1,0 +1,48 @@
+.lint {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+
+  h3 {
+    margin: 0 0 4px;
+  }
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.group {
+  margin-top: 8px;
+
+  ul {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+  }
+
+  li {
+    padding: 2px 0;
+  }
+}
+
+.badge {
+  display: inline-block;
+  min-width: 56px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.error .badge {
+  color: var(--danger);
+}
+
+.warning .badge {
+  color: var(--warn);
+}
+
+.title {
+  font-weight: 600;
+}

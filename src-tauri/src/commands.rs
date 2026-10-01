@@ -1,16 +1,20 @@
 use mcp_studio_core::{
     client_import::{self, ConfigSource, ImportCandidate, ImportSummary},
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
+    compare::{self, EvalEvent, Variant},
+    docs_gen::{self, DocsInput},
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
     flow::{self, Flow, FlowValidation, ToolCatalog},
+    flow_gen::{self, GeneratedFlow},
     flow_replay::ReplayTools,
     flow_run::{self, Decision, FlowEngine, RunRequest, ToolPolicy},
     flow_runs::{FlowRun, RunSummary},
     flow_yaml,
     flows::FlowRecord,
     history::{HistoryEntry, HistoryFilter},
+    lint::{self, LintReport},
     llm::{
         CompletionRequest, Message, ProviderSettings, ProviderStatus, ProviderTestResult,
         OPENAI_KEY_NAME,
@@ -25,6 +29,7 @@ use mcp_studio_core::{
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
+    test_suites::{TestSuite, TestSuiteInput},
     tokens::{self, CountingStatus},
     trace::{query_spans, Span, SpanFilter},
     update::UpdateInfo,
@@ -32,7 +37,7 @@ use mcp_studio_core::{
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::{
@@ -500,6 +505,29 @@ pub async fn flow_validate(
     Ok(flow::validate_available(&flow, &catalog))
 }
 
+/// Asks a model to write a flow for a goal, using the tools of the chosen servers (they are
+/// connected on demand). The goal and the tool definitions are sent to the model's provider; one
+/// call, or two when the first answer needs a repair. Nothing is saved or run here: the caller
+/// saves and opens the flow only when the result has no issues.
+#[tauri::command]
+pub async fn flow_generate(
+    state: State<'_, AppState>,
+    goal: String,
+    model: String,
+    server_ids: Vec<String>,
+    environment_id: Option<String>,
+) -> CommandResult<GeneratedFlow> {
+    let mut catalog = ToolCatalog::new();
+    for id in &server_ids {
+        let server = state.registry.get(id).await?;
+        let tools = suite_tools(&state, id, environment_id.as_deref()).await?;
+        catalog.insert(server.input.name, tools);
+    }
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let (provider, model_name) = resolve_model(&settings, &state, &model)?;
+    Ok(flow_gen::generate_flow(provider.as_ref(), &model_name, &goal, &catalog).await?)
+}
+
 /// The YAML text of a flow, for the editor's YAML view.
 #[tauri::command]
 pub fn flow_to_yaml(flow: Flow) -> CommandResult<String> {
@@ -510,6 +538,207 @@ pub fn flow_to_yaml(flow: Flow) -> CommandResult<String> {
 #[tauri::command]
 pub fn flow_from_yaml(yaml: String) -> CommandResult<Flow> {
     Ok(flow_yaml::from_yaml(&yaml)?)
+}
+
+/// Markdown documentation of a server's tools: purpose and parameters from the definitions you pass,
+/// examples and error cases from the recorded history of that server. Nothing is sent anywhere.
+async fn render_server_docs(
+    state: &AppState,
+    server_id: &str,
+    tools: &[ToolInfo],
+) -> CommandResult<String> {
+    let server = state.registry.get(server_id).await?;
+    let history = state
+        .sessions
+        .history()
+        .list(&HistoryFilter {
+            server_id: Some(server_id.to_owned()),
+            limit: Some(1000),
+            ..HistoryFilter::default()
+        })
+        .await?;
+    let generated_on = docs_gen::civil_date(mcp_studio_core::db::now_ms());
+    Ok(docs_gen::render_docs(&DocsInput {
+        server_name: &server.input.name,
+        generated_on: &generated_on,
+        tools,
+        history: &history,
+    }))
+}
+
+#[tauri::command]
+pub async fn server_docs(
+    state: State<'_, AppState>,
+    server_id: String,
+    tools: Vec<ToolInfo>,
+) -> CommandResult<String> {
+    render_server_docs(&state, &server_id, &tools).await
+}
+
+/// Writes the documentation of a server's tools to a Markdown file.
+#[tauri::command]
+pub async fn server_docs_export(
+    state: State<'_, AppState>,
+    server_id: String,
+    tools: Vec<ToolInfo>,
+    path: String,
+) -> CommandResult<()> {
+    let markdown = render_server_docs(&state, &server_id, &tools).await?;
+    std::fs::write(&path, markdown)
+        .map_err(|e| CommandError(format!("could not write {path}: {e}")))
+}
+
+#[tauri::command]
+pub async fn test_suite_list(
+    state: State<'_, AppState>,
+    server_id: String,
+) -> CommandResult<Vec<TestSuite>> {
+    Ok(state.test_suites.list(&server_id).await?)
+}
+
+/// Creates a suite (`id` is null) or replaces an existing one with all its cases.
+#[tauri::command]
+pub async fn test_suite_save(
+    state: State<'_, AppState>,
+    id: Option<String>,
+    input: TestSuiteInput,
+) -> CommandResult<TestSuite> {
+    Ok(state.test_suites.save(id.as_deref(), input).await?)
+}
+
+#[tauri::command]
+pub async fn test_suite_delete(state: State<'_, AppState>, id: String) -> CommandResult<()> {
+    Ok(state.test_suites.delete(&id).await?)
+}
+
+/// The tools of the server of a suite, connecting the server when needed.
+async fn suite_tools(
+    state: &AppState,
+    server_id: &str,
+    environment_id: Option<&str>,
+) -> CommandResult<Vec<ToolInfo>> {
+    state.sessions.connect(server_id, environment_id).await?;
+    let peer = state.sessions.peer(server_id)?;
+    Ok(explorer::list_tools(&peer).await?)
+}
+
+fn resolve_model(
+    settings: &mcp_studio_core::llm::ProviderSettings,
+    state: &AppState,
+    model: &str,
+) -> CommandResult<(Arc<dyn mcp_studio_core::llm::LlmProvider>, String)> {
+    let resolved = mcp_studio_llm::resolve(settings, state.secrets.as_ref(), model)
+        .map_err(|e| CommandError(e.message))?;
+    Ok((resolved.provider, resolved.model))
+}
+
+/// Asks a model for variants of the prompt and tool descriptions of a suite. `failing` are the
+/// cases that the current descriptions get wrong (from a baseline run), so the model can aim at
+/// them. This sends the tool definitions and those cases to the model's provider: one call.
+#[tauri::command]
+pub async fn variants_propose(
+    state: State<'_, AppState>,
+    suite_id: String,
+    model: String,
+    count: u32,
+    failing: Vec<compare::CaseResult>,
+    environment_id: Option<String>,
+) -> CommandResult<Vec<Variant>> {
+    let suite = state.test_suites.get(&suite_id).await?;
+    let tools = suite_tools(&state, &suite.server_id, environment_id.as_deref()).await?;
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let (provider, model_name) = resolve_model(&settings, &state, &model)?;
+    Ok(compare::propose_variants(
+        provider.as_ref(),
+        &model_name,
+        &tools,
+        &suite,
+        &failing,
+        count.clamp(1, 6) as usize,
+    )
+    .await?)
+}
+
+/// Runs a suite with each variant in the background. Progress arrives as `eval://event` events.
+/// Every case of every variant is one call to the model's provider; the tools are only offered to
+/// the model and never called. The caller chooses `run_id` so it can listen before the start.
+#[tauri::command]
+pub async fn variants_run(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    run_id: String,
+    suite_id: String,
+    model: String,
+    variants: Vec<Variant>,
+    environment_id: Option<String>,
+) -> CommandResult<()> {
+    if state.running_flows.lock().unwrap().contains_key(&run_id) {
+        return Err(CommandError("this comparison is already going".into()));
+    }
+    let suite = state.test_suites.get(&suite_id).await?;
+    let tools = suite_tools(&state, &suite.server_id, environment_id.as_deref()).await?;
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let (provider, model_name) = resolve_model(&settings, &state, &model)?;
+    let cancel = tokio_util::sync::CancellationToken::new();
+    state
+        .running_flows
+        .lock()
+        .unwrap()
+        .insert(run_id.clone(), cancel.clone());
+    tauri::async_runtime::spawn(async move {
+        for variant in &variants {
+            if cancel.is_cancelled() {
+                break;
+            }
+            let on_case = |result: &compare::CaseResult| {
+                let _ = app.emit(
+                    "eval://event",
+                    EvalEvent::CaseDone {
+                        run_id: run_id.clone(),
+                        variant_id: variant.id.clone(),
+                        case_id: result.case_id.clone(),
+                        passed: result.passed,
+                    },
+                );
+            };
+            let result = compare::evaluate_variant(
+                provider.as_ref(),
+                &model_name,
+                &tools,
+                &suite,
+                variant,
+                &cancel,
+                &on_case,
+            )
+            .await;
+            let _ = app.emit(
+                "eval://event",
+                EvalEvent::VariantDone {
+                    run_id: run_id.clone(),
+                    result,
+                },
+            );
+        }
+        let _ = app.emit(
+            "eval://event",
+            EvalEvent::Finished {
+                run_id: run_id.clone(),
+                cancelled: cancel.is_cancelled(),
+                error: None,
+            },
+        );
+        if let Some(state) = app.try_state::<AppState>() {
+            state.running_flows.lock().unwrap().remove(&run_id);
+        }
+    });
+    Ok(())
+}
+
+/// Checks tool definitions for vague descriptions, missing `required` fields, overlapping tools and
+/// oversized definitions. Pure computation on the given tools; nothing is sent anywhere.
+#[tauri::command]
+pub fn tools_lint(tools: Vec<ToolInfo>) -> LintReport {
+    lint::lint_tools(&tools)
 }
 
 #[tauri::command]

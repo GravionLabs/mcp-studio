@@ -6,6 +6,23 @@ export type AppInfo = {
 	version: string,
 };
 
+/**  The outcome of one case for one variant. */
+export type CaseResult = {
+	caseId: string,
+	input: string,
+	expectation: Expectation,
+	passed: boolean,
+	/**  The first tool the model called, if any. */
+	calledTool: string | null,
+	/**  The start of the text the model wrote. */
+	answer: string,
+	/**  Exact tokens the provider reported for this call. */
+	inputTokens: number,
+	outputTokens: number,
+	/**  Set when the call to the model failed; the case then counts as not passed. */
+	error: string | null,
+};
+
 export type CollectionNode = {
 	id: string,
 	parentId: string | null,
@@ -116,6 +133,20 @@ export type EnvironmentInput = {
 	variables: { [key in string]: string },
 };
 
+/**  Progress of a comparison, for the UI. */
+export type EvalEvent = { type: "case_done"; runId: string; variantId: string; caseId: string; passed: boolean } | { type: "variant_done"; runId: string; result: VariantResult } | 
+/**  The comparison is over; `error` is set when it could not run at all. */
+{ type: "finished"; runId: string; cancelled: boolean; error: string | null };
+
+/**  What should happen for a case. */
+export type Expectation = 
+/**  The model calls this tool first. */
+{ kind: "tool"; name: string } | 
+/**  The model answers without calling a tool. */
+{ kind: "noTool" } | 
+/**  The model answers with text that contains this (ignoring case). */
+{ kind: "answer"; contains: string };
+
 export type ExportConfig = {
 	enabled?: boolean,
 	/**  Collector address, for example `http://localhost:4318`; `/v1/traces` is added when missing. */
@@ -182,6 +213,21 @@ export type FlowValidation = {
 	uncheckedServers: string[],
 };
 
+/**  The outcome of a generation. */
+export type GeneratedFlow = {
+	/**  The flow, when the answer could be read as one. */
+	flow: Flow | null,
+	/**  The YAML text the model wrote, as far as it could be extracted. */
+	yaml: string,
+	/**
+	 *  What is wrong with it, from reading it or from validation. Empty means it is valid and may
+	 *  be opened.
+	 */
+	issues: FlowIssue[],
+	/**  Model calls this took (1, or 2 with a repair). */
+	attempts: number,
+};
+
 export type HistoryEntry = {
 	id: number,
 	serverId: string,
@@ -241,6 +287,25 @@ export type InputDecl = {
 	type: string,
 	description?: string | null,
 };
+
+export type LintFinding = {
+	/**  The tool the finding is about; `None` for the server as a whole. */
+	tool: string | null,
+	rule: LintRule,
+	severity: Severity,
+	message: string,
+	/**  Other tools that are part of the finding (the overlapping ones). */
+	related: string[],
+};
+
+export type LintReport = {
+	findings: LintFinding[],
+	toolsChecked: number,
+	/**  Estimated tokens of all definitions. */
+	totalTokens: number,
+};
+
+export type LintRule = "missingDescription" | "vagueDescription" | "undescribedParameter" | "missingRequired" | "unknownRequired" | "overlappingTools" | "oversizedDefinition" | "oversizedServer";
 
 /**  `mcp://list-changed`: the server sent `notifications/*\/list_changed`. */
 export type ListChangedEvent = {
@@ -513,6 +578,8 @@ export type SessionUsage = {
 	cost: Cost | null,
 };
 
+export type Severity = "info" | "warning" | "error";
+
 export type Span = {
 	id: string,
 	traceId: string,
@@ -608,6 +675,38 @@ export type StreamEvent = { type: "text_delta"; text: string } |
 /**  A fragment of the JSON arguments of the tool call that is being generated. */
 { type: "tool_input_delta"; partial_json: string };
 
+export type TestCase = {
+	id: string,
+	input: string,
+	expectation: Expectation,
+	notes: string | null,
+};
+
+export type TestCaseInput = {
+	/**  The id of an existing case; new cases have none. */
+	id: string | null,
+	input: string,
+	expectation: Expectation,
+	notes: string | null,
+};
+
+export type TestSuite = {
+	id: string,
+	serverId: string,
+	name: string,
+	/**  The system prompt that is tested together with the tool descriptions. */
+	systemPrompt: string | null,
+	cases: TestCase[],
+	updatedAt: number,
+};
+
+export type TestSuiteInput = {
+	serverId: string,
+	name: string,
+	systemPrompt: string | null,
+	cases: TestCaseInput[],
+};
+
 /**  Where a token count comes from. */
 export type TokenSource = 
 /**  Approximated offline; see [`estimate_text`]. */
@@ -694,4 +793,27 @@ export type Usage = {
 	outputTokens: number,
 	cacheReadTokens: number | null,
 	cacheWriteTokens: number | null,
+};
+
+/**  A way to describe the tools to the model. */
+export type Variant = {
+	id: string,
+	label: string,
+	/**  Replaces the system prompt of the suite; `None` keeps the suite's own. */
+	systemPrompt: string | null,
+	/**  Replacement descriptions by tool name; other tools keep theirs. */
+	toolDescriptions: { [key in string]: string },
+};
+
+export type VariantResult = {
+	variant: Variant,
+	/**  In the order of the cases of the suite. */
+	results: CaseResult[],
+	passed: number,
+	total: number,
+	/**  Exact tokens summed over all cases. */
+	inputTokens: number,
+	outputTokens: number,
+	/**  Estimated tokens of the tool definitions that every request of this variant carries. */
+	definitionTokens: number,
 };
