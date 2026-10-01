@@ -4,7 +4,7 @@ use mcp_studio_core::{
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
     explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
-    flow::Flow,
+    flow::{self, Flow, FlowValidation, ToolCatalog},
     flow_replay::ReplayTools,
     flow_run::{self, Decision, FlowEngine, RunRequest, ToolPolicy},
     flow_runs::{FlowRun, RunSummary},
@@ -474,6 +474,30 @@ pub async fn tool_policy_set(
     policy: ToolPolicy,
 ) -> CommandResult<ToolPolicy> {
     Ok(flow_run::save_policy(&state.settings, policy).await?)
+}
+
+/// Checks a flow (it does not have to be saved) against the servers that are connected right now.
+/// Servers that are not connected are not connected for this: they are reported as unchecked.
+#[tauri::command]
+pub async fn flow_validate(
+    state: State<'_, AppState>,
+    flow: Flow,
+) -> CommandResult<FlowValidation> {
+    let servers = state.registry.list().await?;
+    let mut catalog = ToolCatalog::new();
+    for name in flow::referenced_servers(&flow) {
+        let Some(server) = servers.iter().find(|s| s.input.name == name) else {
+            // A server that does not exist is reported by validation itself.
+            catalog.insert(name, Vec::new());
+            continue;
+        };
+        if let Ok(peer) = state.sessions.peer(&server.id) {
+            if let Ok(tools) = explorer::list_tools(&peer).await {
+                catalog.insert(name, tools);
+            }
+        }
+    }
+    Ok(flow::validate_available(&flow, &catalog))
 }
 
 /// The YAML text of a flow, for the editor's YAML view.

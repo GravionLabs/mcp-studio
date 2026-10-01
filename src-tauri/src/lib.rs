@@ -168,6 +168,7 @@ pub fn run() {
             commands::flow_confirm,
             commands::tool_policy_get,
             commands::tool_policy_set,
+            commands::flow_validate,
             commands::flow_to_yaml,
             commands::flow_from_yaml,
             commands::provider_status,

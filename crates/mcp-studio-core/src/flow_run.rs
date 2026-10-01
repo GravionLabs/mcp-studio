@@ -31,7 +31,9 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     db::{new_id, now_ms, Db, DbError, DbResult},
     explorer::ToolInfo,
-    flow::{validate, Flow, FlowIssueCode, InputDecl, Step, StepKind, ToolCatalog},
+    flow::{
+        referenced_servers, validate, Flow, FlowIssueCode, InputDecl, Step, StepKind, ToolCatalog,
+    },
     flow_expr::{evaluate_condition, render_text, render_value},
     flow_runs::{FlowRun, FlowRuns, RecordedCall, RunStatus, StepStatus},
     llm::{
@@ -470,7 +472,7 @@ impl FlowEngine {
         // Look up the tools of every server the flow uses, then check the flow against them.
         let replaying = request.replay_of.is_some();
         let mut catalog = ToolCatalog::new();
-        for server in servers_of(flow) {
+        for server in referenced_servers(flow) {
             match self.tools.list_tools(&server).await {
                 Ok(tools) => {
                     catalog.insert(server, tools);
@@ -1027,24 +1029,6 @@ fn sum_options(a: Option<u32>, b: Option<u32>) -> Option<u32> {
         (None, None) => None,
         (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
     }
-}
-
-/// The servers a flow's tool steps and LLM tool lists refer to.
-fn servers_of(flow: &Flow) -> Vec<String> {
-    let mut servers: Vec<String> = Vec::new();
-    for step in &flow.steps {
-        let names: Vec<&str> = match &step.kind {
-            StepKind::Tool { server, .. } => vec![server.as_str()],
-            StepKind::Llm { tools, .. } => tools.iter().map(|t| t.server.as_str()).collect(),
-            _ => vec![],
-        };
-        for name in names {
-            if !servers.iter().any(|s| s == name) {
-                servers.push(name.to_owned());
-            }
-        }
-    }
-    servers
 }
 
 /// Every declared input needs a value of the declared type.

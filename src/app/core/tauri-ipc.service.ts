@@ -9,6 +9,7 @@ import type {
   ExportStatus,
   Flow,
   FlowRecord,
+  FlowValidation,
   FlowRun,
   CountingStatus,
   Decision,
@@ -240,6 +241,11 @@ export class TauriIpcService {
 
   toolPolicySet(policy: ToolPolicy): Promise<ToolPolicy> {
     return this.call("tool_policy_set", { policy });
+  }
+
+  /** Checks a flow against the servers that are connected; the others are reported as unchecked. */
+  flowValidate(flow: Flow): Promise<FlowValidation> {
+    return this.call("flow_validate", { flow });
   }
 
   flowToYaml(flow: Flow): Promise<string> {

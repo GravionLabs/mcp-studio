@@ -175,6 +175,13 @@ export type FlowRun = {
 	calls: RecordedCall[],
 };
 
+/**  The result of checking a flow in the editor. */
+export type FlowValidation = {
+	issues: FlowIssue[],
+	/**  Servers the flow uses that are not connected, so their tools were not checked. */
+	uncheckedServers: string[],
+};
+
 export type HistoryEntry = {
 	id: number,
 	serverId: string,

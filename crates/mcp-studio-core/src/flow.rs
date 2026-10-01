@@ -128,6 +128,70 @@ pub struct FlowIssue {
 /// What each server offers, keyed by the server name used in `tool` steps.
 pub type ToolCatalog = BTreeMap<String, Vec<ToolInfo>>;
 
+/// The servers a flow's tool steps and LLM tool lists refer to, in the order they first appear.
+pub fn referenced_servers(flow: &Flow) -> Vec<String> {
+    let mut servers: Vec<String> = Vec::new();
+    for step in &flow.steps {
+        let names: Vec<&str> = match &step.kind {
+            StepKind::Tool { server, .. } => vec![server.as_str()],
+            StepKind::Llm { tools, .. } => tools.iter().map(|t| t.server.as_str()).collect(),
+            _ => vec![],
+        };
+        for name in names {
+            if !servers.iter().any(|s| s == name) {
+                servers.push(name.to_owned());
+            }
+        }
+    }
+    servers
+}
+
+/// The result of checking a flow in the editor.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct FlowValidation {
+    pub issues: Vec<FlowIssue>,
+    /// Servers the flow uses that are not connected, so their tools were not checked.
+    pub unchecked_servers: Vec<String>,
+}
+
+/// Checks a flow against the servers in `catalog` only. What depends on a server that is not in the
+/// catalog cannot be judged, so it is not reported; those servers are returned as unchecked.
+pub fn validate_available(flow: &Flow, catalog: &ToolCatalog) -> FlowValidation {
+    let unchecked: Vec<String> = referenced_servers(flow)
+        .into_iter()
+        .filter(|server| !catalog.contains_key(server))
+        .collect();
+    let uses_unchecked = |step_id: &str| {
+        flow.steps
+            .iter()
+            .find(|s| s.id == step_id)
+            .is_some_and(|step| match &step.kind {
+                StepKind::Tool { server, .. } => unchecked.contains(server),
+                StepKind::Llm { tools, .. } => tools.iter().any(|t| unchecked.contains(&t.server)),
+                _ => false,
+            })
+    };
+    let issues = validate(flow, catalog)
+        .into_iter()
+        .filter(|issue| {
+            let about_tools = matches!(
+                issue.code,
+                FlowIssueCode::UnknownServer
+                    | FlowIssueCode::UnknownTool
+                    | FlowIssueCode::MissingArgument
+                    | FlowIssueCode::UnknownArgument
+                    | FlowIssueCode::ArgumentType
+            );
+            !(about_tools && issue.step_id.as_deref().is_some_and(uses_unchecked))
+        })
+        .collect();
+    FlowValidation {
+        issues,
+        unchecked_servers: unchecked,
+    }
+}
+
 /// Checks a flow against the servers and tools that are available. An empty result means the flow
 /// can run.
 ///
@@ -921,5 +985,43 @@ mod tests {
         assert_eq!(backward.len(), 2);
         assert!(backward.iter().all(|i| i.step_id.as_deref() == Some("c")));
         assert!(backward[0].message.contains("`then`") && backward[1].message.contains("`else`"));
+    }
+
+    #[test]
+    fn servers_that_are_not_connected_are_not_judged_but_reported() {
+        let f = flow(json!({
+            "version": 1, "name": "x",
+            "steps": [
+                { "id": "a", "type": "tool", "server": "github", "tool": "nope", "arguments": {} },
+                { "id": "b", "type": "tool", "server": "gitlab", "tool": "anything" },
+                { "id": "c", "type": "llm", "model": "m", "prompt": "p", "tools": [{ "server": "slack", "tool": "post" }] },
+                { "id": "o", "type": "output" }
+            ]
+        }));
+        assert_eq!(referenced_servers(&f), ["github", "gitlab", "slack"]);
+        // Only github is connected: its steps are checked, the others are not.
+        let result = validate_available(&f, &catalog());
+        assert_eq!(result.unchecked_servers, ["gitlab", "slack"]);
+        let codes: Vec<_> = result
+            .issues
+            .iter()
+            .map(|i| (i.step_id.as_deref(), i.code))
+            .collect();
+        assert_eq!(codes, [(Some("a"), FlowIssueCode::UnknownTool)]);
+        // Structural problems are always reported, also for steps of unchecked servers.
+        let mut broken = f.clone();
+        broken.steps[1].id = "a".into();
+        let result = validate_available(&broken, &catalog());
+        assert!(result
+            .issues
+            .iter()
+            .any(|i| i.code == FlowIssueCode::DuplicateStepId));
+        // A flow without tool steps has nothing unchecked.
+        let plain =
+            flow(json!({ "version": 1, "name": "p", "steps": [{ "id": "o", "type": "output" }] }));
+        assert_eq!(
+            validate_available(&plain, &ToolCatalog::new()).unchecked_servers,
+            Vec::<String>::new()
+        );
     }
 }

@@ -18,7 +18,7 @@ use crate::{
     explorer::{
         PromptArgumentInfo, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo,
     },
-    flow::{Flow, FlowIssue, FlowIssueCode, InputDecl, Step, StepKind, ToolRef},
+    flow::{Flow, FlowIssue, FlowIssueCode, FlowValidation, InputDecl, Step, StepKind, ToolRef},
     flow_run::{ConfirmEvent, ConfirmRequest, Decision, RunEvent, ToolPolicy},
     flow_runs::{FlowRun, RecordedCall, RunStatus, RunSummary, StepRun, StepStatus},
     flows::FlowRecord,
@@ -84,6 +84,7 @@ pub fn ipc_types() -> Types {
         .register::<ToolRef>()
         .register::<FlowIssue>()
         .register::<FlowIssueCode>()
+        .register::<FlowValidation>()
         .register::<FlowRecord>()
         .register::<ConfirmEvent>()
         .register::<ConfirmRequest>()

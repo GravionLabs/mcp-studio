@@ -54,6 +54,26 @@ outputs:
 - Importing adds a flow to the library and never overwrites one: a name that is taken gets a
   number (`my-flow (2)`). Reading a file does not check servers and tools; that is validation.
 
+## The editor
+
+**Edit** on the Flows page opens a graph editor (`@foblex/flow`) with the same flow as YAML next to
+it. Both views edit one flow: a change in the graph or the form shows in the YAML after a moment,
+and YAML that is valid updates the graph at once (a parse error is shown under the text and the
+graph keeps the last valid flow).
+
+- **Add** a step of any type from the palette; it goes after the selected step.
+- **Connect**: steps run in the order shown. Every step is connected to the next one; dragging from
+  one step to another puts the second right after the first. A condition has a `then` and an
+  `else` connector; dragging one to a later step sets that jump (a jump backwards is refused).
+  The same jumps can be set in the step's form.
+- **Configure** in the form on the right: the id (renaming follows `steps.<id>` in every template
+  and expression and the jumps of conditions), model and prompts, tools, arguments, expressions,
+  values and results.
+- **Checks** list what is wrong, by step, against the servers that are **connected right now**.
+  Servers that are not connected are not connected for this; they are listed as not checked.
+- Positions are only for the picture: the layout is one column in running order and is not
+  saved. Dragging a node changes where it is drawn in this session, not the flow.
+
 ## Models and providers
 
 The `model` of an `llm` step names the provider with a prefix. Keys live in the OS keyring and are

@@ -24,6 +24,7 @@
         <span class="name">{{ record.flow.name }}</span>
         <span class="muted">{{ describe(record.flow) }}</span>
         <span class="spacer"></span>
+        <a class="button" [routerLink]="['/flows', record.id, 'edit']">Edit</a>
         <button type="button" (click)="toggleRun(record)">
           {{ running()?.id === record.id ? "Hide run" : "Run…" }}
         </button>
