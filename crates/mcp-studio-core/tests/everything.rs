@@ -146,6 +146,9 @@ async fn server_everything_over_stdio() {
             headers: BTreeMap::new(),
             tags: vec![],
             oauth: false,
+            oauth_client_id: None,
+            oauth_scopes: None,
+            oauth_callback_port: None,
         })
         .await
         .unwrap();
@@ -201,6 +204,9 @@ async fn server_everything_over_streamable_http() {
             headers: BTreeMap::new(),
             tags: vec![],
             oauth: false,
+            oauth_client_id: None,
+            oauth_scopes: None,
+            oauth_callback_port: None,
         })
         .await
         .unwrap();

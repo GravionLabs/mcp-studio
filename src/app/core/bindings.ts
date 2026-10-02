@@ -563,6 +563,18 @@ export type ServerInput = {
 	tags: string[],
 	/**  The server needs OAuth 2.1 sign-in (Streamable HTTP only). */
 	oauth?: boolean,
+	/**
+	 *  Client ID registered by hand with the authorization server. Needed where dynamic client
+	 *  registration is not offered (Microsoft Entra ID); without it the app registers itself.
+	 */
+	oauthClientId?: string | null,
+	/**  Space-separated scopes to request. Empty: whatever the server advertises. */
+	oauthScopes?: string | null,
+	/**
+	 *  Fixed port for the loopback redirect (`http://localhost:<port>/callback`), for authorization
+	 *  servers that match the registered redirect URI exactly. Empty: any free port.
+	 */
+	oauthCallbackPort?: number | null,
 };
 
 /**  Tokens and cost of one session. */

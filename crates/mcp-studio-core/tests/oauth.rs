@@ -95,6 +95,9 @@ async fn add_server(h: &Harness, oauth: bool) -> String {
             headers: BTreeMap::new(),
             tags: vec![],
             oauth,
+            oauth_client_id: None,
+            oauth_scopes: None,
+            oauth_callback_port: None,
         })
         .await
         .unwrap()
@@ -159,6 +162,29 @@ async fn a_server_without_the_oauth_flag_is_rejected_by_sign_in() {
         error.to_string().contains("not configured for OAuth"),
         "{error}"
     );
+}
+
+#[tokio::test]
+async fn a_registered_client_signs_in_without_dynamic_registration() {
+    let h = harness().await;
+    let id = add_server(&h, true).await;
+    let mut input = h.registry.get(&id).await.unwrap().input;
+    input.oauth_client_id = Some("my-entra-app".into());
+    input.oauth_scopes = Some("api://x/.default offline_access".into());
+    h.registry.update(&id, input).await.unwrap();
+
+    h.manager.sign_in(&id, &browser()).await.expect("sign in");
+    assert!(h.manager.is_signed_in(&id).await);
+
+    let stats = stats(&h).await;
+    assert_eq!(stats["registrations"], 0);
+    assert_eq!(stats["lastClientId"], "my-entra-app");
+    let scope = stats["lastScope"].as_str().unwrap();
+    assert!(scope.contains("api://x/.default"), "{scope}");
+    h.manager
+        .connect(&id, None)
+        .await
+        .expect("connect with the stored token");
 }
 
 #[tokio::test]

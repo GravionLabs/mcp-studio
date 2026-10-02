@@ -187,6 +187,9 @@ fn to_input(name: &str, entry: &Value) -> (ServerInput, Option<String>) {
         headers: string_map(entry.get("headers")),
         tags: vec!["imported".into()],
         oauth: false,
+        oauth_client_id: None,
+        oauth_scopes: None,
+        oauth_callback_port: None,
     };
     (input, unsupported)
 }

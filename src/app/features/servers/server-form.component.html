@@ -74,6 +74,36 @@
       <input type="checkbox" [checked]="form().oauth" (change)="patch({ oauth: !form().oauth })" />
       Uses OAuth 2.1 (sign in with the browser; tokens are kept in the OS keyring)
     </label>
+    @if (form().oauth) {
+      <label>
+        <span>OAuth client ID (optional)</span>
+        <input
+          class="mono"
+          [value]="form().oauthClientId"
+          (input)="patch({ oauthClientId: text($event) })"
+          placeholder="Required for Microsoft Entra ID, e.g. an app registration's application ID"
+        />
+      </label>
+      <label>
+        <span>OAuth scopes (optional)</span>
+        <input
+          class="mono"
+          [value]="form().oauthScopes"
+          (input)="patch({ oauthScopes: text($event) })"
+          placeholder="Space-separated; empty uses the server's defaults"
+        />
+      </label>
+      <label>
+        <span>Callback port (optional)</span>
+        <input
+          class="mono"
+          inputmode="numeric"
+          [value]="form().oauthCallbackPort"
+          (input)="patch({ oauthCallbackPort: text($event) })"
+          placeholder="e.g. 3118 if the redirect URI http://localhost:3118/callback is registered"
+        />
+      </label>
+    }
     <div class="group">
       <span>Headers</span>
       <app-key-value-editor

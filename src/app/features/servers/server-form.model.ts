@@ -17,6 +17,12 @@ export interface ServerFormState {
   tags: string;
   /** The HTTP server needs OAuth 2.1 sign-in in the browser. */
   oauth: boolean;
+  /** Client ID registered by hand (Microsoft Entra ID has no dynamic registration). */
+  oauthClientId: string;
+  /** Space-separated scopes; empty uses what the server advertises. */
+  oauthScopes: string;
+  /** Fixed loopback redirect port as text; empty picks a free one. */
+  oauthCallbackPort: string;
 }
 
 export function emptyForm(transport: TransportKind = "stdio"): ServerFormState {
@@ -31,6 +37,9 @@ export function emptyForm(transport: TransportKind = "stdio"): ServerFormState {
     headers: [],
     tags: "",
     oauth: false,
+    oauthClientId: "",
+    oauthScopes: "",
+    oauthCallbackPort: "",
   };
 }
 
@@ -95,6 +104,7 @@ function buildInput(
   newSecretName: () => string,
   writes: SecretWrite[],
 ): ServerInput {
+  const oauth = form.transport === "http" && form.oauth;
   return {
     name: form.name.trim(),
     transport: form.transport,
@@ -109,6 +119,9 @@ function buildInput(
       .map((t) => t.trim())
       .filter((t) => t !== ""),
     oauth: form.transport === "http" && form.oauth,
+    oauthClientId: oauth ? form.oauthClientId.trim() || null : null,
+    oauthScopes: oauth ? form.oauthScopes.trim() || null : null,
+    oauthCallbackPort: oauth ? parsePort(form.oauthCallbackPort) : null,
   };
 }
 
@@ -124,7 +137,16 @@ export function inputToForm(input: ServerInput): ServerFormState {
     headers: recordToRows(input.headers),
     tags: input.tags.join(", "),
     oauth: input.oauth ?? false,
+    oauthClientId: input.oauthClientId ?? "",
+    oauthScopes: input.oauthScopes ?? "",
+    oauthCallbackPort: input.oauthCallbackPort?.toString() ?? "",
   };
+}
+
+/** A TCP port from text, or `null` when empty or not a valid port. */
+export function parsePort(text: string): number | null {
+  const value = Number(text.trim());
+  return Number.isInteger(value) && value >= 1 && value <= 65535 ? value : null;
 }
 
 /** Returns human-readable problems; an empty list means the form can be submitted. */
@@ -138,6 +160,12 @@ export function validateForm(form: ServerFormState): string[] {
     if (url === "") problems.push("URL is required for HTTP servers.");
     else if (!/^https?:\/\//i.test(url) || !URL.canParse(url)) {
       problems.push("URL must be a valid http:// or https:// address.");
+    }
+  }
+  if (form.transport === "http" && form.oauth) {
+    const port = form.oauthCallbackPort.trim();
+    if (port !== "" && parsePort(port) === null) {
+      problems.push("The callback port must be a number between 1 and 65535.");
     }
   }
   return problems;

@@ -87,6 +87,9 @@ fn stdio_server(command: &str, args: &[&str]) -> ServerInput {
         headers: BTreeMap::new(),
         tags: vec![],
         oauth: false,
+        oauth_client_id: None,
+        oauth_scopes: None,
+        oauth_callback_port: None,
     }
 }
 
@@ -246,6 +249,9 @@ async fn connects_over_streamable_http_with_headers() {
             headers: BTreeMap::from([("Authorization".into(), "keyring:h".into())]),
             tags: vec![],
             oauth: false,
+            oauth_client_id: None,
+            oauth_scopes: None,
+            oauth_callback_port: None,
         })
         .await
         .unwrap();
