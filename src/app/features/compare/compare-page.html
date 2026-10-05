@@ -1,0 +1,112 @@
+<div class="page">
+  <header class="bar">
+    <label>
+      <span>Server</span>
+      <select aria-label="Server" (change)="chooseServer(text($event))">
+        @for (server of servers.servers(); track server.id) {
+        <option [value]="server.id" [selected]="server.id === serverId()">{{ server.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>Suite</span>
+      <select aria-label="Suite" (change)="chooseSuite(text($event))">
+        @for (s of suites(); track s.id) {
+        <option [value]="s.id" [selected]="s.id === suiteId()">{{ s.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>Model</span>
+      <input aria-label="Model" [value]="model()" (input)="model.set(text($event))" />
+    </label>
+  </header>
+
+  @if (suite(); as s) {
+  <p class="muted">
+    Every case of every variant is one call to the model's provider ({{ calls() }} now). Tools are
+    never called. Tool definitions and cases are sent to the provider, also when you propose
+    variants.
+  </p>
+  <div class="actions">
+    <button type="button" (click)="run()" [disabled]="running() || proposing()">
+      Run {{ variants().length === 1 ? "baseline" : variants().length + " variants" }}
+    </button>
+    <button
+      type="button"
+      (click)="propose()"
+      [disabled]="running() || proposing() || results().length === 0"
+      title="Run the baseline first so proposals can aim at the failing cases"
+    >
+      {{ proposing() ? "Asking the model…" : "Propose variants" }}
+    </button>
+    @if (running()) {
+    <button type="button" class="ghost" (click)="cancel()">Cancel</button>
+    <span class="muted" role="status">{{ progress() }}</span>
+    }
+  </div>
+
+  @if (summary().length > 0) {
+  <table class="summary">
+    <thead>
+      <tr>
+        <th>Variant</th>
+        <th>Accuracy</th>
+        <th>Passed</th>
+        <th>Input tokens</th>
+        <th>Output tokens</th>
+        <th>Tool definitions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of summary(); track row.id) {
+      <tr [class.best]="row.best">
+        <td>
+          {{ row.label }} @if (row.best) {
+          <span class="badge">best</span>
+          }
+        </td>
+        <td>{{ percent(row.accuracy) }}</td>
+        <td>{{ row.passed }} / {{ row.total }}</td>
+        <td>{{ row.inputTokens }}</td>
+        <td>{{ row.outputTokens }}</td>
+        <td>{{ row.definitionTokens }}</td>
+      </tr>
+      }
+    </tbody>
+  </table>
+
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>Case</th>
+        @for (r of results(); track r.variant.id) {
+        <th>{{ r.variant.label }}</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of matrix(); track row.caseId) {
+      <tr>
+        <td>{{ row.input }}</td>
+        @for (cell of row.cells; track $index) {
+        <td [class.pass]="cell?.passed" [class.fail]="cell && !cell.passed">
+          @if (cell) { {{ cell.passed ? "✓" : "✗" }} {{ cell.note }} } @else { – }
+        </td>
+        }
+      </tr>
+      }
+    </tbody>
+  </table>
+  } @if (variants().length > 1) {
+  <h3>Proposed variants</h3>
+  @for (v of variants().slice(1); track v.id) {
+  <details>
+    <summary>{{ v.label }}</summary>
+    <pre>{{ describe(v) }}</pre>
+    <button type="button" class="ghost" (click)="copy(v)">Copy as Markdown</button>
+  </details>
+  } } } @else {
+  <p class="muted">This server has no test suites yet. Create one on the Suites page.</p>
+  }
+</div>

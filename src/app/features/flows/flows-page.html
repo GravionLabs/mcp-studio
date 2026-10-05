@@ -1,0 +1,66 @@
+<section class="page">
+  <h2>Flows</h2>
+  <p class="muted">
+    A flow combines LLM calls and tool calls of your servers. Flows are stored as YAML files, so you
+    can share them in Git: import a file or export a flow.
+  </p>
+  <form class="toolbar" (submit)="$event.preventDefault(); create()">
+    <input
+      aria-label="Name of the new flow"
+      placeholder="Name of a new flow"
+      [value]="newName()"
+      (input)="newName.set(text($event))"
+    />
+    <button type="submit" class="primary" [disabled]="newName().trim() === ''">Create</button>
+    <button type="button" (click)="importFile()">Import YAML…</button>
+  </form>
+
+  <app-flow-generate (saved)="refresh()" />
+
+  @if (flows().length === 0) {
+  <p class="muted">No flows yet. Create one or import a YAML file.</p>
+  }
+  <ul class="list">
+    @for (record of flows(); track record.id) {
+    <li class="item">
+      <span class="name">{{ record.flow.name }}</span>
+      <span class="muted">{{ describe(record.flow) }}</span>
+      <span class="spacer"></span>
+      <a class="button" [routerLink]="['/flows', record.id, 'edit']">Edit</a>
+      <button type="button" (click)="toggleRun(record)">
+        {{ running()?.id === record.id ? "Hide run" : "Run…" }}
+      </button>
+      <button type="button" class="ghost" (click)="exportFile(record)">Export YAML…</button>
+      <button type="button" class="ghost" (click)="remove(record)">Delete</button>
+    </li>
+    }
+  </ul>
+
+  @if (running(); as record) {
+  <app-flow-run [record]="record" />
+  }
+
+  <h3>Tools that run without asking</h3>
+  <p class="muted">
+    Every tool call of a flow asks you first. Tools you allow here run without asking: write
+    <code>server</code> for all tools of a server or <code>server/tool</code> for one tool. You can
+    also allow them when a flow asks.
+  </p>
+  <ul class="allowed">
+    @for (entry of policy().allow ?? []; track entry) {
+    <li>
+      <span class="mono">{{ entry }}</span>
+      <button type="button" class="ghost" (click)="removeEntry(entry)">Remove</button>
+    </li>
+    }
+  </ul>
+  <form class="toolbar" (submit)="$event.preventDefault(); allowEntry()">
+    <input
+      aria-label="Server or server/tool to allow"
+      placeholder="github or github/list_issues"
+      [value]="newAllowed()"
+      (input)="newAllowed.set(text($event))"
+    />
+    <button type="submit" [disabled]="newAllowed().trim() === ''">Allow</button>
+  </form>
+</section>

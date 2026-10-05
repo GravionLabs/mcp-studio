@@ -1,0 +1,102 @@
+<div class="page">
+  <aside class="list">
+    <div class="list-head">
+      <strong>Sessions</strong>
+      <button type="button" class="ghost" [disabled]="loading()" (click)="refresh()">
+        Refresh
+      </button>
+    </div>
+    @if (traces().length === 0) {
+    <p class="muted">No sessions recorded yet. Connect to a server or record a client.</p>
+    }
+    <ul>
+      @for (trace of traces(); track trace.id) {
+      <li>
+        <button
+          type="button"
+          class="ghost item"
+          [class.selected]="trace.traceId === selectedTrace()"
+          (click)="select(trace.traceId)"
+        >
+          <span class="name">{{ trace.name }}</span>
+          <span class="muted small">{{ clock(trace.startedAt) }}</span>
+          <span class="muted small">
+            {{ duration(trace) }} @if (trace.tokens !== null) { · {{ formatTokens(trace.tokens,
+            "estimate") }} }
+          </span>
+        </button>
+      </li>
+      }
+    </ul>
+  </aside>
+
+  <section class="view">
+    <app-trace-export />
+    @if (root(); as r) {
+    <header class="summary">
+      <h2>{{ r.name }}</h2>
+      <span class="muted">
+        {{ waterfall().rows.length }} spans · {{ formatDuration(waterfall().totalMs) }} @if
+        (r.tokens !== null) { ·
+        <span [title]="hint('estimate')">{{ formatTokens(r.tokens, "estimate") }}</span>
+        }
+      </span>
+      @if (waterfall().errors > 0) {
+      <span class="badge err">{{ waterfall().errors }} with errors</span>
+      } @if (waterfall().cancelled > 0) {
+      <span class="badge warn">{{ waterfall().cancelled }} cancelled</span>
+      }
+    </header>
+
+    <div class="table" role="table" aria-label="Waterfall">
+      <div class="row head" role="row">
+        <span role="columnheader">Span</span>
+        <span role="columnheader">Timeline</span>
+        <span role="columnheader" class="num">Duration</span>
+        <span role="columnheader" class="num">Tokens</span>
+      </div>
+      @for (row of waterfall().rows; track row.span.id) {
+      <button
+        type="button"
+        class="row"
+        role="row"
+        [class.selected]="row.span.id === selectedSpan()"
+        (click)="selectedSpan.set(row.span.id)"
+      >
+        <span class="label" [style.padding-left.px]="row.depth * 16" role="cell">
+          <span class="kind muted">{{ row.span.kind }}</span>
+          {{ row.span.name }} @if (row.span.status === "error") {
+          <span class="badge err">error</span>
+          } @else if (row.span.status === "cancelled") {
+          <span class="badge warn">cancelled</span>
+          }
+        </span>
+        <span class="track" role="cell">
+          <span
+            class="bar"
+            [class.error]="row.span.status === 'error'"
+            [class.cancelled]="row.span.status === 'cancelled'"
+            [class.session]="row.span.kind === 'session'"
+            [style.left.%]="row.offsetPct"
+            [style.width.%]="row.widthPct"
+          ></span>
+        </span>
+        <span class="num" role="cell">{{ formatDuration(row.durationMs) }}</span>
+        <span class="num" role="cell" [title]="hint('estimate')">
+          {{ row.span.tokens === null ? "–" : formatTokens(row.span.tokens, "estimate") }}
+        </span>
+      </button>
+      }
+    </div>
+
+    @if (detail(); as d) {
+    <div class="detail">
+      <strong>{{ d.span.name }}</strong>
+      <span class="muted"> · attributes</span>
+      <app-json-view [value]="d.text" />
+    </div>
+    } } @else {
+    <p class="muted pad">Select a session to see its waterfall.</p>
+    }
+  </section>
+</div>

@@ -1,0 +1,31 @@
+@if (report(); as r) {
+<section class="lint">
+  <h3>Tool quality</h3>
+  <p class="muted">
+    A model chooses tools by their names, descriptions and parameters. These checks point at
+    definitions that make that harder. They are hints, not proof.
+  </p>
+  <p>
+    <span [class.ok]="r.findings.length === 0">{{ summary() }}</span>
+    @if (r.findings.length > 0) {
+    <button type="button" class="ghost" (click)="open.set(!open())">
+      {{ open() ? "Hide details" : "Show details" }}
+    </button>
+    }
+  </p>
+  @if (open()) { @for (group of groups(); track group.tool) {
+  <div class="group">
+    <strong class="mono">{{ group.tool ?? "Whole server" }}</strong>
+    <ul>
+      @for (finding of group.findings; track $index) {
+      <li [class]="finding.severity">
+        <span class="badge">{{ finding.severity }}</span>
+        <span class="title">{{ ruleTitle(finding.rule) }}:</span>
+        {{ finding.message }}
+      </li>
+      }
+    </ul>
+  </div>
+  } }
+</section>
+}
