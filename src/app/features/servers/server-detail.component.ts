@@ -21,6 +21,7 @@ import { ToolLintComponent } from "../lint/tool-lint.component";
 import { ContextCostComponent } from "../prices/context-cost.component";
 import { ProxyPanelComponent } from "../proxy/proxy-panel.component";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
+import { type ServerTab, activeTab, visibleTabs } from "./server-detail.model";
 import { ServersStore } from "./servers.store";
 
 /** Summary of one server. The explorer takes over this page in a later PBI. */
@@ -60,6 +61,12 @@ export class ServerDetailComponent {
     () =>
       this.status.statuses().find((s) => s.serverId === this.id() && s.state === "error")?.message,
   );
+
+  /** The tab the user picked; `null` until they pick one. */
+  protected readonly selectedTab = signal<ServerTab | null>(null);
+  private readonly connected = computed(() => this.state() === "connected");
+  protected readonly visibleTabs = computed(() => visibleTabs(this.connected()));
+  protected readonly activeTab = computed(() => activeTab(this.selectedTab(), this.connected()));
 
   protected readonly server = computed(() => this.store.byId().get(this.id()));
   protected readonly loaded = this.store.loaded;
