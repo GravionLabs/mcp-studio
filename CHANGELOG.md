@@ -5,6 +5,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.1] — 2026-10-06
+
+### Bug Fixes
+- Refuse HTTP proxy requests for another host or from another site
+
+
 ## [1.0.0] — 2026-10-01
 
 ### Features
