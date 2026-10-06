@@ -257,6 +257,44 @@ async fn unknown_and_stdio_servers_are_rejected_with_a_clear_message() {
 }
 
 #[tokio::test]
+async fn requests_for_another_host_or_from_another_site_are_refused_before_forwarding() {
+    let h = harness().await;
+    add_http_server(&h, "demo", BTreeMap::new()).await;
+    let url = h.proxy.url_for("demo");
+    let body = r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#;
+    let post = || {
+        reqwest::Client::new()
+            .post(&url)
+            .header("content-type", "application/json")
+            .body(body)
+    };
+
+    // A rebinding page reaches 127.0.0.1 but its requests still name the attacker's host.
+    let rebound = post().header("host", "evil.example").send().await.unwrap();
+    assert_eq!(rebound.status(), 403);
+
+    let foreign_page = post()
+        .header("origin", "https://evil.example")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(foreign_page.status(), 403);
+
+    let sessions: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sessions")
+        .fetch_one(h.db.pool())
+        .await
+        .unwrap();
+    assert_eq!(sessions, 0, "a refused request must not reach the server");
+
+    let local_page = post()
+        .header("origin", "http://localhost:6274")
+        .send()
+        .await
+        .unwrap();
+    assert_ne!(local_page.status(), 403);
+}
+
+#[tokio::test]
 async fn the_proxy_url_encodes_server_names() {
     let h = harness().await;
     assert!(h.proxy.url_for("My Server").ends_with("/mcp/My%20Server"));

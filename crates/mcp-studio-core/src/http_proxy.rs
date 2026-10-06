@@ -3,6 +3,10 @@
 //!
 //! A client is configured with `http://127.0.0.1:<port>/mcp/<server name or id>` and needs no
 //! credentials; MCP Studio adds the server's headers, so secrets stay in the OS keyring.
+//!
+//! Because the endpoint adds credentials, it only answers requests that were addressed to it as a
+//! loopback host and that do not come from a web page of another site: a page that points its own
+//! domain at 127.0.0.1 (DNS rebinding) would otherwise use the server with the user's credentials.
 
 use std::{
     collections::HashMap,
@@ -14,7 +18,7 @@ use std::{
 use axum::{
     body::{Body, Bytes},
     extract::{Path, Request, State},
-    http::{header, HeaderMap, HeaderName, HeaderValue, Method, StatusCode},
+    http::{header, uri::Authority, HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri},
     response::Response,
     routing::any,
     Router,
@@ -66,6 +70,8 @@ struct Inner {
     secrets: Arc<dyn SecretStore>,
     sink: Arc<dyn EventSink>,
     client: reqwest::Client,
+    /// The port the endpoint listens on; a request's `Host` must name it.
+    port: u16,
     environment: Mutex<Option<String>>,
     /// (server id, upstream `Mcp-Session-Id` or empty) -> recording session.
     sessions: Mutex<HashMap<(String, String), ProxySession>>,
@@ -104,6 +110,7 @@ impl HttpProxy {
             secrets,
             sink,
             client,
+            port: addr.port(),
             environment: Mutex::new(None),
             sessions: Mutex::default(),
         });
@@ -204,11 +211,54 @@ fn error(status: StatusCode, message: impl Into<String>) -> Response {
         .expect("static response")
 }
 
+fn is_loopback(host: &str) -> bool {
+    let host = host.trim_start_matches('[').trim_end_matches(']');
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback())
+}
+
+/// Refuses requests that were not addressed to this endpoint as a loopback host, and requests a
+/// browser sends for a page of another site. Clients that are not browsers send no `Origin`.
+fn check_local(headers: &HeaderMap, uri: &Uri, port: u16) -> Result<(), String> {
+    let authority = match headers.get(header::HOST) {
+        Some(value) => value
+            .to_str()
+            .ok()
+            .and_then(|text| text.parse::<Authority>().ok()),
+        // HTTP/2 carries the host in the request target instead.
+        None => uri.authority().cloned(),
+    };
+    let addressed_here = authority
+        .as_ref()
+        .is_some_and(|a| is_loopback(a.host()) && a.port_u16() == Some(port));
+    if !addressed_here {
+        return Err(format!(
+            "this endpoint only answers requests to 127.0.0.1:{port} or localhost:{port}"
+        ));
+    }
+    if let Some(origin) = headers.get(header::ORIGIN) {
+        let local_page = origin
+            .to_str()
+            .ok()
+            .and_then(|text| text.parse::<Uri>().ok())
+            .is_some_and(|uri| uri.host().is_some_and(is_loopback));
+        if !local_page {
+            return Err("requests from web pages of other sites are not allowed".to_owned());
+        }
+    }
+    Ok(())
+}
+
 async fn forward(
     State(inner): State<Arc<Inner>>,
     Path(key): Path<String>,
     request: Request,
 ) -> Response {
+    if let Err(message) = check_local(request.headers(), request.uri(), inner.port) {
+        return error(StatusCode::FORBIDDEN, message);
+    }
     match handle(&inner, &key, request).await {
         Ok(response) => response,
         Err((status, message)) => error(status, message),
@@ -521,6 +571,54 @@ mod tests {
         fn record(&self, message: RecordedMessage) {
             self.0.lock().unwrap().push(message);
         }
+    }
+
+    fn local(host: Option<&str>, origin: Option<&str>) -> Result<(), String> {
+        let mut headers = HeaderMap::new();
+        if let Some(host) = host {
+            headers.insert(header::HOST, host.parse().unwrap());
+        }
+        if let Some(origin) = origin {
+            headers.insert(header::ORIGIN, origin.parse().unwrap());
+        }
+        check_local(&headers, &Uri::from_static("/mcp/demo"), 38465)
+    }
+
+    #[test]
+    fn requests_to_a_loopback_host_and_this_port_are_accepted() {
+        assert!(local(Some("127.0.0.1:38465"), None).is_ok());
+        assert!(local(Some("localhost:38465"), None).is_ok());
+        assert!(local(Some("LOCALHOST:38465"), None).is_ok());
+        assert!(local(Some("[::1]:38465"), None).is_ok());
+    }
+
+    #[test]
+    fn requests_to_another_host_or_port_are_refused() {
+        // DNS rebinding: the browser connects to 127.0.0.1 but still names the attacker's host.
+        assert!(local(Some("evil.example:38465"), None).is_err());
+        assert!(local(Some("127.0.0.1.evil.example:38465"), None).is_err());
+        assert!(local(Some("127.0.0.1:1"), None).is_err());
+        assert!(local(Some("127.0.0.1"), None).is_err());
+        assert!(local(None, None).is_err());
+    }
+
+    #[test]
+    fn the_host_of_an_http2_request_comes_from_the_request_target() {
+        let uri = Uri::from_static("http://127.0.0.1:38465/mcp/demo");
+        assert!(check_local(&HeaderMap::new(), &uri, 38465).is_ok());
+        let uri = Uri::from_static("http://evil.example:38465/mcp/demo");
+        assert!(check_local(&HeaderMap::new(), &uri, 38465).is_err());
+    }
+
+    #[test]
+    fn only_local_pages_may_call_from_a_browser() {
+        let host = Some("127.0.0.1:38465");
+        assert!(local(host, Some("http://localhost:6274")).is_ok());
+        assert!(local(host, Some("http://127.0.0.1:5173")).is_ok());
+        assert!(local(host, Some("http://[::1]:5173")).is_ok());
+        assert!(local(host, Some("https://evil.example")).is_err());
+        assert!(local(host, Some("http://localhost.evil.example")).is_err());
+        assert!(local(host, Some("null")).is_err());
     }
 
     #[test]
