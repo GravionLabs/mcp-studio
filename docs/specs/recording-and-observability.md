@@ -36,7 +36,9 @@ sequenceDiagram
   (`mcp-studio-proxy --server <id>`); it connects to the running app over a local socket, and the app
   spawns and forwards to the real server.
 - **HTTP proxy**: a local Streamable HTTP endpoint (`http://127.0.0.1:<port>/mcp/<server-id>`) that
-  forwards to the upstream URL, including auth headers.
+  forwards to the upstream URL, including auth headers. Because it adds credentials, it refuses
+  requests whose `Host` is not a loopback name with its own port and requests whose `Origin` is a
+  page of another site (protection against DNS rebinding).
 - The UI offers a "copy client config" button that generates the snippet for Claude Code
   (`.mcp.json`) and Claude Desktop.
 - Proxy sessions are stored with `sessions.origin = 'proxy'`.
