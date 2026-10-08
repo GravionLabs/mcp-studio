@@ -5,6 +5,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.2] — 2026-10-08
+
+### Features
+- Sign in with a pre-registered OAuth client (Microsoft Entra ID)
+
+
 ## [1.0.1] — 2026-10-06
 
 ### Bug Fixes
