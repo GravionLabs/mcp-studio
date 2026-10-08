@@ -542,6 +542,9 @@ mod tests {
                 headers: BTreeMap::new(),
                 tags: vec![],
                 oauth: false,
+                oauth_client_id: None,
+                oauth_scopes: None,
+                oauth_callback_port: None,
             })
             .await
             .unwrap();

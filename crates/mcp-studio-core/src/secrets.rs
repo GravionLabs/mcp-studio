@@ -225,6 +225,9 @@ mod tests {
             headers: BTreeMap::from([("Authorization".into(), "keyring:def".into())]),
             tags: vec![],
             oauth: false,
+            oauth_client_id: None,
+            oauth_scopes: None,
+            oauth_callback_port: None,
         }
     }
 

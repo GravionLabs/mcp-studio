@@ -890,7 +890,12 @@ impl SessionManager {
         let variables = std::collections::BTreeMap::new();
         let url = resolve_str(&url, &variables).unwrap_or(url);
         let store = KeyringCredentialStore::new(self.secrets.clone(), server_id);
-        oauth::sign_in(&url, store, opener, oauth::SIGN_IN_TIMEOUT).await
+        let settings = oauth::SignInSettings {
+            client_id: server.input.oauth_client_id.clone(),
+            scopes: server.input.oauth_scopes.clone(),
+            callback_port: server.input.oauth_callback_port,
+        };
+        oauth::sign_in(&url, &settings, store, opener, oauth::SIGN_IN_TIMEOUT).await
     }
 
     /// Forgets the stored OAuth credentials of a server and disconnects it.
@@ -1062,6 +1067,9 @@ mod tests {
             headers: BTreeMap::new(),
             tags: vec![],
             oauth: false,
+            oauth_client_id: None,
+            oauth_scopes: None,
+            oauth_callback_port: None,
         }
     }
 

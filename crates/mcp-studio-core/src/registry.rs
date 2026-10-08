@@ -41,6 +41,17 @@ pub struct ServerInput {
     /// The server needs OAuth 2.1 sign-in (Streamable HTTP only).
     #[serde(default)]
     pub oauth: bool,
+    /// Client ID registered by hand with the authorization server. Needed where dynamic client
+    /// registration is not offered (Microsoft Entra ID); without it the app registers itself.
+    #[serde(default)]
+    pub oauth_client_id: Option<String>,
+    /// Space-separated scopes to request. Empty: whatever the server advertises.
+    #[serde(default)]
+    pub oauth_scopes: Option<String>,
+    /// Fixed port for the loopback redirect (`http://localhost:<port>/callback`), for authorization
+    /// servers that match the registered redirect URI exactly. Empty: any free port.
+    #[serde(default)]
+    pub oauth_callback_port: Option<u16>,
 }
 
 /// A stored server definition.
@@ -93,6 +104,9 @@ impl ServerInput {
                 self.url = None;
                 self.headers.clear();
                 self.oauth = false;
+                self.oauth_client_id = None;
+                self.oauth_scopes = None;
+                self.oauth_callback_port = None;
             }
             TransportKind::Http => {
                 let raw = self
@@ -111,6 +125,16 @@ impl ServerInput {
                 self.env.clear();
                 self.cwd = None;
             }
+        }
+        self.oauth_client_id = clean(self.oauth_client_id);
+        self.oauth_scopes = clean(self.oauth_scopes);
+        if !self.oauth {
+            self.oauth_client_id = None;
+            self.oauth_scopes = None;
+            self.oauth_callback_port = None;
+        }
+        if self.oauth_callback_port == Some(0) {
+            self.oauth_callback_port = None;
         }
         Ok(self)
     }
@@ -133,6 +157,9 @@ struct Row {
     headers: String,
     tags: String,
     oauth: bool,
+    oauth_client_id: Option<String>,
+    oauth_scopes: Option<String>,
+    oauth_callback_port: Option<u16>,
     created_at: i64,
     updated_at: i64,
 }
@@ -160,6 +187,9 @@ impl TryFrom<Row> for ServerDefinition {
                 headers: serde_json::from_str(&row.headers).map_err(json)?,
                 tags: serde_json::from_str(&row.tags).map_err(json)?,
                 oauth: row.oauth,
+                oauth_client_id: row.oauth_client_id.clone(),
+                oauth_scopes: row.oauth_scopes.clone(),
+                oauth_callback_port: row.oauth_callback_port,
             },
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -169,10 +199,10 @@ impl TryFrom<Row> for ServerDefinition {
 
 const SELECT_ALL: &str =
     "SELECT id, name, transport, command, args, env, cwd, url, headers, tags, \
-     oauth, created_at, updated_at FROM servers ORDER BY name COLLATE NOCASE";
+     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, created_at, updated_at FROM servers ORDER BY name COLLATE NOCASE";
 const SELECT_ONE: &str =
     "SELECT id, name, transport, command, args, env, cwd, url, headers, tags, \
-     oauth, created_at, updated_at FROM servers WHERE id = ?";
+     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, created_at, updated_at FROM servers WHERE id = ?";
 
 /// Access to stored server definitions.
 #[derive(Clone, Debug)]
@@ -205,8 +235,9 @@ impl Registry {
         let id = new_id();
         let now = now_ms();
         sqlx::query(
-            "INSERT INTO servers (id, name, transport, command, args, env, cwd, url, headers, tags, oauth, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO servers (id, name, transport, command, args, env, cwd, url, headers, tags, oauth, \
+             oauth_client_id, oauth_scopes, oauth_callback_port, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&id)
         .bind(&input.name)
@@ -219,6 +250,9 @@ impl Registry {
         .bind(serde_json::to_string(&input.headers).unwrap_or_default())
         .bind(serde_json::to_string(&input.tags).unwrap_or_default())
         .bind(input.oauth)
+        .bind(&input.oauth_client_id)
+        .bind(&input.oauth_scopes)
+        .bind(input.oauth_callback_port)
         .bind(now)
         .bind(now)
         .execute(self.db.pool())
@@ -231,7 +265,8 @@ impl Registry {
         self.ensure_unique_name(&input.name, Some(id)).await?;
         let result = sqlx::query(
             "UPDATE servers SET name = ?, transport = ?, command = ?, args = ?, env = ?, cwd = ?, url = ?, \
-             headers = ?, tags = ?, oauth = ?, updated_at = ? WHERE id = ?",
+             headers = ?, tags = ?, oauth = ?, \
+             oauth_client_id = ?, oauth_scopes = ?, oauth_callback_port = ?, updated_at = ? WHERE id = ?",
         )
         .bind(&input.name)
         .bind(input.transport.as_str())
@@ -243,6 +278,9 @@ impl Registry {
         .bind(serde_json::to_string(&input.headers).unwrap_or_default())
         .bind(serde_json::to_string(&input.tags).unwrap_or_default())
         .bind(input.oauth)
+        .bind(&input.oauth_client_id)
+        .bind(&input.oauth_scopes)
+        .bind(input.oauth_callback_port)
         .bind(now_ms())
         .bind(id)
         .execute(self.db.pool())
@@ -296,6 +334,9 @@ mod tests {
             headers: BTreeMap::new(),
             tags: vec!["dev".into()],
             oauth: false,
+            oauth_client_id: None,
+            oauth_scopes: None,
+            oauth_callback_port: None,
         }
     }
 
@@ -311,6 +352,9 @@ mod tests {
             headers: BTreeMap::from([("Authorization".into(), "keyring:x".into())]),
             tags: vec![],
             oauth: false,
+            oauth_client_id: None,
+            oauth_scopes: None,
+            oauth_callback_port: None,
         }
     }
 
@@ -357,6 +401,26 @@ mod tests {
         assert!(updated.input.args.is_empty());
         assert!(updated.updated_at >= created.updated_at);
         assert_eq!(updated.created_at, created.created_at);
+    }
+
+    #[tokio::test]
+    async fn oauth_client_settings_are_trimmed_stored_and_dropped_without_oauth() {
+        let registry = registry().await;
+        let mut remote = http("Entra", "https://mcp.dev.azure.com/org");
+        remote.oauth = true;
+        remote.oauth_client_id = Some("  app-id ".into());
+        remote.oauth_scopes = Some("  ".into());
+        remote.oauth_callback_port = Some(3118);
+        let created = registry.create(remote.clone()).await.unwrap().input;
+        assert_eq!(created.oauth_client_id.as_deref(), Some("app-id"));
+        assert_eq!(created.oauth_scopes, None);
+        assert_eq!(created.oauth_callback_port, Some(3118));
+
+        remote.oauth = false;
+        remote.name = "other".into();
+        let plain = registry.create(remote).await.unwrap().input;
+        assert_eq!(plain.oauth_client_id, None);
+        assert_eq!(plain.oauth_callback_port, None);
     }
 
     #[tokio::test]

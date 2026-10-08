@@ -37,6 +37,9 @@ struct State_ {
     codes_issued: AtomicU32,
     refreshes: AtomicU32,
     unauthorized: AtomicU32,
+    registrations: AtomicU32,
+    /// `client_id` and `scope` of the last authorization request.
+    last_authorization: Mutex<(String, String)>,
     /// Access tokens that are currently valid.
     valid_tokens: Mutex<Vec<String>>,
 }
@@ -119,9 +122,10 @@ struct RegisterRequest {
 }
 
 async fn register(
-    State(_state): State<Shared>,
+    State(state): State<Shared>,
     Json(request): Json<RegisterRequest>,
 ) -> impl IntoResponse {
+    state.registrations.fetch_add(1, Ordering::SeqCst);
     (
         StatusCode::CREATED,
         Json(json!({
@@ -138,11 +142,16 @@ async fn register(
 struct AuthorizeQuery {
     redirect_uri: String,
     state: Option<String>,
+    #[serde(default)]
+    client_id: String,
+    #[serde(default)]
+    scope: String,
 }
 
 /// Behaves like a user who immediately approves: redirect back with a code.
 async fn authorize(State(state): State<Shared>, Query(query): Query<AuthorizeQuery>) -> Redirect {
     let n = state.codes_issued.fetch_add(1, Ordering::SeqCst) + 1;
+    *state.last_authorization.lock().unwrap() = (query.client_id.clone(), query.scope.clone());
     let mut target = format!("{}?code=code-{n}", query.redirect_uri);
     if let Some(value) = query.state {
         target.push_str(&format!("&state={value}"));
@@ -190,6 +199,9 @@ async fn stats(State(state): State<Shared>) -> Json<serde_json::Value> {
         "codesIssued": state.codes_issued.load(Ordering::SeqCst),
         "refreshes": state.refreshes.load(Ordering::SeqCst),
         "unauthorized": state.unauthorized.load(Ordering::SeqCst),
+        "registrations": state.registrations.load(Ordering::SeqCst),
+        "lastClientId": state.last_authorization.lock().unwrap().0,
+        "lastScope": state.last_authorization.lock().unwrap().1,
     }))
 }
 

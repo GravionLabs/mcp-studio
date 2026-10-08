@@ -69,6 +69,9 @@ describe("form conversion", () => {
       headers: { Authorization: "Bearer x" },
       tags: ["prod"],
       oauth: true,
+      oauthClientId: "app-id",
+      oauthScopes: "api://x/.default",
+      oauthCallbackPort: 3118,
     };
     expect(formToInput(inputToForm(input))).toEqual(input);
   });
@@ -79,6 +82,25 @@ describe("oauth", () => {
     const http = { ...emptyForm("http"), name: "r", url: "https://x.test", oauth: true };
     expect(formToInput(http).oauth).toBe(true);
     expect(formToInput({ ...http, transport: "stdio", command: "x" }).oauth).toBe(false);
+  });
+
+  it("keeps the client settings only with OAuth and rejects a bad port", () => {
+    const entra = {
+      ...emptyForm("http"),
+      name: "r",
+      url: "https://x.test",
+      oauth: true,
+      oauthClientId: " app ",
+      oauthCallbackPort: "3118",
+    };
+    expect(formToInput(entra)).toMatchObject({
+      oauthClientId: "app",
+      oauthScopes: null,
+      oauthCallbackPort: 3118,
+    });
+    expect(formToInput({ ...entra, oauth: false }).oauthClientId).toBeNull();
+    expect(validateForm({ ...entra, oauthCallbackPort: "99999" })).toHaveLength(1);
+    expect(validateForm(entra)).toEqual([]);
   });
 
   it("defaults to off for servers stored before the option existed", () => {

@@ -113,16 +113,57 @@ pub async fn sign_out(store: &KeyringCredentialStore) -> DbResult<()> {
         .map_err(|e| oauth_error("could not remove the credentials", e))
 }
 
+/// What the user configured for a server's sign-in beyond its URL.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SignInSettings {
+    /// A client ID registered by hand. Without one the app registers itself dynamically.
+    pub client_id: Option<String>,
+    /// Space-separated scopes to request. Without any, the server's advertised ones are used.
+    pub scopes: Option<String>,
+    /// Fixed port of the loopback redirect. Without one a free port is picked.
+    pub callback_port: Option<u16>,
+}
+
+impl SignInSettings {
+    /// The host of the redirect URI. Microsoft Entra ID only accepts `localhost` for the loopback
+    /// redirect of a registered app, so a hand-registered client uses it; the listener is on 127.0.0.1.
+    fn redirect_host(&self) -> &'static str {
+        if self.client_id.is_some() {
+            "localhost"
+        } else {
+            "127.0.0.1"
+        }
+    }
+
+    fn scope_list(&self) -> Vec<String> {
+        self.scopes
+            .as_deref()
+            .unwrap_or_default()
+            .split_whitespace()
+            .map(str::to_owned)
+            .collect()
+    }
+}
+
 /// Runs the browser sign-in for the server at `url` and stores the tokens.
 pub async fn sign_in(
     url: &str,
+    settings: &SignInSettings,
     store: KeyringCredentialStore,
     opener: &dyn UrlOpener,
     timeout: Duration,
 ) -> DbResult<()> {
-    let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
+    let wanted_port = settings.callback_port.unwrap_or(0);
+    let listener = TcpListener::bind(("127.0.0.1", wanted_port))
+        .await
+        .map_err(|e| {
+            DbError::Connection(format!(
+                "could not listen on port {wanted_port} for the sign-in redirect: {e}"
+            ))
+        })?;
     let port = listener.local_addr()?.port();
-    let redirect_uri = format!("http://127.0.0.1:{port}/callback");
+    let origin = format!("http://{}:{port}", settings.redirect_host());
+    let redirect_uri = format!("{origin}/callback");
 
     let mut manager = AuthorizationManager::new(url)
         .await
@@ -134,7 +175,12 @@ pub async fn sign_in(
         .map_err(|e| oauth_error("could not discover the authorization server", e))?;
     manager.set_metadata(resolution.metadata);
 
-    let request = AuthorizationRequest::new(redirect_uri).with_client_name("MCP Studio");
+    let mut request = AuthorizationRequest::new(redirect_uri)
+        .with_client_name("MCP Studio")
+        .with_scopes(settings.scope_list());
+    if let Some(client_id) = &settings.client_id {
+        request = request.with_preregistered_client(client_id);
+    }
     let session = AuthorizationSession::new(manager, request)
         .await
         .map_err(|(_, e)| oauth_error("could not prepare the authorization", e))?;
@@ -147,7 +193,7 @@ pub async fn sign_in(
         .await
         .map_err(|_| DbError::Connection("sign-in timed out; try again".into()))??;
     session
-        .handle_callback_url(&format!("http://127.0.0.1:{port}{target}"))
+        .handle_callback_url(&format!("{origin}{target}"))
         .await
         .map_err(|e| oauth_error("sign-in failed", e))?;
     Ok(())
@@ -240,6 +286,21 @@ mod tests {
 
         sign_out(&store).await.unwrap();
         assert!(store.load().await.unwrap().is_none());
+    }
+
+    #[test]
+    fn a_registered_client_redirects_to_localhost_and_scopes_are_split() {
+        let dynamic = SignInSettings::default();
+        assert_eq!(dynamic.redirect_host(), "127.0.0.1");
+        assert!(dynamic.scope_list().is_empty());
+
+        let entra = SignInSettings {
+            client_id: Some("abc".into()),
+            scopes: Some("  api://x/.default   offline_access ".into()),
+            callback_port: Some(3118),
+        };
+        assert_eq!(entra.redirect_host(), "localhost");
+        assert_eq!(entra.scope_list(), ["api://x/.default", "offline_access"]);
     }
 
     #[tokio::test]
