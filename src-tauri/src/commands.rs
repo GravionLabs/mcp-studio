@@ -19,7 +19,7 @@ use mcp_studio_core::{
         CompletionRequest, Message, ProviderSettings, ProviderStatus, ProviderTestResult,
         OPENAI_KEY_NAME,
     },
-    message_store::{query_messages, MessageFilter},
+    message_store::{query_messages, MessageFilter, RetentionPolicy},
     metering::{self, ContextCost, SessionUsage},
     model::{AppInfo, JsonValue},
     oauth,
@@ -29,6 +29,7 @@ use mcp_studio_core::{
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
+    storage::{self, StorageInfo},
     test_suites::{TestSuite, TestSuiteInput},
     tokens::{self, CountingStatus},
     trace::{query_spans, Span, SpanFilter},
@@ -213,6 +214,34 @@ pub async fn message_count_exact(
     };
     let counter = mcp_studio_llm::AnthropicCounter::new(key, counting_model(&state).await?);
     Ok(tokens::count_message_exact(&state.db, &counter, i64::from(message_id)).await?)
+}
+
+/// The limits after which recorded history is deleted.
+#[tauri::command]
+pub async fn retention_get(state: State<'_, AppState>) -> CommandResult<RetentionPolicy> {
+    Ok(storage::load_policy(&state.settings).await?)
+}
+
+/// Stores the limits and applies them right away.
+#[tauri::command]
+pub async fn retention_set(
+    state: State<'_, AppState>,
+    policy: RetentionPolicy,
+) -> CommandResult<RetentionPolicy> {
+    let policy = storage::save_policy(&state.settings, policy).await?;
+    storage::apply_policy(&state.db, policy).await?;
+    Ok(policy)
+}
+
+#[tauri::command]
+pub async fn storage_info(state: State<'_, AppState>) -> CommandResult<StorageInfo> {
+    Ok(storage::storage_info(&state.db).await?)
+}
+
+/// Deletes all recorded messages and the tool call history. Returns the number of messages.
+#[tauri::command]
+pub async fn history_delete_all(state: State<'_, AppState>) -> CommandResult<u64> {
+    Ok(storage::delete_history(&state.db).await?)
 }
 
 #[tauri::command]

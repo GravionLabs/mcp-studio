@@ -26,7 +26,7 @@ versioned migrations. Secrets are stored only as keyring references.
   but secrets are masked before storage.
 - A secret in `servers.env` or `servers.headers` is written as `keyring:<service>/<key>` and resolved
   only in Rust when the process or request starts.
-- History retention is configurable (default: 30 days or 100,000 messages, whichever comes first).
+- History retention is configurable on the Settings page (default: 30 days or 100,000 messages, whichever comes first). The limits are stored in the `settings` table under `retention` and applied at startup and when saved.
 
 ## Export and import
 

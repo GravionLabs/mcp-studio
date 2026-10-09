@@ -36,6 +36,7 @@ pub mod registry;
 pub mod secrets;
 pub mod session;
 pub mod settings;
+pub mod storage;
 pub mod test_suites;
 pub mod tokens;
 pub mod trace;

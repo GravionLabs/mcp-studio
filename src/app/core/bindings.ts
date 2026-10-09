@@ -491,6 +491,12 @@ export type ResourceTemplateInfo = {
 	mimeType?: string | null,
 };
 
+/**  How long history is kept. */
+export type RetentionPolicy = {
+	maxAgeDays?: number,
+	maxMessages?: number,
+};
+
 export type Role = "user" | "assistant";
 
 /**  Progress of a run, for the UI. */
@@ -685,6 +691,13 @@ export type StopReason =
 "tool_use" | 
 /**  The answer was cut off at `max_tokens`. */
 "max_tokens" | { other: string };
+
+export type StorageInfo = {
+	/**  Size of the database file, including free pages. */
+	databaseBytes: number | null,
+	messages: number,
+	historyEntries: number,
+};
 
 /**  Progress of a streamed answer. */
 export type StreamEvent = { type: "text_delta"; text: string } | 
