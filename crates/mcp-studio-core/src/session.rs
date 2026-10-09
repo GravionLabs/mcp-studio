@@ -14,6 +14,8 @@ use std::{
 
 #[allow(deprecated)]
 use azure_core::credentials::TokenCredential;
+// Server logging is deprecated in the MCP spec (SEP-2577) but servers still send it.
+#[allow(deprecated)]
 use rmcp::model::{LoggingLevel, LoggingMessageNotificationParam};
 use rmcp::{
     model::{
