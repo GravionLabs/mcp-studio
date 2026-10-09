@@ -1,7 +1,8 @@
 use mcp_studio_core::{
+    client_formats::{self, ClientSource},
     client_import::{self, ConfigSource, ImportCandidate, ImportSummary},
     client_routes::{
-        self, ClientEntry, EntryRef, RouteContext, RoutePreview, RouteResult, UnrouteResult,
+        self, ClientEntries, EntryRef, RouteContext, RoutePreview, RouteResult, UnrouteResult,
     },
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     compare::{self, EvalEvent, Variant},
@@ -1238,13 +1239,21 @@ fn route_context<'a>(app: &AppHandle, state: &'a AppState) -> CommandResult<Rout
     })
 }
 
+/// The configuration files of the clients that can be routed through MCP Studio. Only these files
+/// are ever changed.
+fn client_sources(app: &AppHandle) -> Vec<ClientSource> {
+    let home = app.path().home_dir().ok();
+    let app_data = app.path().data_dir().ok();
+    client_formats::detect_sources(home.as_deref(), app_data.as_deref())
+}
+
 /// The servers of every detected client configuration file, and whether they go through MCP Studio.
 #[tauri::command]
 pub async fn client_entries(
     app: AppHandle,
     state: State<'_, AppState>,
-) -> CommandResult<Vec<ClientEntry>> {
-    let sources = import_sources(app.clone());
+) -> CommandResult<ClientEntries> {
+    let sources = client_sources(&app);
     Ok(client_routes::list_entries(&route_context(&app, &state)?, &sources).await?)
 }
 
@@ -1255,7 +1264,7 @@ pub async fn client_route_preview(
     state: State<'_, AppState>,
     target: EntryRef,
 ) -> CommandResult<RoutePreview> {
-    let sources = import_sources(app.clone());
+    let sources = client_sources(&app);
     Ok(client_routes::preview(&route_context(&app, &state)?, &sources, &target).await?)
 }
 
@@ -1266,7 +1275,7 @@ pub async fn client_route(
     state: State<'_, AppState>,
     target: EntryRef,
 ) -> CommandResult<RouteResult> {
-    let sources = import_sources(app.clone());
+    let sources = client_sources(&app);
     Ok(client_routes::route(&route_context(&app, &state)?, &sources, &target).await?)
 }
 

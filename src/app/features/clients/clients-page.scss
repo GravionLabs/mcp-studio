@@ -16,6 +16,14 @@ h3 {
   margin-top: 8px;
 }
 
+.problem {
+  padding: 6px 10px;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  word-break: break-word;
+}
+
 .path {
   word-break: break-all;
 }

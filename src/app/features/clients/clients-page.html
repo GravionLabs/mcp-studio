@@ -1,10 +1,11 @@
 <section class="page">
   <h2>Clients</h2>
   <p class="muted">
-    Send the traffic of a server in Claude Desktop or Claude Code through MCP Studio, to see every
-    message in the inspector. MCP Studio changes only that entry in the client's configuration file,
-    keeps a copy of the file, and can put the original back. The client has to be restarted after a
-    change. A routed server only works while MCP Studio is running.
+    Send the traffic of a server in Claude Desktop, Claude Code, VS Code, the GitHub Copilot CLI or
+    OpenCode through MCP Studio, to see every message in the inspector. MCP Studio changes only that
+    entry in the client's configuration file, keeps a copy of the file, and can put the original
+    back. The client has to be restarted after a change. A routed server only works while MCP Studio
+    is running.
   </p>
 
   @if (pending(); as pending) {
@@ -50,7 +51,9 @@
       <button type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
     </div>
   </div>
-  } @if (loaded() && groups().length === 0) {
+  } @for (file of unreadable(); track file.path) {
+  <p class="problem" role="alert">{{ file.client }} was not read: {{ file.reason }}</p>
+  } @if (loaded() && groups().length === 0 && unreadable().length === 0) {
   <p class="muted">
     No client configuration with servers was found. Servers of other clients can be recorded by
     hand: see "Record a client" on a server's page.

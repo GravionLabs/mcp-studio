@@ -7,7 +7,7 @@ import {
   signal,
 } from "@angular/core";
 import { RouterLink } from "@angular/router";
-import type { ClientEntry, RoutePreview } from "../../core/bindings";
+import type { ClientEntry, RoutePreview, UnreadableFile } from "../../core/bindings";
 import { DialogService } from "../../core/dialog.service";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
@@ -37,6 +37,7 @@ export class ClientsPage implements OnInit {
   private readonly tabs = inject(WorkspaceTabsService);
 
   protected readonly entries = signal<ClientEntry[]>([]);
+  protected readonly unreadable = signal<UnreadableFile[]>([]);
   protected readonly loaded = signal(false);
   protected readonly busy = signal(false);
   protected readonly pending = signal<PendingRoute | null>(null);
@@ -55,7 +56,9 @@ export class ClientsPage implements OnInit {
 
   protected async reload(): Promise<void> {
     try {
-      this.entries.set(await this.ipc.clientEntries());
+      const found = await this.ipc.clientEntries();
+      this.entries.set(found.entries);
+      this.unreadable.set(found.unreadable);
     } catch (error) {
       this.toasts.fail("Could not read the client configurations", error);
     } finally {

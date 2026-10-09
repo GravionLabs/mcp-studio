@@ -1,8 +1,8 @@
 //! Routes servers of other clients through MCP Studio, and puts them back.
 //!
 //! Recording a real client means pointing one of its server entries at the MCP Studio proxy. This
-//! module does that edit in the client's own configuration file (Claude Desktop and Claude Code to
-//! begin with): it registers the server in MCP Studio, copies the file to a backup, replaces only
+//! module does that edit in the client's own configuration file (Claude Desktop, Claude Code, VS
+//! Code, the Copilot CLI and OpenCode; see `client_formats`): it registers the server in MCP Studio, copies the file to a backup, replaces only
 //! that entry, and remembers what it did, so [`unroute`] can restore the original entry.
 //!
 //! Nothing here touches a file that is not one of the known configuration files, and a write is
@@ -15,12 +15,13 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::Value;
 use specta::Type;
 use sqlx::FromRow;
 
 use crate::{
-    client_import::{import_one, looks_secret, to_input, ConfigSource},
+    client_formats::{ClientFormat, ClientSource},
+    client_import::{import_one, looks_secret},
     db::{new_id, now_ms, Db, DbError, DbResult},
     registry::{Registry, ServerInput, TransportKind},
     secrets::SecretStore,
@@ -62,7 +63,7 @@ pub enum EntryKind {
 pub struct ClientEntry {
     #[serde(flatten)]
     pub entry: EntryRef,
-    /// "Claude Desktop" or "Claude Code (user)".
+    /// "Claude Desktop", "VS Code (user)", ...
     pub client: String,
     /// "top level" or "project /path".
     pub origin: String,
@@ -75,6 +76,23 @@ pub struct ClientEntry {
     pub route_id: Option<String>,
     /// Why the entry cannot be routed.
     pub unsupported: Option<String>,
+}
+
+/// A configuration file that could not be read, so none of its servers are listed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct UnreadableFile {
+    pub client: String,
+    pub path: String,
+    pub reason: String,
+}
+
+/// The servers found in the known configuration files.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientEntries {
+    pub entries: Vec<ClientEntry>,
+    pub unreadable: Vec<UnreadableFile>,
 }
 
 /// What routing an entry would change.
@@ -131,20 +149,29 @@ struct LoadedFile {
 /// Every server entry in the known configuration files that exist.
 pub async fn list_entries(
     ctx: &RouteContext<'_>,
-    sources: &[ConfigSource],
-) -> DbResult<Vec<ClientEntry>> {
+    sources: &[ClientSource],
+) -> DbResult<ClientEntries> {
     let rows = routes(ctx.db).await?;
     let mut entries = Vec::new();
+    let mut unreadable = Vec::new();
     for source in sources.iter().filter(|s| s.exists) {
-        let Ok(file) = load(Path::new(&source.path)) else {
-            continue;
+        let file = match load(Path::new(&source.path)) {
+            Ok(file) => file,
+            Err(error) => {
+                unreadable.push(UnreadableFile {
+                    client: source.label.clone(),
+                    path: source.path.clone(),
+                    reason: error.to_string(),
+                });
+                continue;
+            }
         };
-        for (pointer, origin) in locations(&file.root) {
+        for (pointer, origin) in source.format.locations(&file.root) {
             let Some(servers) = file.root.pointer(&pointer).and_then(Value::as_object) else {
                 continue;
             };
             for (name, entry) in servers {
-                let (input, unsupported) = to_input(name, entry);
+                let (input, unsupported) = source.format.parse(name, entry);
                 let route = rows.iter().find(|r| {
                     r.config_path == source.path && r.location == pointer && r.entry_name == *name
                 });
@@ -163,20 +190,23 @@ pub async fn list_entries(
                     origin: origin.clone(),
                     kind,
                     summary: summarize(&input),
-                    routed: route.is_some() || is_routed(entry, ctx.http_proxy_port),
+                    routed: route.is_some() || is_routed(source.format, entry, ctx.http_proxy_port),
                     route_id: route.map(|r| r.id.clone()),
                     unsupported,
                 });
             }
         }
     }
-    Ok(entries)
+    Ok(ClientEntries {
+        entries,
+        unreadable,
+    })
 }
 
 /// What routing `target` would do. Changes nothing.
 pub async fn preview(
     ctx: &RouteContext<'_>,
-    sources: &[ConfigSource],
+    sources: &[ClientSource],
     target: &EntryRef,
 ) -> DbResult<RoutePreview> {
     let (source, _file, entry, input) = prepare(ctx, sources, target)?;
@@ -184,7 +214,7 @@ pub async fn preview(
     let server_id = existing
         .as_ref()
         .map_or("<id of the new server>", |s| s.id.as_str());
-    let after = routed_entry(ctx, &entry, &input, server_id)?;
+    let after = routed_entry(ctx, source.format, &entry, &input, server_id)?;
     let secrets = input
         .env
         .iter()
@@ -208,7 +238,7 @@ pub async fn preview(
 /// Points the entry at the MCP Studio proxy. The original stays recoverable through [`unroute`].
 pub async fn route(
     ctx: &RouteContext<'_>,
-    sources: &[ConfigSource],
+    sources: &[ClientSource],
     target: &EntryRef,
 ) -> DbResult<RouteResult> {
     let (source, mut file, entry, input) = prepare(ctx, sources, target)?;
@@ -223,7 +253,7 @@ pub async fn route(
             (imported.server, imported.secrets_moved)
         }
     };
-    let routed = routed_entry(ctx, &entry, &input, &server.id)?;
+    let routed = routed_entry(ctx, source.format, &entry, &input, &server.id)?;
     set_entry(&mut file.root, target, routed.clone())?;
     write_file(&path, &file)?;
 
@@ -332,9 +362,9 @@ async fn routes(db: &Db) -> DbResult<Vec<RouteRow>> {
 /// Checks that `target` is an entry in a known file that can be routed.
 fn prepare<'s>(
     ctx: &RouteContext<'_>,
-    sources: &'s [ConfigSource],
+    sources: &'s [ClientSource],
     target: &EntryRef,
-) -> DbResult<(&'s ConfigSource, LoadedFile, Value, ServerInput)> {
+) -> DbResult<(&'s ClientSource, LoadedFile, Value, ServerInput)> {
     let source = sources
         .iter()
         .find(|s| s.path == target.path && s.exists)
@@ -343,13 +373,13 @@ fn prepare<'s>(
     let entry = get_entry(&file.root, target)
         .cloned()
         .ok_or_else(|| DbError::NotFound(format!("entry \"{}\"", target.name)))?;
-    if is_routed(&entry, ctx.http_proxy_port) {
+    if is_routed(source.format, &entry, ctx.http_proxy_port) {
         return Err(DbError::Invalid(format!(
             "\"{}\" already goes through MCP Studio",
             target.name
         )));
     }
-    let (input, unsupported) = to_input(&target.name, &entry);
+    let (input, unsupported) = source.format.parse(&target.name, &entry);
     if let Some(reason) = unsupported {
         return Err(DbError::Invalid(format!(
             "\"{}\" cannot be routed: {reason}",
@@ -357,53 +387,32 @@ fn prepare<'s>(
         )));
     }
     // Fail before anything is copied or registered when the replacement cannot be built.
-    routed_entry(ctx, &entry, &input, "")?;
+    routed_entry(ctx, source.format, &entry, &input, "")?;
     Ok((source, file, entry, input))
 }
 
-/// The entry that replaces `entry`: the proxy program for stdio servers, the local HTTP proxy for
-/// HTTP servers. The server's own settings live in MCP Studio from now on.
+/// The entry that replaces `entry`; see [`ClientFormat::routed_entry`].
 fn routed_entry(
     ctx: &RouteContext<'_>,
+    format: ClientFormat,
     entry: &Value,
     input: &ServerInput,
     server_id: &str,
 ) -> DbResult<Value> {
-    let mut routed = Map::new();
-    if let Some(kind) = entry.get("type") {
-        routed.insert("type".into(), kind.clone());
-    }
-    match input.transport {
-        TransportKind::Stdio => {
-            let proxy = ctx.proxy_binary.as_ref().ok_or_else(|| {
-                DbError::Invalid(
-                    "the mcp-studio-proxy program was not found next to the app, so stdio servers cannot be routed"
-                        .into(),
-                )
-            })?;
-            routed.insert("command".into(), json!(proxy.to_string_lossy()));
-            routed.insert("args".into(), json!(["--server", server_id]));
-        }
-        TransportKind::Http => {
-            routed.entry("type").or_insert_with(|| json!("http"));
-            routed.insert(
-                "url".into(),
-                json!(format!(
-                    "http://127.0.0.1:{}/mcp/{server_id}",
-                    ctx.http_proxy_port
-                )),
-            );
-        }
-    }
-    Ok(Value::Object(routed))
+    format.routed_entry(
+        entry,
+        input,
+        ctx.proxy_binary.as_deref(),
+        ctx.http_proxy_port,
+        server_id,
+    )
 }
 
 /// Whether `entry` already runs through the MCP Studio proxy.
-fn is_routed(entry: &Value, http_port: u16) -> bool {
+fn is_routed(format: ClientFormat, entry: &Value, http_port: u16) -> bool {
     // The file name of the command, whichever separator the file was written with.
-    let program = entry
-        .get("command")
-        .and_then(Value::as_str)
+    let program = format
+        .command_of(entry)
         .and_then(|command| command.rsplit(['/', '\\']).next());
     if program.is_some_and(|p| p.starts_with("mcp-studio-proxy")) {
         return true;
@@ -440,29 +449,6 @@ fn summarize(input: &ServerInput) -> String {
             .join(" "),
         TransportKind::Http => input.url.clone().unwrap_or_default(),
     }
-}
-
-/// Where servers are defined in a Claude file: the top level and each project of Claude Code.
-fn locations(root: &Value) -> Vec<(String, String)> {
-    let mut found = Vec::new();
-    if root.get("mcpServers").is_some_and(Value::is_object) {
-        found.push(("/mcpServers".to_owned(), "top level".to_owned()));
-    }
-    if let Some(projects) = root.get("projects").and_then(Value::as_object) {
-        for (path, project) in projects {
-            if project.get("mcpServers").is_some_and(Value::is_object) {
-                found.push((
-                    format!("/projects/{}/mcpServers", escape_pointer(path)),
-                    format!("project {path}"),
-                ));
-            }
-        }
-    }
-    found
-}
-
-fn escape_pointer(segment: &str) -> String {
-    segment.replace('~', "~0").replace('/', "~1")
 }
 
 fn get_entry<'a>(root: &'a Value, target: &EntryRef) -> Option<&'a Value> {
@@ -570,6 +556,7 @@ fn backup_file(path: &Path, dir: &Path, route_id: &str) -> DbResult<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn a_file_that_changed_since_it_was_loaded_is_not_overwritten() {
@@ -610,31 +597,26 @@ mod tests {
 
     #[test]
     fn routed_entries_are_recognized() {
-        assert!(is_routed(
-            &json!({"command": "/opt/app/mcp-studio-proxy", "args": []}),
+        let claude = ClientFormat::Claude;
+        let routed = |entry: Value, port: u16| is_routed(claude, &entry, port);
+        assert!(routed(
+            json!({"command": "/opt/app/mcp-studio-proxy", "args": []}),
             1
         ));
-        assert!(is_routed(
-            &json!({"command": "C:\\app\\mcp-studio-proxy.exe"}),
+        assert!(routed(
+            json!({"command": "C:\\app\\mcp-studio-proxy.exe"}),
             1
         ));
-        assert!(is_routed(
-            &json!({"url": "http://127.0.0.1:38465/mcp/abc"}),
+        assert!(routed(
+            json!({"url": "http://127.0.0.1:38465/mcp/abc"}),
             38465
         ));
-        assert!(!is_routed(
-            &json!({"url": "http://127.0.0.1:38465/mcp/abc"}),
-            1
-        ));
-        assert!(!is_routed(&json!({"command": "npx"}), 1));
-        assert!(!is_routed(
-            &json!({"url": "https://example.com/mcp"}),
-            38465
-        ));
-    }
-
-    #[test]
-    fn pointer_segments_are_escaped() {
-        assert_eq!(escape_pointer("/home/me~x"), "~1home~1me~0x");
+        assert!(!routed(json!({"url": "http://127.0.0.1:38465/mcp/abc"}), 1));
+        assert!(!routed(json!({"command": "npx"}), 1));
+        assert!(!routed(json!({"url": "https://example.com/mcp"}), 38465));
+        let opencode =
+            json!({"type": "local", "command": ["/opt/app/mcp-studio-proxy", "--server", "x"]});
+        assert!(is_routed(ClientFormat::OpenCode, &opencode, 1));
+        assert!(!is_routed(ClientFormat::Claude, &opencode, 1));
     }
 }

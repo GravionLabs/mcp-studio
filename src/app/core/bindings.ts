@@ -23,8 +23,14 @@ export type CaseResult = {
 	error: string | null,
 };
 
+/**  The servers found in the known configuration files. */
+export type ClientEntries = {
+	entries: ClientEntry[],
+	unreadable: UnreadableFile[],
+};
+
 export type ClientEntry = {
-	/**  "Claude Desktop" or "Claude Code (user)". */
+	/**  "Claude Desktop", "VS Code (user)", ... */
 	client: string,
 	/**  "top level" or "project /path". */
 	origin: string,
@@ -38,6 +44,26 @@ export type ClientEntry = {
 	/**  Why the entry cannot be routed. */
 	unsupported: string | null,
 } & EntryRef;
+
+/**  How a client's configuration file is laid out. */
+export type ClientFormat = 
+/**  `mcpServers`, plus one per project in Claude Code's `~/.claude.json`. */
+"claude" | 
+/**  `servers` in VS Code's `mcp.json`. */
+"vsCode" | 
+/**  `mcpServers` in the Copilot CLI's `mcp-config.json`. */
+"copilotCli" | 
+/**  `mcp` in `opencode.json`, where a local server's command is one array. */
+"openCode";
+
+/**  A client configuration file that may contain servers. */
+export type ClientSource = {
+	/**  "Claude Desktop", "Claude Code (user)", "VS Code (user)", "Copilot CLI" or "OpenCode". */
+	label: string,
+	path: string,
+	exists: boolean,
+	format: ClientFormat,
+};
 
 export type CollectionNode = {
 	id: string,
@@ -870,6 +896,13 @@ export type ToolRef = {
 
 /**  How a server is reached. */
 export type TransportKind = "stdio" | "http";
+
+/**  A configuration file that could not be read, so none of its servers are listed. */
+export type UnreadableFile = {
+	client: string,
+	path: string,
+	reason: string,
+};
 
 export type UnrouteResult = {
 	restored: boolean,

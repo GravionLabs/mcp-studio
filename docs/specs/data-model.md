@@ -53,12 +53,15 @@ versioned migrations. Secrets are stored only as keyring references.
 ## Routing clients
 
 `client_routes` remembers entries of other clients' configuration files (Claude Desktop, Claude
-Code) that MCP Studio pointed at its proxy (`client_routes.rs`). Routing registers the server in MCP
+Code, VS Code's `mcp.json`, the Copilot CLI's `mcp-config.json`, OpenCode's `opencode.json`) that MCP
+Studio pointed at its proxy (`client_routes.rs`; the file layouts are in `client_formats.rs`). Routing registers the server in MCP
 Studio (secrets move into the keyring), copies the file to `<app data>/client-backups/` (readable
 by the user only), and replaces just that entry. The row holds the entry that was written; the
 original is read back from the backup when the route is undone, and is not restored over an entry
 that was edited since unless forced. Files are written atomically and not when another program
-changed them in between.
+changed them in between. Keys of an entry that are the client's own (a tool list, an `enabled` flag)
+stay; entries that use `${...}` variables or an `envFile` are not routed, because MCP Studio does
+not expand them; a file that is not plain JSON (VS Code allows comments) is reported, not changed.
 
 ## Keyring entries
 

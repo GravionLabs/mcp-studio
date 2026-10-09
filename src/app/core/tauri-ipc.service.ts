@@ -3,7 +3,7 @@ import type {
   AppInfo,
   CollectionNode,
   CollectionTree,
-  ClientEntry,
+  ClientEntries,
   ConfigSource,
   EntryRef,
   ContextCost,
@@ -563,7 +563,7 @@ export class TauriIpcService {
     return this.call("oauth_status", { id });
   }
 
-  clientEntries(): Promise<ClientEntry[]> {
+  clientEntries(): Promise<ClientEntries> {
     return this.call("client_entries");
   }
 
