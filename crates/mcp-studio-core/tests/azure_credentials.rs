@@ -267,3 +267,56 @@ async fn oauth_and_azure_credentials_cannot_be_combined() {
     let error = h.registry.update(&id, input).await.unwrap_err();
     assert!(error.to_string().contains("cannot be combined"), "{error}");
 }
+
+async fn add_plain_server(h: &Harness, path: &str, azure: bool) -> String {
+    h.registry
+        .create(ServerInput {
+            name: format!("Plain {path}"),
+            transport: TransportKind::Http,
+            command: None,
+            args: vec![],
+            env: BTreeMap::new(),
+            cwd: None,
+            url: Some(format!("{}{path}", h.base)),
+            headers: BTreeMap::new(),
+            tags: vec![],
+            oauth: false,
+            oauth_client_id: None,
+            oauth_scopes: None,
+            oauth_callback_port: None,
+            azure_credentials: azure,
+        })
+        .await
+        .unwrap()
+        .id
+}
+
+#[tokio::test]
+async fn a_rejected_entra_server_is_explained() {
+    let h = harness().await;
+    let id = add_plain_server(&h, "/entra", false).await;
+    let message = h
+        .manager
+        .connect(&id, None)
+        .await
+        .map(|_| ())
+        .expect_err("must fail")
+        .to_string();
+    assert!(message.contains("Microsoft Entra ID"), "{message}");
+    assert!(message.contains("Uses the Azure login"), "{message}");
+}
+
+#[tokio::test]
+async fn a_rejected_server_that_is_not_entra_gets_no_advice() {
+    let h = harness().await;
+    let id = add_plain_server(&h, "/mcp", false).await;
+    let message = h
+        .manager
+        .connect(&id, None)
+        .await
+        .map(|_| ())
+        .expect_err("must fail")
+        .to_string();
+    assert!(message.contains("Auth required"), "{message}");
+    assert!(!message.contains("Entra"), "{message}");
+}
