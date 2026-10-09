@@ -5,15 +5,28 @@
     <div class="actions">
       @if (s.oauth && signedIn()) {
       <button type="button" class="ghost" (click)="signOut()">Sign out</button>
-      } @if (state() === "connected") {
+      } @if (s.azureCredentials && state() !== "connected") { @if (azureSigningIn()) {
+      <button type="button" disabled>Waiting for the Azure login…</button>
+      } @else {
+      <button
+        type="button"
+        [class.primary]="azureLoginNeeded()"
+        [class.ghost]="!azureLoginNeeded()"
+        [disabled]="busy() || state() === 'connecting'"
+        title="Runs az login; the Azure CLI opens the browser"
+        (click)="azureLogin()"
+      >
+        Sign in with Azure
+      </button>
+      } } @if (state() === "connected") {
       <button type="button" [disabled]="busy()" (click)="disconnect()">Disconnect</button>
       } @else if (signingIn()) {
       <button type="button" disabled>Waiting for the browser…</button>
       } @else {
       <button
         type="button"
-        class="primary"
-        [disabled]="busy() || state() === 'connecting'"
+        [class.primary]="!(s.azureCredentials && azureLoginNeeded())"
+        [disabled]="busy() || state() === 'connecting' || azureSigningIn()"
         (click)="connect()"
       >
         {{ state() === "connecting" ? "Connecting…" : s.oauth && signedIn() !== true ? "Sign in &

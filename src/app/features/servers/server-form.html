@@ -96,7 +96,7 @@
       class="mono"
       [value]="form().oauthScopes"
       (input)="patch({ oauthScopes: text($event) })"
-      placeholder="Empty uses the scope from the server's metadata. Sign in first with: az login --allow-no-subscriptions"
+      placeholder="Empty uses the scope from the server's metadata. Sign in on the server page (Sign in with Azure)"
     />
   </label>
   } @if (form().oauth) {

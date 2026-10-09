@@ -4,13 +4,19 @@
 //! The scope is read from the server's protected resource metadata. The token is kept in memory
 //! only and fetched again shortly before it expires or when the server rejects it.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    process::{Output, Stdio},
+    sync::Arc,
+    time::Duration as StdDuration,
+};
 
 use azure_core::{
     credentials::TokenCredential,
     time::{Duration, OffsetDateTime},
 };
-use azure_identity::DeveloperToolsCredential;
+use azure_identity::{DeveloperToolsCredential, DeveloperToolsCredentialOptions, Executor};
 use futures_util::stream::BoxStream;
 use http::{HeaderName, HeaderValue};
 use rmcp::{
@@ -22,16 +28,151 @@ use rmcp::{
 use serde::Deserialize;
 use sse_stream::{Error as SseError, Sse};
 
-use crate::db::{DbError, DbResult};
+use crate::{
+    db::{DbError, DbResult},
+    path_env,
+};
 
 /// A cached token is replaced once it has less than this left.
 const REFRESH_MARGIN: Duration = Duration::minutes(5);
 
-/// The credential chain of the Azure developer tools: `az`, then `azd`.
+/// The credential chain of the Azure developer tools: `az`, then `azd`. They run with the `PATH` of
+/// the user's login shell, because a desktop app starts with a minimal one and would not find them.
 pub fn developer_tools() -> DbResult<Arc<dyn TokenCredential>> {
-    let credential = DeveloperToolsCredential::new(None)
+    let options = DeveloperToolsCredentialOptions {
+        executor: Some(Arc::new(LoginPathExecutor)),
+    };
+    let credential = DeveloperToolsCredential::new(Some(options))
         .map_err(|e| DbError::Connection(format!("could not set up Azure credentials: {e}")))?;
     Ok(credential)
+}
+
+/// Runs the commands of the credential chain with the login shell's `PATH` added.
+#[derive(Debug)]
+struct LoginPathExecutor;
+
+#[async_trait::async_trait]
+impl Executor for LoginPathExecutor {
+    async fn run(&self, program: &OsStr, args: &[&OsStr]) -> std::io::Result<Output> {
+        let mut command = tokio::process::Command::new(program);
+        command.args(args).stdin(Stdio::null()).kill_on_drop(true);
+        if let Some(path) = search_path() {
+            command.env("PATH", path);
+        }
+        command.output().await
+    }
+}
+
+/// The login shell's `PATH` merged with ours; `None` where there is no login shell (Windows).
+fn search_path() -> Option<String> {
+    path_env::login_shell_path()
+        .map(|login| path_env::merge_paths(login, &std::env::var("PATH").unwrap_or_default()))
+}
+
+/// How long to wait for the user to finish the sign-in in the browser.
+const LOGIN_TIMEOUT: StdDuration = StdDuration::from_secs(5 * 60);
+
+/// Signs in with the Azure CLI (`az login --allow-no-subscriptions`, in `tenant` if given). The CLI
+/// opens the browser and returns when the user is done. The sign-in is the CLI's: later token
+/// requests (and the user's other tools) use it.
+pub async fn login(tenant: Option<&str>) -> DbResult<()> {
+    login_with(az_program(), search_path(), tenant, LOGIN_TIMEOUT).await
+}
+
+fn az_program() -> &'static str {
+    if cfg!(windows) {
+        "az.cmd"
+    } else {
+        "az"
+    }
+}
+
+/// Tenant IDs are GUIDs and tenant domains are DNS names; nothing else is passed to the CLI.
+fn valid_tenant(tenant: &str) -> bool {
+    !tenant.is_empty()
+        && tenant.len() <= 253
+        && tenant
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
+        && !tenant.starts_with('-')
+}
+
+async fn login_with(
+    program: &str,
+    search_path: Option<String>,
+    tenant: Option<&str>,
+    timeout: StdDuration,
+) -> DbResult<()> {
+    let tenant = tenant.map(str::trim).filter(|t| !t.is_empty());
+    let mut command = tokio::process::Command::new(program);
+    command.args(["login", "--allow-no-subscriptions"]);
+    if let Some(tenant) = tenant {
+        if !valid_tenant(tenant) {
+            return Err(DbError::Invalid(
+                "the tenant must be a tenant ID or a domain name".into(),
+            ));
+        }
+        command.args(["--tenant", tenant]);
+    }
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    if let Some(path) = search_path {
+        command.env("PATH", path);
+    }
+    let child = command.spawn().map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            DbError::Connection(
+                "the Azure CLI (`az`) was not found. Install it from https://aka.ms/installazurecli and try again"
+                    .into(),
+            )
+        } else {
+            DbError::Connection(format!("could not start the Azure CLI: {e}"))
+        }
+    })?;
+    let output = tokio::time::timeout(timeout, child.wait_with_output())
+        .await
+        .map_err(|_| {
+            DbError::Connection(format!(
+                "the Azure sign-in was not completed within {} minutes",
+                timeout.as_secs().div_ceil(60)
+            ))
+        })?
+        .map_err(|e| DbError::Connection(format!("the Azure CLI stopped unexpectedly: {e}")))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    Err(DbError::Connection(format!(
+        "the Azure sign-in failed: {}",
+        login_failure(&String::from_utf8_lossy(&output.stderr))
+    )))
+}
+
+/// The part of the CLI's error output worth showing: its `ERROR:` lines, else the last lines.
+fn login_failure(stderr: &str) -> String {
+    let errors: Vec<&str> = stderr
+        .lines()
+        .map(str::trim)
+        .filter(|l| l.starts_with("ERROR:") || l.contains("AADSTS"))
+        .collect();
+    let lines = if errors.is_empty() {
+        let all: Vec<&str> = stderr
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .collect();
+        all[all.len().saturating_sub(3)..].to_vec()
+    } else {
+        errors
+    };
+    let text = lines.join(" ");
+    if text.is_empty() {
+        "the Azure CLI gave no reason".into()
+    } else {
+        text
+    }
 }
 
 /// Turns an error of the credential chain into something the user can act on.
@@ -39,7 +180,8 @@ pub fn explain(error: &azure_core::Error) -> String {
     let text = error.to_string();
     let lower = text.to_lowercase();
     if lower.contains("aadsts50076") || lower.contains("multi-factor") {
-        return "your tenant requires multi-factor authentication. Run `az login --tenant <tenant id> \
+        return "your tenant requires multi-factor authentication. Use \"Sign in with Azure\" on the \
+                server page and enter your tenant ID, or run `az login --tenant <tenant id> \
                 --allow-no-subscriptions` and complete the prompt in the browser"
             .into();
     }
@@ -47,7 +189,9 @@ pub fn explain(error: &azure_core::Error) -> String {
         || lower.contains("azd auth login")
         || lower.contains("not logged in")
     {
-        return "you are not signed in to Azure. Run `az login --allow-no-subscriptions`".into();
+        return "you are not signed in to Azure. Use \"Sign in with Azure\" on the server page, or run \
+                `az login --allow-no-subscriptions`"
+            .into();
     }
     if lower.contains("not found")
         || lower.contains("no such file")
@@ -501,5 +645,156 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(scopes, vec!["a/.default", "b"]);
+    }
+
+    #[test]
+    fn tenants_are_ids_or_domain_names_only() {
+        assert!(valid_tenant("72f988bf-86f1-41af-91ab-2d7cd011db47"));
+        assert!(valid_tenant("contoso.onmicrosoft.com"));
+        for bad in ["", "-x", "a b", "a;rm -rf", "a&b", "$(x)", "a\"b"] {
+            assert!(!valid_tenant(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_failed_login_shows_the_error_lines_of_the_cli() {
+        let stderr = "WARNING: something\nERROR: AADSTS50076: MFA needed\nTrace ID: x\n";
+        assert_eq!(login_failure(stderr), "ERROR: AADSTS50076: MFA needed");
+        assert_eq!(login_failure("a\nb\nc\nd\n"), "b c d");
+        assert_eq!(login_failure(""), "the Azure CLI gave no reason");
+    }
+
+    #[test]
+    fn explanations_point_to_the_sign_in_button() {
+        let not_signed_in =
+            azure_core::Error::with_message(ErrorKind::Credential, "Please run 'az login'");
+        let message = explain(&not_signed_in);
+        assert!(message.contains("Sign in with Azure"), "{message}");
+        assert!(message.contains("az login"), "{message}");
+        let mfa = azure_core::Error::with_message(ErrorKind::Credential, "AADSTS50076");
+        assert!(explain(&mfa).contains("multi-factor"));
+    }
+
+    #[tokio::test]
+    async fn login_reports_a_missing_azure_cli() {
+        let error = login_with(
+            "mcp-studio-no-such-program",
+            Some(String::new()),
+            None,
+            StdDuration::from_secs(5),
+        )
+        .await
+        .unwrap_err();
+        assert!(error.to_string().contains("Azure CLI"), "{error}");
+        assert!(error.to_string().contains("not found"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn login_rejects_a_tenant_that_is_not_one() {
+        let error = login_with("az", None, Some("a; b"), StdDuration::from_secs(5))
+            .await
+            .unwrap_err();
+        assert!(matches!(error, DbError::Invalid(_)), "{error}");
+    }
+
+    /// `login_with`, tried again while the kernel still considers the freshly written script open
+    /// for writing (`ETXTBSY`): another test thread may have forked while it was being written.
+    #[cfg(unix)]
+    async fn login_retrying(
+        path: &Option<String>,
+        tenant: Option<&str>,
+        timeout: StdDuration,
+    ) -> DbResult<()> {
+        let mut result = login_with("az", path.clone(), tenant, timeout).await;
+        for _ in 0..20 {
+            match &result {
+                Err(e) if e.to_string().contains("Text file busy") => {
+                    tokio::time::sleep(StdDuration::from_millis(50)).await;
+                    result = login_with("az", path.clone(), tenant, timeout).await;
+                }
+                _ => break,
+            }
+        }
+        result
+    }
+
+    /// A stand-in `az` that records its arguments and exits with the given code.
+    #[cfg(unix)]
+    fn fake_az(dir: &std::path::Path, exit: i32, stderr: &str) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let record = dir.join("args.txt");
+        let script = dir.join("az");
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\necho \"$@\" > '{}'\necho '{stderr}' >&2\nexit {exit}\n",
+                record.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        record
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn login_runs_az_login_found_through_the_given_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let record = fake_az(dir.path(), 0, "WARNING: noise");
+        let path = Some(dir.path().to_string_lossy().into_owned());
+
+        login_retrying(&path, None, StdDuration::from_secs(5))
+            .await
+            .unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&record).unwrap().trim(),
+            "login --allow-no-subscriptions"
+        );
+
+        login_retrying(
+            &path,
+            Some(" contoso.onmicrosoft.com "),
+            StdDuration::from_secs(5),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&record).unwrap().trim(),
+            "login --allow-no-subscriptions --tenant contoso.onmicrosoft.com"
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn login_reports_why_the_cli_failed() {
+        let dir = tempfile::tempdir().unwrap();
+        fake_az(dir.path(), 1, "ERROR: user cancelled");
+        let path = Some(dir.path().to_string_lossy().into_owned());
+
+        let error = login_retrying(&path, None, StdDuration::from_secs(5))
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("sign-in failed"), "{error}");
+        assert!(error.to_string().contains("user cancelled"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn login_gives_up_when_the_user_never_finishes() {
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("az");
+        std::fs::write(&script, "#!/bin/sh\nexec /bin/sleep 30\n").unwrap();
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let path = Some(dir.path().to_string_lossy().into_owned());
+
+        let error = login_retrying(&path, None, StdDuration::from_millis(200))
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("not completed"), "{error}");
     }
 }
