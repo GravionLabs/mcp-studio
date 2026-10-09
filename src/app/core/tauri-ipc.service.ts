@@ -27,6 +27,9 @@ import type {
   MessageFilter,
   MessageRecord,
   ProxyInfo,
+  RetentionPolicy,
+  StorageInfo,
+  WorkspaceChanges,
   PromptInfo,
   Price,
   ProviderSettings,
@@ -112,6 +115,34 @@ export class TauriIpcService {
 
   spansQuery(filter: SpanFilter): Promise<Span[]> {
     return this.call("spans_query", { filter });
+  }
+
+  retentionGet(): Promise<RetentionPolicy> {
+    return this.call("retention_get");
+  }
+
+  retentionSet(policy: RetentionPolicy): Promise<RetentionPolicy> {
+    return this.call("retention_set", { policy });
+  }
+
+  storageInfo(): Promise<StorageInfo> {
+    return this.call("storage_info");
+  }
+
+  historyDeleteAll(): Promise<number> {
+    return this.call("history_delete_all");
+  }
+
+  workspaceExport(path: string): Promise<void> {
+    return this.call("workspace_export", { path });
+  }
+
+  workspacePreview(path: string): Promise<WorkspaceChanges> {
+    return this.call("workspace_preview", { path });
+  }
+
+  workspaceImport(path: string): Promise<WorkspaceChanges> {
+    return this.call("workspace_import", { path });
   }
 
   traceExportConfig(): Promise<ExportConfig> {

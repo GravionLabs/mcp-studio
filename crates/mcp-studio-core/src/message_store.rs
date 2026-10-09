@@ -2,6 +2,8 @@
 
 use std::{sync::Arc, time::Duration};
 
+use serde::{Deserialize, Serialize};
+use specta::Type;
 use tokio::{sync::mpsc, task::JoinHandle};
 
 use crate::{
@@ -405,7 +407,8 @@ pub async fn query_messages(db: &Db, filter: &MessageFilter) -> DbResult<Vec<Mes
 }
 
 /// How long history is kept.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase", default)]
 pub struct RetentionPolicy {
     pub max_age_days: u32,
     pub max_messages: u32,
