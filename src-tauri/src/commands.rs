@@ -1,5 +1,8 @@
 use mcp_studio_core::{
     client_import::{self, ConfigSource, ImportCandidate, ImportSummary},
+    client_routes::{
+        self, ClientEntry, EntryRef, RouteContext, RoutePreview, RouteResult, UnrouteResult,
+    },
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     compare::{self, EvalEvent, Variant},
     docs_gen::{self, DocsInput},
@@ -1216,6 +1219,65 @@ pub fn import_sources(app: AppHandle) -> Vec<ConfigSource> {
     let home = app.path().home_dir().ok();
     let app_data = app.path().data_dir().ok();
     client_import::detect_sources(home.as_deref(), app_data.as_deref())
+}
+
+/// Everything the routing of client entries needs from the running app.
+fn route_context<'a>(app: &AppHandle, state: &'a AppState) -> CommandResult<RouteContext<'a>> {
+    let backup_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| CommandError(e.to_string()))?
+        .join("client-backups");
+    Ok(RouteContext {
+        db: &state.db,
+        registry: &state.registry,
+        secrets: state.secrets.as_ref(),
+        proxy_binary: mcp_studio_core::proxy::locate_proxy_binary(),
+        http_proxy_port: state.http_proxy.port(),
+        backup_dir,
+    })
+}
+
+/// The servers of every detected client configuration file, and whether they go through MCP Studio.
+#[tauri::command]
+pub async fn client_entries(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> CommandResult<Vec<ClientEntry>> {
+    let sources = import_sources(app.clone());
+    Ok(client_routes::list_entries(&route_context(&app, &state)?, &sources).await?)
+}
+
+/// What routing an entry through MCP Studio would change. Changes nothing.
+#[tauri::command]
+pub async fn client_route_preview(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    target: EntryRef,
+) -> CommandResult<RoutePreview> {
+    let sources = import_sources(app.clone());
+    Ok(client_routes::preview(&route_context(&app, &state)?, &sources, &target).await?)
+}
+
+/// Points an entry of a client's configuration at the MCP Studio proxy, after a backup.
+#[tauri::command]
+pub async fn client_route(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    target: EntryRef,
+) -> CommandResult<RouteResult> {
+    let sources = import_sources(app.clone());
+    Ok(client_routes::route(&route_context(&app, &state)?, &sources, &target).await?)
+}
+
+/// Puts the original entry back. Without `force`, an entry that was changed since is left alone.
+#[tauri::command]
+pub async fn client_unroute(
+    state: State<'_, AppState>,
+    route_id: String,
+    force: bool,
+) -> CommandResult<UnrouteResult> {
+    Ok(client_routes::unroute(&state.db, &route_id, force).await?)
 }
 
 /// Lists the servers defined in a client configuration file.

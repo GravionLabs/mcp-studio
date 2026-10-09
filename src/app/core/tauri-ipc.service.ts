@@ -3,7 +3,9 @@ import type {
   AppInfo,
   CollectionNode,
   CollectionTree,
+  ClientEntry,
   ConfigSource,
+  EntryRef,
   ContextCost,
   ExportConfig,
   ExportStatus,
@@ -30,6 +32,9 @@ import type {
   RetentionPolicy,
   StorageInfo,
   WorkspaceChanges,
+  RoutePreview,
+  RouteResult,
+  UnrouteResult,
   PromptInfo,
   Price,
   ProviderSettings,
@@ -556,6 +561,22 @@ export class TauriIpcService {
 
   oauthStatus(id: string): Promise<boolean> {
     return this.call("oauth_status", { id });
+  }
+
+  clientEntries(): Promise<ClientEntry[]> {
+    return this.call("client_entries");
+  }
+
+  clientRoutePreview(target: EntryRef): Promise<RoutePreview> {
+    return this.call("client_route_preview", { target });
+  }
+
+  clientRoute(target: EntryRef): Promise<RouteResult> {
+    return this.call("client_route", { target });
+  }
+
+  clientUnroute(routeId: string, force: boolean): Promise<UnrouteResult> {
+    return this.call("client_unroute", { routeId, force });
   }
 
   importSources(): Promise<ConfigSource[]> {

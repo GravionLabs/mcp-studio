@@ -8,6 +8,7 @@ use specta_typescript::Typescript;
 
 use crate::{
     client_import::{ConfigSource, ImportCandidate, ImportSummary},
+    client_routes::{ClientEntry, EntryKind, EntryRef, RoutePreview, RouteResult, UnrouteResult},
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     compare::{CaseResult, EvalEvent, Variant, VariantResult},
     environments::{Environment, EnvironmentInput},
@@ -81,6 +82,12 @@ pub fn ipc_types() -> Types {
         .register::<ConfigSource>()
         .register::<ImportCandidate>()
         .register::<ImportSummary>()
+        .register::<EntryRef>()
+        .register::<EntryKind>()
+        .register::<ClientEntry>()
+        .register::<RoutePreview>()
+        .register::<RouteResult>()
+        .register::<UnrouteResult>()
         .register::<HistoryEntry>()
         .register::<HistoryFilter>()
         .register::<Flow>()
