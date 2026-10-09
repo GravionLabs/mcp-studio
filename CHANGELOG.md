@@ -5,6 +5,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Refactoring
+- Drop the Component suffix from file and class names (#213)
+
+
+## [1.0.3] — 2026-10-09
+
+### Features
+- Show the server page sections as tabs (#214)
+
+
 ## [1.0.2] — 2026-10-08
 
 ### Features
