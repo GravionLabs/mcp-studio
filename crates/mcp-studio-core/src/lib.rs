@@ -3,6 +3,7 @@
 pub mod azure_auth;
 pub mod bindings;
 pub mod client_import;
+pub mod client_routes;
 pub mod collections;
 pub mod compare;
 pub mod db;

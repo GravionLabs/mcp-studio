@@ -42,6 +42,17 @@ versioned migrations. Secrets are stored only as keyring references.
 | `0003_history`                  | The `history` table                           |
 | `0004_server_oauth`             | `servers.oauth`                               |
 | `0009_server_azure_credentials` | `servers.azure_credentials`                   |
+| `0010_client_routes`            | `client_routes`                               |
+
+## Routing clients
+
+`client_routes` remembers entries of other clients' configuration files (Claude Desktop, Claude
+Code) that MCP Studio pointed at its proxy (`client_routes.rs`). Routing registers the server in MCP
+Studio (secrets move into the keyring), copies the file to `<app data>/client-backups/` (readable
+by the user only), and replaces just that entry. The row holds the entry that was written; the
+original is read back from the backup when the route is undone, and is not restored over an entry
+that was edited since unless forced. Files are written atomically and not when another program
+changed them in between.
 
 ## Keyring entries
 
