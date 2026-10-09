@@ -226,6 +226,7 @@ pub fn run() {
             commands::history_list,
             commands::history_clear,
             commands::proxy_info,
+            commands::demo_server_path,
             commands::proxy_set_environment,
             commands::oauth_sign_in,
             commands::oauth_sign_out,

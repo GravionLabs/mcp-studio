@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ServerDefinition } from "../../core/bindings";
-import { DEMO_SERVER, findDemoServer, recentServers } from "./welcome.model";
+import {
+  NPX_DEMO_SERVER,
+  bundledDemoServer,
+  demoServerInput,
+  findDemoServer,
+  recentServers,
+} from "./welcome.model";
 
 function server(id: string, updatedAt: number, overrides: Partial<ServerDefinition> = {}) {
   return {
@@ -38,18 +44,37 @@ describe("recentServers", () => {
   });
 });
 
-describe("findDemoServer", () => {
-  it("finds the demo server the user added before", () => {
-    const demo = server("demo", 1, {
-      name: DEMO_SERVER.name,
-      command: DEMO_SERVER.command,
-      args: DEMO_SERVER.args,
-    });
-    expect(findDemoServer([server("other", 1), demo])).toBe(demo);
+describe("demoServerInput", () => {
+  it("runs the bundled test server directly when the app found it", () => {
+    const input = demoServerInput("/opt/mcp-studio/mcp-studio-testserver");
+    expect(input).toEqual(bundledDemoServer("/opt/mcp-studio/mcp-studio-testserver"));
+    expect(input.command).toBe("/opt/mcp-studio/mcp-studio-testserver");
+    expect(input.args).toEqual([]);
+    expect(input.transport).toBe("stdio");
   });
 
-  it("does not mistake a server that only has the same name", () => {
-    expect(findDemoServer([server("x", 1, { name: DEMO_SERVER.name })])).toBeUndefined();
-    expect(findDemoServer([])).toBeUndefined();
+  it("falls back to the reference server through npx", () => {
+    expect(demoServerInput(null)).toBe(NPX_DEMO_SERVER);
+    expect(NPX_DEMO_SERVER.command).toBe("npx");
+  });
+});
+
+describe("findDemoServer", () => {
+  it("finds the demo server the user added before", () => {
+    const demo = bundledDemoServer("/opt/test-server");
+    const added = server("demo", 1, { name: demo.name, command: demo.command, args: demo.args });
+    expect(findDemoServer([server("other", 1), added], demo)).toBe(added);
+  });
+
+  it("does not mistake a server that only has the same name or another location", () => {
+    const demo = bundledDemoServer("/opt/test-server");
+    expect(findDemoServer([server("x", 1, { name: demo.name })], demo)).toBeUndefined();
+    const elsewhere = server("y", 1, {
+      name: demo.name,
+      command: "/old/location/test-server",
+      args: [],
+    });
+    expect(findDemoServer([elsewhere], demo)).toBeUndefined();
+    expect(findDemoServer([], demo)).toBeUndefined();
   });
 });

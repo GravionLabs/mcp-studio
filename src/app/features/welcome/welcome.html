@@ -17,8 +17,9 @@
         Try a demo server
       </button>
       <span class="muted">
-        The MCP reference server with sample tools, resources and prompts. Needs Node.js (it runs
-        with <code>npx</code>).
+        @if (demoNeedsNode()) { The MCP reference server with sample tools, resources and prompts.
+        Needs Node.js, because it runs with <code>npx</code>. } @else { The test server that ships
+        with MCP Studio, with tools such as <code>echo</code> and <code>add</code>. }
       </span>
     </li>
   </ol>

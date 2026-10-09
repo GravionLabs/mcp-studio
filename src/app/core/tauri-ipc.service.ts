@@ -497,6 +497,10 @@ export class TauriIpcService {
     return this.call("history_clear", { serverId });
   }
 
+  demoServerPath(): Promise<string | null> {
+    return this.call("demo_server_path");
+  }
+
   proxyInfo(): Promise<ProxyInfo> {
     return this.call("proxy_info");
   }

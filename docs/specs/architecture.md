@@ -150,4 +150,6 @@ real server, forwards every line unchanged, and records each JSON-RPC message in
   (or set `MCP_STUDIO_PROXY_BIN`).
 - **Releases**: `pnpm bundle` builds the program for the target triple, copies it to
   `src-tauri/binaries/` and bundles it as a Tauri sidecar (`tauri.bundle.conf.json`), so it is
-  installed next to the app.
+  installed next to the app. `mcp-studio-testserver` ships the same way; the welcome page's "Try a
+  demo server" registers it (`demo_server_path` finds it, or `MCP_STUDIO_DEMO_SERVER_BIN`), and falls
+  back to the MCP reference server through `npx` when it is missing.
