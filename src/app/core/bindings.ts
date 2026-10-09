@@ -575,6 +575,12 @@ export type ServerInput = {
 	 *  servers that match the registered redirect URI exactly. Empty: any free port.
 	 */
 	oauthCallbackPort?: number | null,
+	/**
+	 *  Take the token from the user's Azure login (Azure CLI or Azure Developer CLI) instead of an
+	 *  OAuth sign-in. For servers behind Microsoft Entra ID (Streamable HTTP only). `oauth_scopes`
+	 *  overrides the scope the server advertises.
+	 */
+	azureCredentials?: boolean,
 };
 
 /**  Tokens and cost of one session. */

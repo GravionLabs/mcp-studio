@@ -14,6 +14,7 @@ import { ToastService } from "../../core/toast.service";
 import { KeyValueEditor } from "../../ui/key-value-editor/key-value-editor";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import {
+  AZURE_DEVOPS_URL,
   ServerFormState,
   emptyForm,
   formToInputWithSecrets,
@@ -65,6 +66,20 @@ export class ServerForm {
 
   protected text(event: Event): string {
     return (event.target as HTMLInputElement | HTMLTextAreaElement).value;
+  }
+
+  /** OAuth sign-in and the Azure login are alternatives; turning one on turns the other off. */
+  protected setOauth(oauth: boolean): void {
+    this.patch(oauth ? { oauth, azureCredentials: false } : { oauth });
+  }
+
+  protected setAzureCredentials(azureCredentials: boolean): void {
+    this.patch(azureCredentials ? { azureCredentials, oauth: false } : { azureCredentials });
+  }
+
+  /** Fills in what an Azure DevOps MCP server needs; the user adds the organization name. */
+  protected useAzureDevOps(): void {
+    this.patch({ url: AZURE_DEVOPS_URL, oauth: false, azureCredentials: true });
   }
 
   protected setTransport(transport: TransportKind): void {

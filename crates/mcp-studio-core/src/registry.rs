@@ -52,6 +52,11 @@ pub struct ServerInput {
     /// servers that match the registered redirect URI exactly. Empty: any free port.
     #[serde(default)]
     pub oauth_callback_port: Option<u16>,
+    /// Take the token from the user's Azure login (Azure CLI or Azure Developer CLI) instead of an
+    /// OAuth sign-in. For servers behind Microsoft Entra ID (Streamable HTTP only). `oauth_scopes`
+    /// overrides the scope the server advertises.
+    #[serde(default)]
+    pub azure_credentials: bool,
 }
 
 /// A stored server definition.
@@ -107,6 +112,7 @@ impl ServerInput {
                 self.oauth_client_id = None;
                 self.oauth_scopes = None;
                 self.oauth_callback_port = None;
+                self.azure_credentials = false;
             }
             TransportKind::Http => {
                 let raw = self
@@ -128,10 +134,17 @@ impl ServerInput {
         }
         self.oauth_client_id = clean(self.oauth_client_id);
         self.oauth_scopes = clean(self.oauth_scopes);
+        if self.oauth && self.azure_credentials {
+            return Err(DbError::Invalid(
+                "OAuth sign-in and Azure credentials cannot be combined".into(),
+            ));
+        }
         if !self.oauth {
             self.oauth_client_id = None;
-            self.oauth_scopes = None;
             self.oauth_callback_port = None;
+            if !self.azure_credentials {
+                self.oauth_scopes = None;
+            }
         }
         if self.oauth_callback_port == Some(0) {
             self.oauth_callback_port = None;
@@ -160,6 +173,7 @@ struct Row {
     oauth_client_id: Option<String>,
     oauth_scopes: Option<String>,
     oauth_callback_port: Option<u16>,
+    azure_credentials: bool,
     created_at: i64,
     updated_at: i64,
 }
@@ -190,6 +204,7 @@ impl TryFrom<Row> for ServerDefinition {
                 oauth_client_id: row.oauth_client_id.clone(),
                 oauth_scopes: row.oauth_scopes.clone(),
                 oauth_callback_port: row.oauth_callback_port,
+                azure_credentials: row.azure_credentials,
             },
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -199,10 +214,10 @@ impl TryFrom<Row> for ServerDefinition {
 
 const SELECT_ALL: &str =
     "SELECT id, name, transport, command, args, env, cwd, url, headers, tags, \
-     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, created_at, updated_at FROM servers ORDER BY name COLLATE NOCASE";
+     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, azure_credentials, created_at, updated_at FROM servers ORDER BY name COLLATE NOCASE";
 const SELECT_ONE: &str =
     "SELECT id, name, transport, command, args, env, cwd, url, headers, tags, \
-     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, created_at, updated_at FROM servers WHERE id = ?";
+     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, azure_credentials, created_at, updated_at FROM servers WHERE id = ?";
 
 /// Access to stored server definitions.
 #[derive(Clone, Debug)]
@@ -236,8 +251,8 @@ impl Registry {
         let now = now_ms();
         sqlx::query(
             "INSERT INTO servers (id, name, transport, command, args, env, cwd, url, headers, tags, oauth, \
-             oauth_client_id, oauth_scopes, oauth_callback_port, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             oauth_client_id, oauth_scopes, oauth_callback_port, azure_credentials, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&id)
         .bind(&input.name)
@@ -253,6 +268,7 @@ impl Registry {
         .bind(&input.oauth_client_id)
         .bind(&input.oauth_scopes)
         .bind(input.oauth_callback_port)
+        .bind(input.azure_credentials)
         .bind(now)
         .bind(now)
         .execute(self.db.pool())
@@ -266,7 +282,7 @@ impl Registry {
         let result = sqlx::query(
             "UPDATE servers SET name = ?, transport = ?, command = ?, args = ?, env = ?, cwd = ?, url = ?, \
              headers = ?, tags = ?, oauth = ?, \
-             oauth_client_id = ?, oauth_scopes = ?, oauth_callback_port = ?, updated_at = ? WHERE id = ?",
+             oauth_client_id = ?, oauth_scopes = ?, oauth_callback_port = ?, azure_credentials = ?, updated_at = ? WHERE id = ?",
         )
         .bind(&input.name)
         .bind(input.transport.as_str())
@@ -281,6 +297,7 @@ impl Registry {
         .bind(&input.oauth_client_id)
         .bind(&input.oauth_scopes)
         .bind(input.oauth_callback_port)
+        .bind(input.azure_credentials)
         .bind(now_ms())
         .bind(id)
         .execute(self.db.pool())
@@ -337,6 +354,7 @@ mod tests {
             oauth_client_id: None,
             oauth_scopes: None,
             oauth_callback_port: None,
+            azure_credentials: false,
         }
     }
 
@@ -355,6 +373,7 @@ mod tests {
             oauth_client_id: None,
             oauth_scopes: None,
             oauth_callback_port: None,
+            azure_credentials: false,
         }
     }
 

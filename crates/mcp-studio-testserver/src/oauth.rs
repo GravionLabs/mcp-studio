@@ -111,6 +111,7 @@ pub fn router(port: u16) -> Router {
         .route("/authorize", get(authorize))
         .route("/token", post(token))
         .route("/_stats", get(stats))
+        .route("/_issue", post(issue))
         .merge(protected)
         .with_state(state)
 }
@@ -192,6 +193,15 @@ async fn token(State(state): State<Shared>, Form(request): Form<TokenRequest>) -
         "refresh_token": refresh,
     }))
     .into_response()
+}
+
+/// Hands out an access token without the OAuth flow, for tests of other ways to obtain one (the
+/// Azure login). Like every token, it replaces the previous one.
+async fn issue(State(state): State<Shared>) -> Json<serde_json::Value> {
+    let mut tokens = state.valid_tokens.lock().unwrap();
+    let token = format!("issued-{}", tokens.len() + 1);
+    tokens.push(token.clone());
+    Json(json!({ "token": token }))
 }
 
 async fn stats(State(state): State<Shared>) -> Json<serde_json::Value> {

@@ -112,6 +112,7 @@ async fn add_http_server(h: &Harness, name: &str, headers: BTreeMap<String, Stri
             oauth_client_id: None,
             oauth_scopes: None,
             oauth_callback_port: None,
+            azure_credentials: false,
         })
         .await
         .unwrap();
@@ -249,6 +250,7 @@ async fn unknown_and_stdio_servers_are_rejected_with_a_clear_message() {
             oauth_client_id: None,
             oauth_scopes: None,
             oauth_callback_port: None,
+            azure_credentials: false,
         })
         .await
         .unwrap();

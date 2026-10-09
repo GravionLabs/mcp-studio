@@ -72,8 +72,50 @@ describe("form conversion", () => {
       oauthClientId: "app-id",
       oauthScopes: "api://x/.default",
       oauthCallbackPort: 3118,
+      azureCredentials: false,
     };
     expect(formToInput(inputToForm(input))).toEqual(input);
+  });
+});
+
+describe("azure credentials", () => {
+  const azure = {
+    ...emptyForm("http"),
+    name: "Azure DevOps",
+    url: "https://mcp.dev.azure.com/org",
+    azureCredentials: true,
+    oauthScopes: " https://mcp.dev.azure.com/.default ",
+  };
+
+  it("keeps the scope and drops the OAuth client settings", () => {
+    expect(formToInput({ ...azure, oauthClientId: "x", oauthCallbackPort: "3118" })).toMatchObject({
+      oauth: false,
+      azureCredentials: true,
+      oauthScopes: "https://mcp.dev.azure.com/.default",
+      oauthClientId: null,
+      oauthCallbackPort: null,
+    });
+  });
+
+  it("is only kept for HTTP servers and roundtrips", () => {
+    expect(formToInput({ ...azure, transport: "stdio", command: "x" }).azureCredentials).toBe(
+      false,
+    );
+    const input = formToInput(azure);
+    expect(inputToForm(input).azureCredentials).toBe(true);
+    expect(inputToForm(input).oauthScopes).toBe("https://mcp.dev.azure.com/.default");
+  });
+
+  it("cannot be combined with OAuth", () => {
+    expect(validateForm({ ...azure, oauth: true })).toHaveLength(1);
+    expect(validateForm(azure)).toEqual([]);
+  });
+
+  it("defaults to off for servers stored before the option existed", () => {
+    const stored = formToInput({ ...emptyForm(), name: "n", command: "c" });
+    const legacy = { ...stored } as Record<string, unknown>;
+    delete legacy["azureCredentials"];
+    expect(inputToForm(legacy as unknown as typeof stored).azureCredentials).toBe(false);
   });
 });
 

@@ -71,7 +71,7 @@
     />
   </label>
   <label class="inline">
-    <input type="checkbox" [checked]="form().oauth" (change)="patch({ oauth: !form().oauth })" />
+    <input type="checkbox" [checked]="form().oauth" (change)="setOauth(!form().oauth)" />
     Uses OAuth 2.1 (sign in with the browser; tokens are kept in the OS keyring)
   </label>
   @if (form().oauth) {

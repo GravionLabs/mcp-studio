@@ -228,6 +228,7 @@ mod tests {
             oauth_client_id: None,
             oauth_scopes: None,
             oauth_callback_port: None,
+            azure_credentials: false,
         }
     }
 
