@@ -35,12 +35,13 @@ versioned migrations. Secrets are stored only as keyring references.
 
 ## Migrations
 
-| Migration            | Adds                                          |
-| -------------------- | --------------------------------------------- |
-| `0001_init`          | All tables of the first version               |
-| `0002_message_flags` | `messages.is_error` for cheap error filtering |
-| `0003_history`       | The `history` table                           |
-| `0004_server_oauth`  | `servers.oauth`                               |
+| Migration                       | Adds                                          |
+| ------------------------------- | --------------------------------------------- |
+| `0001_init`                     | All tables of the first version               |
+| `0002_message_flags`            | `messages.is_error` for cheap error filtering |
+| `0003_history`                  | The `history` table                           |
+| `0004_server_oauth`             | `servers.oauth`                               |
+| `0009_server_azure_credentials` | `servers.azure_credentials`                   |
 
 ## Keyring entries
 

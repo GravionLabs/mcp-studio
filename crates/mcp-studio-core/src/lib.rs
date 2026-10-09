@@ -1,5 +1,6 @@
 //! MCP Studio core. Must never depend on Tauri.
 
+pub mod azure_auth;
 pub mod bindings;
 pub mod client_import;
 pub mod collections;

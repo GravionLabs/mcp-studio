@@ -13,6 +13,7 @@ use std::{
 };
 
 #[allow(deprecated)]
+use azure_core::credentials::TokenCredential;
 use rmcp::model::{LoggingLevel, LoggingMessageNotificationParam};
 use rmcp::{
     model::{
@@ -38,6 +39,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 
 use crate::{
+    azure_auth::{self, AzureAuthClient, TokenCache},
     db::{new_id, now_ms, Db, DbError, DbResult},
     environments::Environments,
     events::{
@@ -374,6 +376,8 @@ pub struct SessionManager {
     logger: Arc<Logger>,
     live: Mutex<HashMap<String, Arc<LiveSession>>>,
     connect_timeout: Mutex<Duration>,
+    /// Replaces the Azure developer tools as the token source (tests).
+    azure_credential: Mutex<Option<Arc<dyn TokenCredential>>>,
     history: History,
     progress: Arc<Mutex<HashMap<String, String>>>,
     calls: Mutex<HashMap<String, CancellationToken>>,
@@ -402,6 +406,7 @@ impl SessionManager {
             logger,
             live: Mutex::default(),
             connect_timeout: Mutex::new(DEFAULT_CONNECT_TIMEOUT),
+            azure_credential: Mutex::new(None),
             history: History::new(db_for_history),
             progress: Arc::default(),
             calls: Mutex::default(),
@@ -409,6 +414,11 @@ impl SessionManager {
     }
 
     /// Changes how long connecting may take (default 30 seconds).
+    /// Uses `credential` instead of the Azure CLI for servers that sign in with the Azure login.
+    pub fn set_azure_credential(&self, credential: Arc<dyn TokenCredential>) {
+        *self.azure_credential.lock().unwrap() = Some(credential);
+    }
+
     pub fn set_connect_timeout(&self, timeout: Duration) {
         *self.connect_timeout.lock().unwrap() = timeout;
     }
@@ -533,6 +543,20 @@ impl SessionManager {
                 TransportKind::Http if server.input.oauth => {
                     let store = KeyringCredentialStore::new(self.secrets.clone(), server_id);
                     let client = oauth::auth_client(&prepared.url, store).await?;
+                    let http =
+                        StreamableHttpClientTransport::with_client(client, http_config(&prepared)?);
+                    let transport =
+                        RecordingTransport::<_, RoleClient>::new(http, writer.recorder());
+                    initialize(handler, transport, timeout).await
+                }
+                TransportKind::Http if server.input.azure_credentials => {
+                    let credential = self.azure_credential.lock().unwrap().clone();
+                    let client = azure_client(
+                        &prepared.url,
+                        server.input.oauth_scopes.as_deref(),
+                        credential,
+                    )
+                    .await?;
                     let http =
                         StreamableHttpClientTransport::with_client(client, http_config(&prepared)?);
                     let transport =
@@ -1026,6 +1050,24 @@ fn spawn_stdio(
         .map_err(|e| DbError::Connection(format!("could not start \"{}\": {e}", prepared.command)))
 }
 
+/// Builds the HTTP client for a server that signs in with the Azure login. The first token is
+/// fetched here, so that a missing or expired login is reported before the connection is opened.
+async fn azure_client(
+    url: &str,
+    scopes: Option<&str>,
+    credential: Option<Arc<dyn TokenCredential>>,
+) -> DbResult<AzureAuthClient> {
+    let http = reqwest::Client::new();
+    let scopes = azure_auth::resolve_scopes(&http, url, scopes).await?;
+    let credential = match credential {
+        Some(credential) => credential,
+        None => azure_auth::developer_tools()?,
+    };
+    let tokens = Arc::new(TokenCache::new(credential, scopes));
+    tokens.token().await?;
+    Ok(AzureAuthClient::new(http, tokens))
+}
+
 fn http_config(prepared: &Prepared) -> DbResult<StreamableHttpClientTransportConfig> {
     let mut headers = HashMap::new();
     for (name, value) in &prepared.headers {
@@ -1070,6 +1112,7 @@ mod tests {
             oauth_client_id: None,
             oauth_scopes: None,
             oauth_callback_port: None,
+            azure_credentials: false,
         }
     }
 

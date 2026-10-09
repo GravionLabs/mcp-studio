@@ -23,6 +23,7 @@ const candidate = (overrides: Partial<ImportCandidate> = {}, input = {}): Import
     oauthClientId: null,
     oauthScopes: null,
     oauthCallbackPort: null,
+    azureCredentials: false,
     ...input,
   },
   origin: "top level",

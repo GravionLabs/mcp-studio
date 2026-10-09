@@ -23,7 +23,12 @@ export interface ServerFormState {
   oauthScopes: string;
   /** Fixed loopback redirect port as text; empty picks a free one. */
   oauthCallbackPort: string;
+  /** The HTTP server (Microsoft Entra ID) takes its token from the user's Azure login. */
+  azureCredentials: boolean;
 }
+
+/** The address of Azure DevOps MCP servers; the organization name is appended. */
+export const AZURE_DEVOPS_URL = "https://mcp.dev.azure.com/";
 
 export function emptyForm(transport: TransportKind = "stdio"): ServerFormState {
   return {
@@ -40,6 +45,7 @@ export function emptyForm(transport: TransportKind = "stdio"): ServerFormState {
     oauthClientId: "",
     oauthScopes: "",
     oauthCallbackPort: "",
+    azureCredentials: false,
   };
 }
 
@@ -105,6 +111,7 @@ function buildInput(
   writes: SecretWrite[],
 ): ServerInput {
   const oauth = form.transport === "http" && form.oauth;
+  const azure = form.transport === "http" && form.azureCredentials && !oauth;
   return {
     name: form.name.trim(),
     transport: form.transport,
@@ -120,8 +127,9 @@ function buildInput(
       .filter((t) => t !== ""),
     oauth: form.transport === "http" && form.oauth,
     oauthClientId: oauth ? form.oauthClientId.trim() || null : null,
-    oauthScopes: oauth ? form.oauthScopes.trim() || null : null,
+    oauthScopes: oauth || azure ? form.oauthScopes.trim() || null : null,
     oauthCallbackPort: oauth ? parsePort(form.oauthCallbackPort) : null,
+    azureCredentials: azure,
   };
 }
 
@@ -140,6 +148,7 @@ export function inputToForm(input: ServerInput): ServerFormState {
     oauthClientId: input.oauthClientId ?? "",
     oauthScopes: input.oauthScopes ?? "",
     oauthCallbackPort: input.oauthCallbackPort?.toString() ?? "",
+    azureCredentials: input.azureCredentials ?? false,
   };
 }
 
@@ -161,6 +170,9 @@ export function validateForm(form: ServerFormState): string[] {
     else if (!/^https?:\/\//i.test(url) || !URL.canParse(url)) {
       problems.push("URL must be a valid http:// or https:// address.");
     }
+  }
+  if (form.transport === "http" && form.oauth && form.azureCredentials) {
+    problems.push("OAuth sign-in and the Azure login cannot be combined.");
   }
   if (form.transport === "http" && form.oauth) {
     const port = form.oauthCallbackPort.trim();

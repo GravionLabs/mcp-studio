@@ -101,6 +101,10 @@ are wrapped by hand in `TauriIpcService`, one method per command.
 - **OAuth** (`oauth.rs`): browser sign-in through `rmcp`'s `AuthorizationManager` (discovery, dynamic client
   registration, PKCE) with a loopback redirect listener; credentials are one keyring entry per server
   (`oauth/<server id>`) and refresh automatically.
+- **Azure login** (`azure_auth.rs`): for servers behind Microsoft Entra ID, which has no dynamic client
+  registration. The token comes from the user's Azure CLI or Azure Developer CLI (`azure_identity`'s
+  `DeveloperToolsCredential`), for the scope in the server's protected resource metadata. It is kept in
+  memory only and fetched again shortly before it expires or after a 401.
 - **Placeholders** (`placeholders.rs`): `{{variable}}` in arguments, headers, URLs, and tool inputs, resolved
   from the active environment; undefined variables are reported all at once.
 - **Collections** and **history** (`collections.rs`, `history.rs`): saved requests (portable JSON files

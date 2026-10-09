@@ -149,6 +149,7 @@ async fn server_everything_over_stdio() {
             oauth_client_id: None,
             oauth_scopes: None,
             oauth_callback_port: None,
+            azure_credentials: false,
         })
         .await
         .unwrap();
@@ -207,6 +208,7 @@ async fn server_everything_over_streamable_http() {
             oauth_client_id: None,
             oauth_scopes: None,
             oauth_callback_port: None,
+            azure_credentials: false,
         })
         .await
         .unwrap();
