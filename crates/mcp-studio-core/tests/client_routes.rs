@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use mcp_studio_core::{
-    client_import::ConfigSource,
+    client_formats::{ClientFormat, ClientSource},
     client_routes::{self, EntryKind, EntryRef, RouteContext},
     db::Db,
     registry::{Registry, TransportKind},
@@ -42,23 +42,34 @@ struct Fixture {
     db: Db,
     registry: Registry,
     secrets: MemoryStore,
-    sources: Vec<ConfigSource>,
+    sources: Vec<ClientSource>,
 }
 
 impl Fixture {
     async fn new(content: &str) -> Self {
+        Self::for_client(
+            content,
+            "Claude Code (user)",
+            ".claude.json",
+            ClientFormat::Claude,
+        )
+        .await
+    }
+
+    async fn for_client(content: &str, label: &str, file: &str, format: ClientFormat) -> Self {
         let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join(".claude.json");
+        let file = dir.path().join(file);
         std::fs::write(&file, content).unwrap();
         let db = Db::open_in_memory().await.unwrap();
         Self {
             registry: Registry::new(db.clone()),
             db,
             secrets: MemoryStore::default(),
-            sources: vec![ConfigSource {
-                label: "Claude Code (user)".into(),
+            sources: vec![ClientSource {
+                label: label.into(),
                 path: file.to_string_lossy().into_owned(),
                 exists: true,
+                format,
             }],
             dir,
         }
@@ -91,6 +102,14 @@ impl Fixture {
         }
     }
 
+    fn entry_at(&self, pointer: &str, name: &str) -> EntryRef {
+        EntryRef {
+            path: self.sources[0].path.clone(),
+            pointer: pointer.into(),
+            name: name.into(),
+        }
+    }
+
     fn rewrite(&self, f: impl FnOnce(&mut Value)) {
         let mut value = self.read();
         f(&mut value);
@@ -106,7 +125,8 @@ async fn lists_the_servers_of_every_scope_and_whether_they_are_routed() {
 
     let entries = client_routes::list_entries(&fx.ctx(Some(PROXY)), &fx.sources)
         .await
-        .unwrap();
+        .unwrap()
+        .entries;
 
     let by_name = |name: &str| entries.iter().find(|e| e.entry.name == name).unwrap();
     assert_eq!(entries.len(), 5);
@@ -147,7 +167,8 @@ async fn routing_a_stdio_server_runs_it_through_the_proxy_and_registers_it() {
     assert!(Path::new(&result.backup_path).is_file());
     let entries = client_routes::list_entries(&fx.ctx(Some(PROXY)), &fx.sources)
         .await
-        .unwrap();
+        .unwrap()
+        .entries;
     let routed = entries.iter().find(|e| e.entry.name == "files").unwrap();
     assert!(routed.routed);
     assert_eq!(routed.route_id.as_deref(), Some(result.route_id.as_str()));
@@ -271,7 +292,8 @@ async fn undoing_puts_the_original_entry_back() {
     );
     let entries = client_routes::list_entries(&fx.ctx(Some(PROXY)), &fx.sources)
         .await
-        .unwrap();
+        .unwrap()
+        .entries;
     assert!(entries.iter().all(|e| !e.routed && e.route_id.is_none()));
 }
 
@@ -427,4 +449,179 @@ async fn an_edit_made_before_routing_is_kept() {
         .unwrap();
 
     assert_eq!(fx.read()["numStartups"], 43);
+}
+
+const VSCODE: &str = r#"{
+  "servers": {
+    "files": {"type": "stdio", "command": "npx", "args": ["-y", "server-files"]},
+    "remote": {"type": "http", "url": "https://example.com/mcp", "headers": {"X-Api-Key": "k-123"}},
+    "input": {"type": "stdio", "command": "npx", "args": ["${workspaceFolder}"]}
+  },
+  "inputs": [{"id": "x", "type": "promptString", "description": "x"}]
+}
+"#;
+
+const COPILOT: &str = r#"{
+  "mcpServers": {
+    "files": {"type": "local", "command": "npx", "args": ["-y", "server-files"], "env": {"A": "1"}, "tools": ["*"]},
+    "remote": {"type": "http", "url": "https://example.com/mcp", "tools": ["*"]}
+  }
+}
+"#;
+
+const OPENCODE: &str = r#"{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "files": {"type": "local", "command": ["npx", "-y", "server-files"], "environment": {"A": "1"}, "enabled": true},
+    "remote": {"type": "remote", "url": "https://example.com/mcp", "headers": {"X": "y"}, "enabled": true}
+  }
+}
+"#;
+
+/// Routes and restores every routable entry of a file and checks the file is as it was.
+async fn round_trip(fx: &Fixture, pointer: &str, names: &[&str]) -> Vec<Value> {
+    let before = fx.read();
+    let mut routed = Vec::new();
+    let mut ids = Vec::new();
+    for name in names {
+        let result = client_routes::route(
+            &fx.ctx(Some(PROXY)),
+            &fx.sources,
+            &fx.entry_at(pointer, name),
+        )
+        .await
+        .unwrap();
+        ids.push(result.route_id);
+        routed.push(fx.read()[pointer.trim_start_matches('/')][*name].clone());
+    }
+    for id in ids {
+        assert!(
+            client_routes::unroute(&fx.db, &id, false)
+                .await
+                .unwrap()
+                .restored
+        );
+    }
+    assert_eq!(fx.read(), before, "the file is as it was");
+    routed
+}
+
+#[tokio::test]
+async fn vs_code_servers_are_routed_and_restored() {
+    let fx = Fixture::for_client(VSCODE, "VS Code (user)", "mcp.json", ClientFormat::VsCode).await;
+
+    let routed = round_trip(&fx, "/servers", &["files", "remote"]).await;
+
+    assert_eq!(routed[0]["type"], "stdio");
+    assert_eq!(routed[0]["command"], PROXY);
+    assert_eq!(routed[0]["args"][0], "--server");
+    assert_eq!(routed[1]["type"], "http");
+    assert!(routed[1]["url"]
+        .as_str()
+        .unwrap()
+        .starts_with("http://127.0.0.1:38465/mcp/"));
+    assert!(
+        routed[1].get("headers").is_none(),
+        "headers live in MCP Studio now"
+    );
+}
+
+#[tokio::test]
+async fn vs_code_entries_with_variables_are_listed_but_not_routable() {
+    let fx = Fixture::for_client(VSCODE, "VS Code (user)", "mcp.json", ClientFormat::VsCode).await;
+
+    let entries = client_routes::list_entries(&fx.ctx(Some(PROXY)), &fx.sources)
+        .await
+        .unwrap()
+        .entries;
+    let input = entries.iter().find(|e| e.entry.name == "input").unwrap();
+    assert_eq!(input.kind, EntryKind::Unsupported);
+    assert!(input.unsupported.as_deref().unwrap().contains("${"));
+
+    let error = client_routes::route(
+        &fx.ctx(Some(PROXY)),
+        &fx.sources,
+        &fx.entry_at("/servers", "input"),
+    )
+    .await
+    .unwrap_err();
+    assert!(error.to_string().contains("variables"), "{error}");
+}
+
+#[tokio::test]
+async fn copilot_cli_servers_keep_their_tool_lists() {
+    let fx = Fixture::for_client(
+        COPILOT,
+        "Copilot CLI",
+        "mcp-config.json",
+        ClientFormat::CopilotCli,
+    )
+    .await;
+    let before = fx.read();
+
+    let result = client_routes::route(
+        &fx.ctx(Some(PROXY)),
+        &fx.sources,
+        &fx.entry_at("/mcpServers", "files"),
+    )
+    .await
+    .unwrap();
+
+    let routed = fx.read()["mcpServers"]["files"].clone();
+    assert_eq!(routed["type"], "local");
+    assert_eq!(routed["tools"], json!(["*"]));
+    assert_eq!(routed["command"], PROXY);
+    assert!(routed.get("env").is_none());
+    client_routes::unroute(&fx.db, &result.route_id, false)
+        .await
+        .unwrap();
+    assert_eq!(fx.read(), before);
+    round_trip(&fx, "/mcpServers", &["files", "remote"]).await;
+}
+
+#[tokio::test]
+async fn opencode_servers_use_one_command_array() {
+    let fx = Fixture::for_client(
+        OPENCODE,
+        "OpenCode",
+        "opencode.json",
+        ClientFormat::OpenCode,
+    )
+    .await;
+
+    let routed = round_trip(&fx, "/mcp", &["files", "remote"]).await;
+
+    assert_eq!(routed[0]["type"], "local");
+    assert_eq!(routed[0]["command"][0], PROXY);
+    assert_eq!(routed[0]["command"][1], "--server");
+    assert_eq!(routed[0]["enabled"], true);
+    assert!(routed[0].get("environment").is_none());
+    assert_eq!(routed[1]["type"], "remote");
+    assert_eq!(routed[1]["enabled"], true);
+    let servers = fx.registry.list().await.unwrap();
+    let files = servers.iter().find(|s| s.input.name == "files").unwrap();
+    assert_eq!(files.input.command.as_deref(), Some("npx"));
+    assert_eq!(files.input.args, ["-y", "server-files"]);
+    assert_eq!(files.input.env["A"], "1");
+}
+
+#[tokio::test]
+async fn a_file_that_cannot_be_read_is_reported_instead_of_hidden() {
+    // VS Code allows comments in mcp.json; that is not JSON.
+    let fx = Fixture::for_client(
+        "{\n  // my servers\n  \"servers\": {}\n}\n",
+        "VS Code (user)",
+        "mcp.json",
+        ClientFormat::VsCode,
+    )
+    .await;
+
+    let listed = client_routes::list_entries(&fx.ctx(Some(PROXY)), &fx.sources)
+        .await
+        .unwrap();
+
+    assert!(listed.entries.is_empty());
+    assert_eq!(listed.unreadable.len(), 1);
+    assert_eq!(listed.unreadable[0].client, "VS Code (user)");
+    assert!(listed.unreadable[0].reason.contains("not valid JSON"));
 }

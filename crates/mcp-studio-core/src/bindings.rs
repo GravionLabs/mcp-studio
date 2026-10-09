@@ -7,8 +7,12 @@ use specta::Types;
 use specta_typescript::Typescript;
 
 use crate::{
+    client_formats::{ClientFormat, ClientSource},
     client_import::{ConfigSource, ImportCandidate, ImportSummary},
-    client_routes::{ClientEntry, EntryKind, EntryRef, RoutePreview, RouteResult, UnrouteResult},
+    client_routes::{
+        ClientEntries, ClientEntry, EntryKind, EntryRef, RoutePreview, RouteResult, UnreadableFile,
+        UnrouteResult,
+    },
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     compare::{CaseResult, EvalEvent, Variant, VariantResult},
     environments::{Environment, EnvironmentInput},
@@ -85,6 +89,10 @@ pub fn ipc_types() -> Types {
         .register::<EntryRef>()
         .register::<EntryKind>()
         .register::<ClientEntry>()
+        .register::<ClientEntries>()
+        .register::<UnreadableFile>()
+        .register::<ClientFormat>()
+        .register::<ClientSource>()
         .register::<RoutePreview>()
         .register::<RouteResult>()
         .register::<UnrouteResult>()
