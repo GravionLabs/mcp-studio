@@ -5,6 +5,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.5] — 2026-10-09
+
+### Bug Fixes
+- Allow the deprecated MCP logging types
+
+
+### Features
+- Sign in to Entra ID servers with the Azure login (#257)
+
+
 ## [1.0.4] — 2026-10-09
 
 ### Refactoring
