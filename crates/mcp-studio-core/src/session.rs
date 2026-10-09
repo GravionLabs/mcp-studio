@@ -578,6 +578,7 @@ impl SessionManager {
         let running = match connected {
             Ok(running) => running,
             Err(error) => {
+                let error = self.explain_entra(&server, &prepared.url, error).await;
                 self.end_session(&session_id).await;
                 let _ = tokio::time::timeout(Duration::from_secs(2), writer.finish()).await;
                 return Err(error);
@@ -921,7 +922,26 @@ impl SessionManager {
             scopes: server.input.oauth_scopes.clone(),
             callback_port: server.input.oauth_callback_port,
         };
-        oauth::sign_in(&url, &settings, store, opener, oauth::SIGN_IN_TIMEOUT).await
+        match oauth::sign_in(&url, &settings, store, opener, oauth::SIGN_IN_TIMEOUT).await {
+            Err(error) if azure_auth::uses_entra(&url).await => Err(entra_error(error, &url, true)),
+            result => result,
+        }
+    }
+
+    /// Adds a hint to a connection error when it comes from a server that uses Microsoft Entra ID
+    /// without being set up for it.
+    async fn explain_entra(&self, server: &ServerDefinition, url: &str, error: DbError) -> DbError {
+        let input = &server.input;
+        let rejected = error.to_string().contains("Auth required");
+        if input.transport == TransportKind::Http
+            && !input.oauth
+            && !input.azure_credentials
+            && rejected
+            && azure_auth::uses_entra(url).await
+        {
+            return entra_error(error, url, false);
+        }
+        error
     }
 
     /// Forgets the stored OAuth credentials of a server and disconnects it.
@@ -1050,6 +1070,19 @@ fn spawn_stdio(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| DbError::Connection(format!("could not start \"{}\": {e}", prepared.command)))
+}
+
+/// `error` with the advice for a server behind Microsoft Entra ID. `oauth`: the server is already
+/// set up for OAuth, which fails without a client ID registered by hand.
+fn entra_error(error: DbError, url: &str, oauth: bool) -> DbError {
+    let advice = if oauth {
+        "This server uses Microsoft Entra ID, which has no dynamic client registration. Turn on \"Uses the Azure login\" in the server settings, or enter an OAuth client ID."
+    } else if azure_auth::is_azure_devops(url) {
+        "This server uses Microsoft Entra ID. Use the Azure DevOps preset in the server settings (it turns on \"Uses the Azure login\"), then sign in with `az login`."
+    } else {
+        "This server uses Microsoft Entra ID. Turn on \"Uses the Azure login\" in the server settings, then sign in with `az login`."
+    };
+    DbError::Connection(format!("{error}. {advice}"))
 }
 
 /// Builds the HTTP client for a server that signs in with the Azure login. The first token is

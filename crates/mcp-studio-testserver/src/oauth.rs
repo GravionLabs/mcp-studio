@@ -21,7 +21,7 @@ use axum::{
     http::{header, HeaderMap, Request, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Redirect, Response},
-    routing::{get, post},
+    routing::{any, get, post},
     Form, Json, Router,
 };
 use rmcp::transport::streamable_http_server::{
@@ -110,6 +110,11 @@ pub fn router(port: u16) -> Router {
         .route("/register", post(register))
         .route("/authorize", get(authorize))
         .route("/token", post(token))
+        .route(
+            "/.well-known/oauth-protected-resource/entra",
+            get(entra_metadata),
+        )
+        .route("/entra", any(entra_challenge))
         .route("/_stats", get(stats))
         .route("/_issue", post(issue))
         .merge(protected)
@@ -202,6 +207,33 @@ async fn issue(State(state): State<Shared>) -> Json<serde_json::Value> {
     let token = format!("issued-{}", tokens.len() + 1);
     tokens.push(token.clone());
     Json(json!({ "token": token }))
+}
+
+/// A resource that names Microsoft Entra ID as its authorization server, to test how the app reacts.
+/// It never talks to Entra: it only answers 401 and advertises it.
+async fn entra_metadata() -> Json<serde_json::Value> {
+    Json(json!({
+        "resource": "http://127.0.0.1/entra",
+        "authorization_servers": ["https://login.microsoftonline.com/organizations/v2.0"],
+        "scopes_supported": ["https://example.test/.default"],
+    }))
+}
+
+async fn entra_challenge(headers: HeaderMap) -> Response {
+    let host = headers
+        .get(header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("127.0.0.1");
+    Response::builder()
+        .status(StatusCode::UNAUTHORIZED)
+        .header(
+            header::WWW_AUTHENTICATE,
+            format!(
+                "Bearer resource_metadata=\"http://{host}/.well-known/oauth-protected-resource/entra\""
+            ),
+        )
+        .body(Body::empty())
+        .expect("static response")
 }
 
 async fn stats(State(state): State<Shared>) -> Json<serde_json::Value> {

@@ -105,6 +105,51 @@ impl TokenCache {
 struct ResourceMetadata {
     #[serde(default)]
     scopes_supported: Vec<String>,
+    #[serde(default)]
+    authorization_servers: Vec<String>,
+}
+
+/// Hosts of Microsoft's identity platform.
+const ENTRA_HOSTS: [&str; 3] = [
+    "login.microsoftonline.com",
+    "login.windows.net",
+    "sts.windows.net",
+];
+
+/// How long to wait for the metadata when only looking for a hint.
+const DETECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+fn is_entra(authorization_server: &str) -> bool {
+    url::Url::parse(authorization_server)
+        .ok()
+        .and_then(|u| u.host_str().map(str::to_ascii_lowercase))
+        .is_some_and(|host| ENTRA_HOSTS.contains(&host.as_str()))
+}
+
+/// Whether the server's protected resource metadata names Microsoft Entra ID as its authorization
+/// server. Any failure to find out (network, no metadata) counts as "no".
+pub async fn uses_entra(url: &str) -> bool {
+    let Ok(metadata_url) = metadata_url(url) else {
+        return false;
+    };
+    let Ok(http) = reqwest::Client::builder().timeout(DETECT_TIMEOUT).build() else {
+        return false;
+    };
+    let Ok(response) = http.get(metadata_url).send().await else {
+        return false;
+    };
+    match response.json::<ResourceMetadata>().await {
+        Ok(metadata) => metadata.authorization_servers.iter().any(|s| is_entra(s)),
+        Err(_) => false,
+    }
+}
+
+/// Whether `url` is an Azure DevOps MCP server.
+pub fn is_azure_devops(url: &str) -> bool {
+    url::Url::parse(url)
+        .ok()
+        .and_then(|u| u.host_str().map(str::to_ascii_lowercase))
+        .is_some_and(|host| host == "mcp.dev.azure.com")
 }
 
 /// The URL of the protected resource metadata for `url` (RFC 9728): the well-known path is
@@ -431,6 +476,19 @@ mod tests {
             metadata_url("https://example.test/mcp/?x=1#f").unwrap(),
             "https://example.test/.well-known/oauth-protected-resource/mcp"
         );
+    }
+
+    #[test]
+    fn microsoft_identity_hosts_are_recognized() {
+        assert!(is_entra(
+            "https://login.microsoftonline.com/organizations/v2.0"
+        ));
+        assert!(is_entra("https://LOGIN.windows.net/tenant"));
+        assert!(!is_entra("https://login.microsoftonline.com.evil.test/x"));
+        assert!(!is_entra("https://accounts.example.test"));
+        assert!(!is_entra("not a url"));
+        assert!(is_azure_devops("https://mcp.dev.azure.com/org"));
+        assert!(!is_azure_devops("https://example.test/mcp.dev.azure.com"));
     }
 
     #[tokio::test]
