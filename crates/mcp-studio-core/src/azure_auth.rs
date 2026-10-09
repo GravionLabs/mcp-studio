@@ -697,6 +697,27 @@ mod tests {
         assert!(matches!(error, DbError::Invalid(_)), "{error}");
     }
 
+    /// `login_with`, tried again while the kernel still considers the freshly written script open
+    /// for writing (`ETXTBSY`): another test thread may have forked while it was being written.
+    #[cfg(unix)]
+    async fn login_retrying(
+        path: &Option<String>,
+        tenant: Option<&str>,
+        timeout: StdDuration,
+    ) -> DbResult<()> {
+        let mut result = login_with("az", path.clone(), tenant, timeout).await;
+        for _ in 0..20 {
+            match &result {
+                Err(e) if e.to_string().contains("Text file busy") => {
+                    tokio::time::sleep(StdDuration::from_millis(50)).await;
+                    result = login_with("az", path.clone(), tenant, timeout).await;
+                }
+                _ => break,
+            }
+        }
+        result
+    }
+
     /// A stand-in `az` that records its arguments and exits with the given code.
     #[cfg(unix)]
     fn fake_az(dir: &std::path::Path, exit: i32, stderr: &str) -> std::path::PathBuf {
@@ -722,7 +743,7 @@ mod tests {
         let record = fake_az(dir.path(), 0, "WARNING: noise");
         let path = Some(dir.path().to_string_lossy().into_owned());
 
-        login_with("az", path.clone(), None, StdDuration::from_secs(5))
+        login_retrying(&path, None, StdDuration::from_secs(5))
             .await
             .unwrap();
         assert_eq!(
@@ -730,9 +751,8 @@ mod tests {
             "login --allow-no-subscriptions"
         );
 
-        login_with(
-            "az",
-            path,
+        login_retrying(
+            &path,
             Some(" contoso.onmicrosoft.com "),
             StdDuration::from_secs(5),
         )
@@ -751,7 +771,7 @@ mod tests {
         fake_az(dir.path(), 1, "ERROR: user cancelled");
         let path = Some(dir.path().to_string_lossy().into_owned());
 
-        let error = login_with("az", path, None, StdDuration::from_secs(5))
+        let error = login_retrying(&path, None, StdDuration::from_secs(5))
             .await
             .unwrap_err();
 
@@ -771,7 +791,7 @@ mod tests {
         }
         let path = Some(dir.path().to_string_lossy().into_owned());
 
-        let error = login_with("az", path, None, StdDuration::from_millis(200))
+        let error = login_retrying(&path, None, StdDuration::from_millis(200))
             .await
             .unwrap_err();
 
