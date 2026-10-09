@@ -5,7 +5,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.0.4] — 2026-10-09
 
 ### Refactoring
 - Drop the Component suffix from file and class names (#213)
