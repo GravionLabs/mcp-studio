@@ -5,6 +5,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.8] — 2026-10-09
+
+### Features
+- Route Claude servers through the proxy and undo it (#266)
+- Clients page to route and restore servers (#267)
+- Sign in with Azure from the app (#263)
+- Settings page with history retention (#244)
+- Back up and restore the workspace (#245)
+- Shared tab list with keyboard navigation (#247)
+- First-run guide on the welcome page (#248)
+- Ship the test server with the app for the demo (#248)
+- Route VS Code, Copilot CLI and OpenCode servers (#268)
+
+
 ## [1.0.7] — 2026-10-09
 
 ### Bug Fixes
