@@ -11,11 +11,12 @@
       <p>{{ tool.description }}</p>
       }
     </div>
-    <div class="modes" role="tablist">
+    <div class="modes" appTablist="playground" aria-label="Input mode">
       <button
         type="button"
-        role="tab"
         class="ghost"
+        appTab="form"
+        [tabSelected]="mode() === 'form'"
         [class.active]="mode() === 'form'"
         (click)="setMode('form')"
       >
@@ -23,8 +24,9 @@
       </button>
       <button
         type="button"
-        role="tab"
         class="ghost"
+        appTab="json"
+        [tabSelected]="mode() === 'json'"
         [class.active]="mode() === 'json'"
         (click)="setMode('json')"
       >
@@ -33,7 +35,7 @@
     </div>
   </header>
 
-  <div class="input">
+  <div class="input" [appTabPanel]="mode()" tabPanelGroup="playground">
     @if (mode() === "form") {
     <app-schema-form
       [schema]="schema()"

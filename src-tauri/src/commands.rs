@@ -1163,6 +1163,12 @@ pub async fn history_clear(
     Ok(state.sessions.history().clear(server_id.as_deref()).await?)
 }
 
+/// Absolute path of the reference server that ships with the app, if it was found.
+#[tauri::command]
+pub fn demo_server_path() -> Option<String> {
+    mcp_studio_core::proxy::locate_demo_server().map(|p| p.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 pub fn proxy_info(state: State<'_, AppState>) -> ProxyInfo {
     state

@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { Router } from "@angular/router";
+import { Tab, TabList } from "../tablist/tablist";
 import { WorkspaceTabsService } from "./workspace-tabs.service";
 
 @Component({
   selector: "app-tabs",
+  imports: [TabList, Tab],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./tabs.html",
   styleUrl: "./tabs.scss",
