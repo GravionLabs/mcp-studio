@@ -28,3 +28,15 @@ export function activeTab(selected: ServerTab | null, connected: boolean): Serve
   if (selected && visibleTabs(connected).some((tab) => tab.id === selected)) return selected;
   return connected ? "explorer" : "settings";
 }
+
+/** Whether a connection error means that the Azure login is missing or has to be redone. */
+export function needsAzureLogin(message: string | undefined): boolean {
+  return (
+    !!message && /az login|azd auth login|Sign in with Azure|not signed in to Azure/i.test(message)
+  );
+}
+
+/** Whether the Azure CLI has to sign in to a specific tenant (multi-factor authentication). */
+export function needsTenant(message: string | undefined): boolean {
+  return !!message && /multi-factor|AADSTS50076/i.test(message);
+}

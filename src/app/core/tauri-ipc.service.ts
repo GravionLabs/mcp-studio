@@ -497,6 +497,11 @@ export class TauriIpcService {
     return this.call("history_clear", { serverId });
   }
 
+  /** Runs `az login`; resolves when the user has finished in the browser. */
+  azureLogin(tenant: string | null): Promise<void> {
+    return this.call("azure_login", { tenant });
+  }
+
   proxyInfo(): Promise<ProxyInfo> {
     return this.call("proxy_info");
   }

@@ -1101,6 +1101,12 @@ pub async fn history_clear(
     Ok(state.sessions.history().clear(server_id.as_deref()).await?)
 }
 
+/// Runs `az login` so the user can sign in to Azure in the browser. Returns when the CLI is done.
+#[tauri::command]
+pub async fn azure_login(tenant: Option<String>) -> CommandResult<()> {
+    Ok(mcp_studio_core::azure_auth::login(tenant.as_deref()).await?)
+}
+
 #[tauri::command]
 pub fn proxy_info(state: State<'_, AppState>) -> ProxyInfo {
     state
