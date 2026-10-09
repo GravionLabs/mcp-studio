@@ -1,0 +1,24 @@
+@if (queue()[0]; as event) {
+<div class="backdrop" role="presentation">
+  <div class="dialog" role="alertdialog" aria-modal="true" aria-label="Allow this tool call?">
+    <h3>Allow this tool call?</h3>
+    <p>
+      The flow <strong>{{ event.request.stepId }}</strong> wants to call
+      <strong class="mono">{{ describeCall(event.request) }}</strong>.
+    </p>
+    <pre class="args mono">{{ describeArguments(event.request) }}</pre>
+    @if (queue().length > 1) {
+    <p class="muted">{{ queue().length - 1 }} more waiting.</p>
+    }
+    <div class="actions">
+      <button type="button" class="danger" (click)="answer(event, 'deny')">Deny</button>
+      <span class="spacer"></span>
+      <button type="button" (click)="answer(event, 'allow_server')">
+        Always allow {{ event.request.server }}
+      </button>
+      <button type="button" (click)="answer(event, 'allow_tool')">Always allow this tool</button>
+      <button type="button" class="primary" (click)="answer(event, 'allow')">Allow once</button>
+    </div>
+  </div>
+</div>
+}

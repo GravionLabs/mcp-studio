@@ -1,0 +1,32 @@
+<div class="rows">
+  @for (row of rows(); track $index; let i = $index) {
+  <div class="row">
+    <input
+      class="mono"
+      [value]="row.key"
+      [placeholder]="keyPlaceholder()"
+      (input)="edit(i, { key: text($event) })"
+      aria-label="Name"
+    />
+    <input
+      class="mono"
+      [type]="row.secret ? 'password' : 'text'"
+      [value]="row.value"
+      [placeholder]="row.stored ? 'stored in keyring – type to replace' : valuePlaceholder()"
+      (input)="edit(i, { value: text($event) })"
+      autocomplete="off"
+      aria-label="Value"
+    />
+    <label class="secret" title="Store the value in the OS keyring">
+      <input
+        type="checkbox"
+        [checked]="!!row.secret"
+        (change)="edit(i, { secret: checked($event) })"
+      />
+      secret
+    </label>
+    <button type="button" class="ghost" (click)="remove(i)" aria-label="Remove row">×</button>
+  </div>
+  }
+  <button type="button" class="add" (click)="add()">+ Add</button>
+</div>

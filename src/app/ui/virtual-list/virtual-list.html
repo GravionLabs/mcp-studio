@@ -1,0 +1,12 @@
+<div #viewport class="viewport" (scroll)="onScroll()" tabindex="-1">
+  <div [style.height.px]="range().offsetTop"></div>
+  @for (entry of slice(); track trackBy()(entry.item, entry.index)) {
+  <div class="row" [style.height.px]="rowHeight()">
+    <ng-container
+      [ngTemplateOutlet]="row()"
+      [ngTemplateOutletContext]="{ $implicit: entry.item, index: entry.index }"
+    />
+  </div>
+  }
+  <div [style.height.px]="range().offsetBottom"></div>
+</div>

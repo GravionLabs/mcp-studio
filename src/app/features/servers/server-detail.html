@@ -1,0 +1,101 @@
+@if (server(); as s) {
+<section class="detail">
+  <header>
+    <h2>{{ s.name }}</h2>
+    <div class="actions">
+      @if (s.oauth && signedIn()) {
+      <button type="button" class="ghost" (click)="signOut()">Sign out</button>
+      } @if (state() === "connected") {
+      <button type="button" [disabled]="busy()" (click)="disconnect()">Disconnect</button>
+      } @else if (signingIn()) {
+      <button type="button" disabled>Waiting for the browser…</button>
+      } @else {
+      <button
+        type="button"
+        class="primary"
+        [disabled]="busy() || state() === 'connecting'"
+        (click)="connect()"
+      >
+        {{ state() === "connecting" ? "Connecting…" : s.oauth && signedIn() !== true ? "Sign in &
+        connect" : "Connect" }}
+      </button>
+      }
+      <a class="button" [routerLink]="['/servers', s.id, 'edit']">Edit</a>
+      <button type="button" class="danger" (click)="remove()">Delete</button>
+    </div>
+  </header>
+
+  <p class="state" [class]="state()">
+    <span class="dot"></span> {{ state() }} @if (lastError(); as message) {
+    <span class="error">— {{ message }}</span>
+    }
+  </p>
+
+  <div class="tabs" role="tablist" aria-label="Server sections">
+    @for (tab of visibleTabs(); track tab.id) {
+    <button
+      type="button"
+      role="tab"
+      class="ghost"
+      [class.active]="activeTab() === tab.id"
+      [attr.aria-selected]="activeTab() === tab.id"
+      (click)="selectedTab.set(tab.id)"
+    >
+      {{ tab.label }} @if (tab.id === "logs" && logs().length > 0) {
+      <span class="count">{{ logs().length }}</span>
+      }
+    </button>
+    }
+  </div>
+
+  <div class="panel" role="tabpanel">
+    @switch (activeTab()) { @case ("explorer") {
+    <app-explorer [serverId]="s.id" />
+    } @case ("context") {
+    <app-context-cost [serverId]="s.id" />
+    } @case ("quality") {
+    <app-tool-lint [serverId]="s.id" />
+    } @case ("docs") {
+    <app-tool-docs [serverId]="s.id" [serverName]="s.name" />
+    } @case ("settings") {
+    <dl>
+      <dt>Transport</dt>
+      <dd>
+        {{ s.transport === "stdio" ? "stdio" : "Streamable HTTP" }} @if (s.oauth) { · OAuth 2.1 ({{
+        signedIn() ? "signed in" : "not signed in" }}) }
+      </dd>
+      @if (s.transport === "stdio") {
+      <dt>Command</dt>
+      <dd class="mono">{{ s.command }} {{ s.args.join(" ") }}</dd>
+      @if (s.cwd) {
+      <dt>Working directory</dt>
+      <dd class="mono">{{ s.cwd }}</dd>
+      } @for (entry of entries(s.env); track entry[0]) {
+      <dt class="mono">{{ entry[0] }}</dt>
+      <dd class="mono">{{ entry[1] }}</dd>
+      } } @else {
+      <dt>URL</dt>
+      <dd class="mono">{{ s.url }}</dd>
+      @for (entry of entries(s.headers); track entry[0]) {
+      <dt class="mono">{{ entry[0] }}</dt>
+      <dd class="mono">{{ entry[1] }}</dd>
+      } } @if (s.tags.length > 0) {
+      <dt>Tags</dt>
+      <dd>{{ s.tags.join(", ") }}</dd>
+      }
+    </dl>
+    } @case ("client") {
+    <app-proxy-panel [serverName]="s.name" [transport]="s.transport" />
+    } @case ("logs") { @if (logs().length === 0) {
+    <p class="muted">No log output yet.</p>
+    } @else {
+    <pre
+      class="logs mono"
+    >@for (line of logs(); track $index) {<span class="line" [class]="line.level"><span class="src">[{{ line.source }}]</span> {{ line.line }}
+</span>}</pre>
+    } } }
+  </div>
+</section>
+} @else if (loaded()) {
+<p class="missing muted">This server no longer exists.</p>
+}

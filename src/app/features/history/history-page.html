@@ -1,0 +1,72 @@
+<section class="history">
+  <header>
+    <h2>History</h2>
+    <div class="filters">
+      <select aria-label="Server" (change)="setServer(text($event))">
+        <option value="">All servers</option>
+        @for (server of servers.servers(); track server.id) {
+        <option [value]="server.id" [selected]="server.id === serverFilter()">
+          {{ server.name }}
+        </option>
+        }
+      </select>
+      <input
+        type="search"
+        placeholder="Search tool, arguments, errors"
+        aria-label="Search"
+        [value]="search()"
+        (input)="setSearch(text($event))"
+      />
+      <button type="button" class="danger" (click)="clear()">Clear…</button>
+    </div>
+  </header>
+
+  <ul class="entries">
+    @for (row of rows(); track row.entry.id) {
+    <li class="entry">
+      <div class="line">
+        <span class="badge" [class]="row.summary.status">{{ row.summary.status }}</span>
+        <span class="kind mono">{{ row.summary.kind }}</span>
+        <button
+          type="button"
+          class="ghost title"
+          (click)="toggle(row.entry)"
+          [attr.aria-expanded]="expandedId() === row.entry.id"
+        >
+          {{ row.summary.title }}
+        </button>
+        <span class="muted server">{{ row.server }}</span>
+        <span class="muted">{{ row.duration }}</span>
+        <span class="muted when">{{ row.when }}</span>
+        <span class="actions">
+          <button type="button" [disabled]="busyId() === row.entry.id" (click)="rerun(row.entry)">
+            Rerun
+          </button>
+          @if (row.summary.kind === "tool") {
+          <button type="button" class="ghost" (click)="openInPlayground(row.entry)">Open</button>
+          }
+        </span>
+      </div>
+      @if (expandedId() === row.entry.id) {
+      <div class="details">
+        <h4>Arguments</h4>
+        <app-json-view [value]="row.entry.arguments" />
+        @if (row.entry.error) {
+        <p class="failure">{{ row.entry.error }}</p>
+        } @if (toolResult(row.entry); as parsed) {
+        <h4>Result</h4>
+        <app-result-view [result]="parsed" />
+        } @else if (row.entry.result) {
+        <h4>Result</h4>
+        <app-json-view [value]="row.entry.result" />
+        }
+      </div>
+      }
+    </li>
+    } @empty {
+    <li class="empty muted">
+      Nothing here yet. Calls you make from MCP Studio appear in this list.
+    </li>
+    }
+  </ul>
+</section>

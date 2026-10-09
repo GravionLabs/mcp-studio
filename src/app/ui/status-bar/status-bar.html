@@ -1,0 +1,26 @@
+<footer class="bar">
+  <span class="item"><span class="dot ok"></span>{{ status.connectedCount() }} connected</span>
+  @if (status.errorCount() > 0) {
+  <span class="item"><span class="dot err"></span>{{ status.errorCount() }} with errors</span>
+  }
+  <span class="spacer"></span>
+  @for (s of status.statuses(); track s.serverId) { @if (s.state === "error" && s.message) {
+  <span class="item err-text" [title]="s.message">{{ s.message }}</span>
+  } } @switch (updates.state()) { @case ("checking") {
+  <span class="item">Checking for updates…</span>
+  } @case ("upToDate") {
+  <span class="item">MCP Studio is up to date</span>
+  } @case ("available") {
+  <span class="item" [title]="updates.info()?.notes ?? ''">
+    Version {{ updates.info()?.version }} is available
+  </span>
+  <button type="button" class="link" (click)="updates.install()">Install and restart</button>
+  } @case ("installing") {
+  <span class="item">Installing update…</span>
+  } @case ("error") {
+  <span class="item err-text" [title]="updates.error() ?? ''">{{ updates.error() }}</span>
+  <button type="button" class="link" (click)="updates.check()">Retry</button>
+  } @default {
+  <button type="button" class="link" (click)="updates.check()">Check for updates</button>
+  } }
+</footer>

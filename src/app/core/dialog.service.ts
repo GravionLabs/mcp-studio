@@ -12,7 +12,7 @@ export interface DialogRequest {
 
 /**
  * In-app confirm and prompt dialogs. Native `window.confirm` / `window.prompt` are unreliable in
- * desktop webviews, so the app renders its own (see DialogHostComponent). Requests are queued.
+ * desktop webviews, so the app renders its own (see DialogHost). Requests are queued.
  */
 @Injectable({ providedIn: "root" })
 export class DialogService {

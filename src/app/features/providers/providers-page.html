@@ -1,0 +1,142 @@
+<section class="page">
+  <h2>Providers</h2>
+  <p class="muted">
+    Flows call language models through these providers. The <code>model</code> of an LLM step picks
+    one: a plain name such as <code>claude-sonnet-5-5</code> is Anthropic,
+    <code>openai:gpt-4o</code> uses the OpenAI-compatible endpoint, and
+    <code>ollama:llama3.1:8b</code> uses local Ollama. API keys are kept in the OS keyring and only
+    sent to their provider.
+  </p>
+
+  <section class="card">
+    <h3>Anthropic</h3>
+    <div class="row">
+      <label>
+        <span>API key</span>
+        <input
+          type="password"
+          autocomplete="off"
+          aria-label="Anthropic API key"
+          [placeholder]="hasAnthropicKey() ? 'A key is stored; type to replace it' : 'sk-ant-…'"
+          [value]="anthropicKey()"
+          (input)="anthropicKey.set(text($event))"
+        />
+      </label>
+      <button type="button" class="primary" (click)="saveKey('anthropic')">Save</button>
+      @if (hasAnthropicKey()) {
+      <button type="button" class="ghost" (click)="removeKey('anthropic')">Remove key</button>
+      }
+    </div>
+    <div class="row">
+      <label>
+        <span>Model to test</span>
+        <input
+          aria-label="Anthropic model to test"
+          [value]="model().anthropic"
+          (input)="setModel('anthropic', text($event))"
+        />
+      </label>
+      <button
+        type="button"
+        [disabled]="testing() === 'anthropic' || !hasAnthropicKey()"
+        (click)="test('anthropic')"
+      >
+        Test
+      </button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>OpenAI-compatible endpoint</h3>
+    <p class="muted">
+      OpenAI, LM Studio, vLLM, or any server with <code>/v1/chat/completions</code>. An address with
+      a path, such as <code>…/api/v1</code>, is used as the API root.
+    </p>
+    <p class="muted">
+      <button type="button" class="ghost" (click)="useGithubModels()">Use GitHub Models</button>
+      fills in the address of GitHub Models. As the key, use a GitHub personal access token with the
+      <code>models</code> permission, and write models as <code>openai:openai/gpt-4o</code>. This
+      uses GitHub Models, not a GitHub Copilot subscription (Copilot has no API for other apps), and
+      GitHub's own rate limits apply.
+    </p>
+    <div class="row">
+      <label>
+        <span>Address</span>
+        <input
+          aria-label="OpenAI-compatible address"
+          placeholder="https://api.openai.com"
+          [value]="openaiUrl()"
+          (input)="openaiUrl.set(text($event))"
+        />
+      </label>
+      <label>
+        <span>API key (optional for local servers)</span>
+        <input
+          type="password"
+          autocomplete="off"
+          aria-label="OpenAI-compatible API key"
+          [placeholder]="hasOpenaiKey() ? 'A key is stored; type to replace it' : ''"
+          [value]="openaiKey()"
+          (input)="openaiKey.set(text($event))"
+        />
+      </label>
+      <button type="button" class="primary" (click)="saveKey('openai')">Save</button>
+      @if (hasOpenaiKey()) {
+      <button type="button" class="ghost" (click)="removeKey('openai')">Remove key</button>
+      }
+    </div>
+    <div class="row">
+      <label>
+        <span>Model to test</span>
+        <input
+          aria-label="OpenAI-compatible model to test"
+          placeholder="gpt-4o"
+          [value]="model().openai"
+          (input)="setModel('openai', text($event))"
+        />
+      </label>
+      <button type="button" [disabled]="testing() === 'openai'" (click)="test('openai')">
+        Test
+      </button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Ollama (local models)</h3>
+    <div class="row">
+      <label>
+        <span>Address</span>
+        <input
+          aria-label="Ollama address"
+          placeholder="http://localhost:11434"
+          [value]="ollamaUrl()"
+          (input)="ollamaUrl.set(text($event))"
+        />
+      </label>
+      <button type="button" class="primary" (click)="saveSettings()">Save</button>
+      <button type="button" (click)="loadOllamaModels()">Load models</button>
+    </div>
+    <div class="row">
+      <div class="field">
+        <span>Model to test</span>
+        @if (ollamaModels().length > 0) {
+        <select aria-label="Ollama model to test" (change)="setModel('ollama', text($event))">
+          @for (name of ollamaModels(); track name) {
+          <option [value]="name" [selected]="name === model().ollama">{{ name }}</option>
+          }
+        </select>
+        } @else {
+        <input
+          aria-label="Ollama model to test"
+          placeholder="llama3.1:8b"
+          [value]="model().ollama"
+          (input)="setModel('ollama', text($event))"
+        />
+        }
+      </div>
+      <button type="button" [disabled]="testing() === 'ollama'" (click)="test('ollama')">
+        Test
+      </button>
+    </div>
+  </section>
+</section>

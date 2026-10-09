@@ -1,38 +1,37 @@
 import { Routes } from "@angular/router";
-import { EnvironmentsPageComponent } from "./features/environments/environments-page.component";
-import { ToolPlaygroundComponent } from "./features/playground/tool-playground.component";
-import { HistoryPageComponent } from "./features/history/history-page.component";
-import { ImportPageComponent } from "./features/import/import-page.component";
-import { PricesPageComponent } from "./features/prices/prices-page.component";
-import { TracesPageComponent } from "./features/traces/traces-page.component";
-import { FlowsPageComponent } from "./features/flows/flows-page.component";
-import { ProvidersPageComponent } from "./features/providers/providers-page.component";
-import { ComparePageComponent } from "./features/compare/compare-page.component";
-import { SuitesPageComponent } from "./features/suites/suites-page.component";
-import { ServerDetailComponent } from "./features/servers/server-detail.component";
-import { ServerFormComponent } from "./features/servers/server-form.component";
-import { WelcomeComponent } from "./features/welcome/welcome.component";
+import { EnvironmentsPage } from "./features/environments/environments-page";
+import { ToolPlayground } from "./features/playground/tool-playground";
+import { HistoryPage } from "./features/history/history-page";
+import { ImportPage } from "./features/import/import-page";
+import { PricesPage } from "./features/prices/prices-page";
+import { TracesPage } from "./features/traces/traces-page";
+import { FlowsPage } from "./features/flows/flows-page";
+import { ProvidersPage } from "./features/providers/providers-page";
+import { ComparePage } from "./features/compare/compare-page";
+import { SuitesPage } from "./features/suites/suites-page";
+import { ServerDetail } from "./features/servers/server-detail";
+import { ServerForm } from "./features/servers/server-form";
+import { Welcome } from "./features/welcome/welcome";
 
 export const routes: Routes = [
-  { path: "", pathMatch: "full", component: WelcomeComponent },
-  { path: "environments", component: EnvironmentsPageComponent },
-  { path: "history", component: HistoryPageComponent },
-  { path: "flows", component: FlowsPageComponent },
-  { path: "suites", component: SuitesPageComponent },
-  { path: "compare", component: ComparePageComponent },
+  { path: "", pathMatch: "full", component: Welcome },
+  { path: "environments", component: EnvironmentsPage },
+  { path: "history", component: HistoryPage },
+  { path: "flows", component: FlowsPage },
+  { path: "suites", component: SuitesPage },
+  { path: "compare", component: ComparePage },
   {
     // The graph library is large, so the editor is loaded when it is opened.
     path: "flows/:id/edit",
-    loadComponent: () =>
-      import("./features/flows/flow-editor.component").then((m) => m.FlowEditorComponent),
+    loadComponent: () => import("./features/flows/flow-editor").then((m) => m.FlowEditor),
   },
-  { path: "providers", component: ProvidersPageComponent },
-  { path: "prices", component: PricesPageComponent },
-  { path: "traces", component: TracesPageComponent },
-  { path: "servers/import", component: ImportPageComponent },
-  { path: "servers/new", component: ServerFormComponent },
-  { path: "servers/:id/edit", component: ServerFormComponent },
-  { path: "servers/:id/tools/:name", component: ToolPlaygroundComponent },
-  { path: "servers/:id", component: ServerDetailComponent },
+  { path: "providers", component: ProvidersPage },
+  { path: "prices", component: PricesPage },
+  { path: "traces", component: TracesPage },
+  { path: "servers/import", component: ImportPage },
+  { path: "servers/new", component: ServerForm },
+  { path: "servers/:id/edit", component: ServerForm },
+  { path: "servers/:id/tools/:name", component: ToolPlayground },
+  { path: "servers/:id", component: ServerDetail },
   { path: "**", redirectTo: "" },
 ];

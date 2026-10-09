@@ -1,0 +1,47 @@
+<section class="proxy">
+  <h3>Record a real client</h3>
+  <p class="muted">
+    Use this server through MCP Studio from Claude, GitHub Copilot, OpenCode, or another client.
+    Every message shows up in the inspector while the client works.
+  </p>
+  @if (info(); as i) { @if (snippets().length > 0) {
+  <label class="client">
+    Client
+    <select aria-label="Client" (change)="selectClient($event)">
+      @for (c of clients; track c.id) {
+      <option [value]="c.id" [selected]="c.id === client()">{{ c.label }}</option>
+      }
+    </select>
+  </label>
+  <div class="tabs" role="tablist">
+    @for (snippet of snippets(); track snippet.title; let index = $index) {
+    <button
+      type="button"
+      role="tab"
+      class="ghost"
+      [class.active]="index === selected()"
+      (click)="selected.set(index)"
+    >
+      {{ snippet.title }}
+    </button>
+    }
+  </div>
+  @if (current(); as snippet) {
+  <p class="muted hint">{{ snippet.hint }}</p>
+  <div class="command">
+    <pre class="mono">{{ snippet.text }}</pre>
+    <button type="button" (click)="copy(snippet.text)">Copy</button>
+  </div>
+  }
+  <p class="muted status">
+    @if (transport() === "stdio") { Proxy is listening on 127.0.0.1:{{ i.controlPort }}. } @else {
+    Proxy is listening on 127.0.0.1:{{ i.httpPort }}; MCP Studio adds this server's headers. } MCP
+    Studio must be running while the client works.
+  </p>
+  } @else {
+  <p class="warn" role="status">
+    The <code>mcp-studio-proxy</code> program was not found next to the app. Build it with
+    <code>cargo build -p mcp-studio-proxy</code> or set <code>MCP_STUDIO_PROXY_BIN</code>.
+  </p>
+  } }
+</section>
