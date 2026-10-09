@@ -23,11 +23,22 @@ import { ProxyPanel } from "../proxy/proxy-panel";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { type ServerTab, activeTab, visibleTabs } from "./server-detail.model";
 import { ServersStore } from "./servers.store";
+import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
 /** Summary of one server. The explorer takes over this page in a later PBI. */
 @Component({
   selector: "app-server-detail",
-  imports: [RouterLink, Explorer, ProxyPanel, ContextCostPanel, ToolLint, ToolDocs],
+  imports: [
+    RouterLink,
+    Explorer,
+    ProxyPanel,
+    ContextCostPanel,
+    ToolLint,
+    ToolDocs,
+    TabList,
+    Tab,
+    TabPanel,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./server-detail.html",
   styleUrl: "./server-detail.scss",

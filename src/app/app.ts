@@ -6,7 +6,9 @@ import { ResizeHandleDirective } from "./ui/resize-handle.directive";
 import { FlowConfirmations } from "./features/flows/flow-confirmations";
 import { DialogHost } from "./ui/dialog/dialog-host";
 import { StatusBar } from "./ui/status-bar/status-bar";
+import { TabPanel } from "./ui/tablist/tablist";
 import { Tabs } from "./ui/tabs/tabs";
+import { WorkspaceTabsService } from "./ui/tabs/workspace-tabs.service";
 import { Toasts } from "./ui/toasts/toasts";
 import { Toolbar } from "./ui/toolbar/toolbar";
 import { Sidebar } from "./features/sidebar/sidebar";
@@ -20,6 +22,7 @@ import { InspectorPanel } from "./features/inspector/inspector-panel";
     DialogHost,
     FlowConfirmations,
     StatusBar,
+    TabPanel,
     Tabs,
     Toasts,
     Toolbar,
@@ -32,6 +35,7 @@ import { InspectorPanel } from "./features/inspector/inspector-panel";
 })
 export class App {
   protected readonly layout = inject(PaneLayoutService);
+  protected readonly tabs = inject(WorkspaceTabsService);
   private readonly theme = inject(ThemeService);
 
   constructor() {
