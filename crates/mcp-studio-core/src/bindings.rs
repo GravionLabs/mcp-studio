@@ -43,6 +43,7 @@ use crate::{
     tokens::{CountingStatus, TokenSource},
     trace::{Span, SpanFilter, SpanKind, SpanStatus},
     update::UpdateInfo,
+    workspace::{MissingSecret, TableChanges, WorkspaceChanges},
 };
 
 /// All types exposed to the frontend.
@@ -118,6 +119,9 @@ pub fn ipc_types() -> Types {
         .register::<ExportStatus>()
         .register::<RetentionPolicy>()
         .register::<StorageInfo>()
+        .register::<WorkspaceChanges>()
+        .register::<TableChanges>()
+        .register::<MissingSecret>()
         .register::<Role>()
         .register::<ContentBlock>()
         .register::<Message>()

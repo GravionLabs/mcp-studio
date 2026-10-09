@@ -1,4 +1,10 @@
-import type { RetentionPolicy, StorageInfo } from "../../core/bindings";
+import type {
+  MissingSecret,
+  RetentionPolicy,
+  StorageInfo,
+  TableChanges,
+  WorkspaceChanges,
+} from "../../core/bindings";
 
 export interface RetentionForm {
   maxAgeDays: string;
@@ -60,4 +66,32 @@ export function describeStorage(info: StorageInfo): string {
       ? "1 tool call"
       : `${info.historyEntries.toLocaleString("en-US")} tool calls`;
   return `${formatBytes(info.databaseBytes)} on disk · ${messages} · ${entries} in the history`;
+}
+
+/** Tables of an import that have anything in them. */
+export function tablesWithRows(changes: WorkspaceChanges): TableChanges[] {
+  return changes.tables.filter((t) => t.addedCount + t.replacedCount + t.unchangedCount > 0);
+}
+
+/** Whether an import would add or replace anything. */
+export function hasChanges(changes: WorkspaceChanges): boolean {
+  return changes.tables.some((t) => t.addedCount + t.replacedCount > 0);
+}
+
+/** "2 new, 1 replaced, 3 unchanged" for one table. */
+export function describeTable(table: TableChanges): string {
+  const parts: string[] = [];
+  if (table.addedCount > 0) parts.push(`${table.addedCount} new`);
+  if (table.replacedCount > 0) parts.push(`${table.replacedCount} replaced`);
+  if (table.unchangedCount > 0) parts.push(`${table.unchangedCount} unchanged`);
+  return parts.join(", ");
+}
+
+/** "2 more" when a list of names was cut off. */
+export function moreNames(count: number, shown: number): string {
+  return count > shown ? `and ${count - shown} more` : "";
+}
+
+export function describeSecret(secret: MissingSecret): string {
+  return `${secret.name} (${secret.usedBy.join(", ")})`;
 }

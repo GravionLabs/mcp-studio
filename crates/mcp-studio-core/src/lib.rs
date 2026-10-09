@@ -41,6 +41,7 @@ pub mod test_suites;
 pub mod tokens;
 pub mod trace;
 pub mod update;
+pub mod workspace;
 
 /// Returns the crate version, used by the app shell and smoke tests.
 pub fn version() -> &'static str {

@@ -387,6 +387,13 @@ export type MessageRecord = {
 	spanId: string | null,
 };
 
+/**  A secret the workspace refers to that is not in this computer's keyring. */
+export type MissingSecret = {
+	name: string,
+	/**  Where it is used, for example "server GitHub" or "environment Staging". */
+	usedBy: string[],
+};
+
 /**  Price of one model, in `currency` per million tokens. */
 export type Price = {
 	model: string,
@@ -706,6 +713,17 @@ export type StreamEvent = { type: "text_delta"; text: string } |
 /**  A fragment of the JSON arguments of the tool call that is being generated. */
 { type: "tool_input_delta"; partial_json: string };
 
+export type TableChanges = {
+	label: string,
+	/**  Names of rows the import would add (at most 50). */
+	added: string[],
+	/**  Names of rows the import would replace because they differ (at most 50). */
+	replaced: string[],
+	addedCount: number,
+	replacedCount: number,
+	unchangedCount: number,
+};
+
 export type TestCase = {
 	id: string,
 	input: string,
@@ -847,4 +865,9 @@ export type VariantResult = {
 	outputTokens: number,
 	/**  Estimated tokens of the tool definitions that every request of this variant carries. */
 	definitionTokens: number,
+};
+
+export type WorkspaceChanges = {
+	tables: TableChanges[],
+	missingSecrets: MissingSecret[],
 };

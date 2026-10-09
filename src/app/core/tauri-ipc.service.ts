@@ -29,6 +29,7 @@ import type {
   ProxyInfo,
   RetentionPolicy,
   StorageInfo,
+  WorkspaceChanges,
   PromptInfo,
   Price,
   ProviderSettings,
@@ -130,6 +131,18 @@ export class TauriIpcService {
 
   historyDeleteAll(): Promise<number> {
     return this.call("history_delete_all");
+  }
+
+  workspaceExport(path: string): Promise<void> {
+    return this.call("workspace_export", { path });
+  }
+
+  workspacePreview(path: string): Promise<WorkspaceChanges> {
+    return this.call("workspace_preview", { path });
+  }
+
+  workspaceImport(path: string): Promise<WorkspaceChanges> {
+    return this.call("workspace_import", { path });
   }
 
   traceExportConfig(): Promise<ExportConfig> {

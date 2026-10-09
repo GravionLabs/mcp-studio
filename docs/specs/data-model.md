@@ -32,6 +32,12 @@ versioned migrations. Secrets are stored only as keyring references.
 
 - Collections export as JSON files and flows as YAML files, so teams can share them in Git.
 - Server definitions export without secrets; keyring references are kept as placeholders.
+- The whole workspace (servers, environments, collections, saved requests, flows, test suites,
+  prices) exports to one JSON file (`workspace.rs`). The file holds the stored rows, so it names
+  secrets (`keyring:<name>`) but never their values; history, sessions and settings stay local.
+  Import shows what would be added or replaced, applies it in one transaction, never deletes, and
+  lists the secrets that are missing from the keyring. Environments match by name, everything else
+  by id.
 
 ## Migrations
 

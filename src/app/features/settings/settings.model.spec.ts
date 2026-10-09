@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { describeStorage, formatBytes, parseRetention, toRetentionForm } from "./settings.model";
+import type { TableChanges, WorkspaceChanges } from "../../core/bindings";
+import {
+  describeSecret,
+  describeStorage,
+  describeTable,
+  formatBytes,
+  hasChanges,
+  moreNames,
+  parseRetention,
+  tablesWithRows,
+  toRetentionForm,
+} from "./settings.model";
 
 describe("parseRetention", () => {
   it("reads whole numbers", () => {
@@ -51,6 +62,53 @@ describe("describeStorage", () => {
   it("summarizes the database", () => {
     expect(describeStorage({ databaseBytes: 2048, messages: 1, historyEntries: 1200 })).toBe(
       "2.0 KB on disk · 1 message · 1,200 tool calls in the history",
+    );
+  });
+});
+
+function table(partial: Partial<TableChanges>): TableChanges {
+  return {
+    label: "Servers",
+    added: [],
+    replaced: [],
+    addedCount: 0,
+    replacedCount: 0,
+    unchangedCount: 0,
+    ...partial,
+  };
+}
+
+describe("workspace import summary", () => {
+  it("describes what happens to a table", () => {
+    expect(describeTable(table({ addedCount: 2, replacedCount: 1, unchangedCount: 3 }))).toBe(
+      "2 new, 1 replaced, 3 unchanged",
+    );
+    expect(describeTable(table({ unchangedCount: 4 }))).toBe("4 unchanged");
+  });
+
+  it("leaves out empty tables", () => {
+    const changes: WorkspaceChanges = {
+      tables: [table({ label: "Flows" }), table({ label: "Servers", addedCount: 1 })],
+      missingSecrets: [],
+    };
+    expect(tablesWithRows(changes).map((t) => t.label)).toEqual(["Servers"]);
+  });
+
+  it("knows whether anything would change", () => {
+    const none: WorkspaceChanges = { tables: [table({ unchangedCount: 3 })], missingSecrets: [] };
+    const some: WorkspaceChanges = { tables: [table({ replacedCount: 1 })], missingSecrets: [] };
+    expect(hasChanges(none)).toBe(false);
+    expect(hasChanges(some)).toBe(true);
+  });
+
+  it("says how many names were cut off", () => {
+    expect(moreNames(3, 3)).toBe("");
+    expect(moreNames(60, 50)).toBe("and 10 more");
+  });
+
+  it("names where a missing secret is used", () => {
+    expect(describeSecret({ name: "token", usedBy: ["server A", "environment B"] })).toBe(
+      "token (server A, environment B)",
     );
   });
 });

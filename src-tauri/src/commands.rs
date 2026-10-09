@@ -34,6 +34,7 @@ use mcp_studio_core::{
     tokens::{self, CountingStatus},
     trace::{query_spans, Span, SpanFilter},
     update::UpdateInfo,
+    workspace::{self, WorkspaceChanges},
 };
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -236,6 +237,38 @@ pub async fn retention_set(
 #[tauri::command]
 pub async fn storage_info(state: State<'_, AppState>) -> CommandResult<StorageInfo> {
     Ok(storage::storage_info(&state.db).await?)
+}
+
+/// Writes servers, environments, collections, flows, test suites and prices to one file.
+/// The file names the secrets they use but holds none of their values.
+#[tauri::command]
+pub async fn workspace_export(state: State<'_, AppState>, path: String) -> CommandResult<()> {
+    let bundle = workspace::export(&state.db).await?;
+    std::fs::write(&path, bundle).map_err(|e| CommandError(format!("could not write {path}: {e}")))
+}
+
+/// What importing the file would add and replace. Changes nothing.
+#[tauri::command]
+pub async fn workspace_preview(
+    state: State<'_, AppState>,
+    path: String,
+) -> CommandResult<WorkspaceChanges> {
+    let bundle = read_workspace_file(&path)?;
+    Ok(workspace::preview(&state.db, state.secrets.as_ref(), &bundle).await?)
+}
+
+/// Adds and replaces what the file holds; nothing is deleted.
+#[tauri::command]
+pub async fn workspace_import(
+    state: State<'_, AppState>,
+    path: String,
+) -> CommandResult<WorkspaceChanges> {
+    let bundle = read_workspace_file(&path)?;
+    Ok(workspace::import(&state.db, state.secrets.as_ref(), &bundle).await?)
+}
+
+fn read_workspace_file(path: &str) -> CommandResult<String> {
+    std::fs::read_to_string(path).map_err(|e| CommandError(format!("could not read {path}: {e}")))
 }
 
 /// Deletes all recorded messages and the tool call history. Returns the number of messages.
