@@ -70,11 +70,36 @@
       placeholder="https://example.com/mcp"
     />
   </label>
+  <div class="presets">
+    <button type="button" (click)="useAzureDevOps()">Azure DevOps preset</button>
+    <small
+      >Fills in https://mcp.dev.azure.com/ and turns on the Azure login; add your organization name
+      to the URL.</small
+    >
+  </div>
   <label class="inline">
     <input type="checkbox" [checked]="form().oauth" (change)="setOauth(!form().oauth)" />
     Uses OAuth 2.1 (sign in with the browser; tokens are kept in the OS keyring)
   </label>
-  @if (form().oauth) {
+  <label class="inline">
+    <input
+      type="checkbox"
+      [checked]="form().azureCredentials"
+      (change)="setAzureCredentials(!form().azureCredentials)"
+    />
+    Uses the Azure login (Microsoft Entra ID; token from the Azure CLI or Azure Developer CLI)
+  </label>
+  @if (form().azureCredentials) {
+  <label>
+    <span>Scopes (optional)</span>
+    <input
+      class="mono"
+      [value]="form().oauthScopes"
+      (input)="patch({ oauthScopes: text($event) })"
+      placeholder="Empty uses the scope from the server's metadata. Sign in first with: az login --allow-no-subscriptions"
+    />
+  </label>
+  } @if (form().oauth) {
   <label>
     <span>OAuth client ID (optional)</span>
     <input
