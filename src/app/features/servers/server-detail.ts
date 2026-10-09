@@ -21,7 +21,7 @@ import { ToolLint } from "../lint/tool-lint";
 import { ContextCostPanel } from "../prices/context-cost-panel";
 import { ProxyPanel } from "../proxy/proxy-panel";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
-import { type ServerTab, activeTab, visibleTabs } from "./server-detail.model";
+import { SERVER_TABS, type ServerTab, activeTab, visibleTabs } from "./server-detail.model";
 import { ServersStore } from "./servers.store";
 import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
@@ -45,6 +45,8 @@ import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 })
 export class ServerDetail {
   readonly id = input.required<string>();
+  /** `?tab=client` opens that section; unknown or hidden sections are ignored. */
+  readonly tab = input<string>();
 
   private readonly store = inject(ServersStore);
   private readonly router = inject(Router);
@@ -76,6 +78,10 @@ export class ServerDetail {
   protected readonly loaded = this.store.loaded;
 
   constructor() {
+    effect(() => {
+      const wanted = SERVER_TABS.find((t) => t.id === this.tab());
+      if (wanted) this.selectedTab.set(wanted.id);
+    });
     effect(() => {
       const server = this.server();
       this.signedIn.set(null);
