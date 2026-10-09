@@ -22,6 +22,7 @@ import { ContextCostPanel } from "../prices/context-cost-panel";
 import { ProxyPanel } from "../proxy/proxy-panel";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import {
+  SERVER_TABS,
   type ServerTab,
   activeTab,
   needsAzureLogin,
@@ -29,17 +30,30 @@ import {
   visibleTabs,
 } from "./server-detail.model";
 import { ServersStore } from "./servers.store";
+import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
 /** Summary of one server. The explorer takes over this page in a later PBI. */
 @Component({
   selector: "app-server-detail",
-  imports: [RouterLink, Explorer, ProxyPanel, ContextCostPanel, ToolLint, ToolDocs],
+  imports: [
+    RouterLink,
+    Explorer,
+    ProxyPanel,
+    ContextCostPanel,
+    ToolLint,
+    ToolDocs,
+    TabList,
+    Tab,
+    TabPanel,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./server-detail.html",
   styleUrl: "./server-detail.scss",
 })
 export class ServerDetail {
   readonly id = input.required<string>();
+  /** `?tab=client` opens that section; unknown or hidden sections are ignored. */
+  readonly tab = input<string>();
 
   private readonly store = inject(ServersStore);
   private readonly router = inject(Router);
@@ -72,6 +86,10 @@ export class ServerDetail {
   protected readonly loaded = this.store.loaded;
 
   constructor() {
+    effect(() => {
+      const wanted = SERVER_TABS.find((t) => t.id === this.tab());
+      if (wanted) this.selectedTab.set(wanted.id);
+    });
     effect(() => {
       const server = this.server();
       this.signedIn.set(null);

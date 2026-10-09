@@ -99,11 +99,12 @@
     </section>
 
     <aside class="inspector">
-      <div class="tabs" role="tablist">
+      <div class="tabs" appTablist="flow-inspector" aria-label="Inspector">
         <button
           type="button"
-          role="tab"
           class="ghost"
+          appTab="form"
+          [tabSelected]="tab() === 'form'"
           [class.active]="tab() === 'form'"
           (click)="tab.set('form')"
         >
@@ -111,8 +112,9 @@
         </button>
         <button
           type="button"
-          role="tab"
           class="ghost"
+          appTab="yaml"
+          [tabSelected]="tab() === 'yaml'"
           [class.active]="tab() === 'yaml'"
           (click)="tab.set('yaml')"
         >
@@ -120,189 +122,191 @@
         </button>
       </div>
 
-      @if (tab() === "yaml") {
-      <p class="muted small">
-        The same flow as text. Edits here update the graph as soon as the YAML is valid.
-      </p>
-      <textarea
-        class="yaml mono"
-        aria-label="Flow as YAML"
-        spellcheck="false"
-        [value]="yamlText()"
-        (input)="yamlEdited($event)"
-        (blur)="yamlLeft()"
-      ></textarea>
-      @if (yamlError(); as problem) {
-      <p class="problem" role="alert">{{ problem }}</p>
-      } } @else if (selected(); as step) {
-      <div class="form">
-        <div class="field">
-          <label for="step-id">Id</label>
-          <input id="step-id" [value]="step.id" (change)="setId(step.id, $event)" />
-        </div>
-        <div class="actions">
-          <button type="button" class="ghost" (click)="move(step.id, -1)">↑ Earlier</button>
-          <button type="button" class="ghost" (click)="move(step.id, 1)">↓ Later</button>
-          <button type="button" class="danger" (click)="remove(step.id)">Delete</button>
-        </div>
-        @for (issue of issuesOf(step.id); track $index) {
-        <p class="problem" role="alert">{{ issue.message }}</p>
-        } @switch (step.type) { @case ("input") {
-        <strong>Inputs</strong>
-        @for (decl of inputEntries(step); track decl.name) {
-        <div class="row">
-          <input
-            aria-label="Input name"
-            [value]="decl.name"
-            (change)="renameInput(step, decl.name, $event)"
-          />
-          <select
-            [attr.aria-label]="'Type of ' + decl.name"
-            (change)="setInputDecl(step, decl.name, { type: text($event) })"
-          >
-            @for (kind of inputKinds; track kind) {
-            <option [value]="kind" [selected]="kind === decl.type">{{ kind }}</option>
-            }
-          </select>
-          <button
-            type="button"
-            class="ghost"
-            [attr.aria-label]="'Remove ' + decl.name"
-            (click)="removeInput(step, decl.name)"
-          >
-            ✕
-          </button>
-        </div>
-        }
-        <button type="button" class="ghost" (click)="addInput(step)">+ Add input</button>
-        } @case ("llm") {
-        <div class="field">
-          <label for="llm-model">Model</label>
-          <input
-            id="llm-model"
-            placeholder="claude-sonnet-5-5, openai:gpt-4o, ollama:llama3.1:8b"
-            [value]="step.model"
-            (change)="setText(step.id, 'model', $event)"
-          />
-        </div>
-        <div class="field">
-          <label for="llm-system">System prompt (optional)</label>
-          <textarea
-            id="llm-system"
-            rows="3"
-            [value]="step.system ?? ''"
-            (change)="setOptionalText(step.id, 'system', $event)"
-          ></textarea>
-        </div>
-        <div class="field">
-          <label for="llm-prompt">Prompt</label>
-          <textarea
-            id="llm-prompt"
-            rows="6"
-            placeholder="Summarize {{ '{{ steps.issues.result }}' }}"
-            [value]="step.prompt"
-            (change)="setText(step.id, 'prompt', $event)"
-          ></textarea>
-        </div>
-        <strong>Tools the model may call</strong>
-        @for (tool of step.tools ?? []; track $index; let i = $index) {
-        <div class="row">
-          <input
-            aria-label="Server"
-            placeholder="server"
-            [value]="tool.server"
-            (change)="setTool(step, i, 'server', $event)"
-          />
-          <input
-            aria-label="Tool"
-            placeholder="tool"
-            [value]="tool.tool"
-            (change)="setTool(step, i, 'tool', $event)"
-          />
-          <button
-            type="button"
-            class="ghost"
-            aria-label="Remove tool"
-            (click)="removeTool(step, i)"
-          >
-            ✕
-          </button>
-        </div>
-        }
-        <button type="button" class="ghost" (click)="addTool(step)">+ Add tool</button>
-        } @case ("tool") {
-        <div class="field">
-          <label for="tool-server">Server</label>
-          <input
-            id="tool-server"
-            [value]="step.server"
-            (change)="setText(step.id, 'server', $event)"
-          />
-        </div>
-        <div class="field">
-          <label for="tool-name">Tool</label>
-          <input id="tool-name" [value]="step.tool" (change)="setText(step.id, 'tool', $event)" />
-        </div>
-        <div class="field">
-          <label for="tool-arguments">Arguments (JSON)</label>
-          <textarea
-            id="tool-arguments"
-            class="mono"
-            rows="6"
-            [value]="argumentsText(step)"
-            (change)="setArguments(step.id, $event)"
-          ></textarea>
-          @if (argumentsError(); as problem) {
-          <span class="problem" role="alert">{{ problem }}</span>
-          }
-        </div>
-        } @case ("condition") {
-        <div class="field">
-          <label for="cond-expression">Condition</label>
-          <input
-            id="cond-expression"
-            class="mono"
-            placeholder="len(steps.issues.items) > 3"
-            [value]="step.expression"
-            (change)="setText(step.id, 'expression', $event)"
-          />
-        </div>
-        @for (branch of ["then", "else"]; track branch) {
-        <div class="field">
-          <label [for]="'cond-' + branch">{{ branch }} jump to</label>
-          <select [id]="'cond-' + branch" (change)="setBranch(step.id, $any(branch), $event)">
-            <option value="" [selected]="(branch === 'then' ? step.then : step.else) === null">
-              the next step
-            </option>
-            @for (target of targetsOf(step.id); track target) {
-            <option
-              [value]="target"
-              [selected]="(branch === 'then' ? step.then : step.else) === target"
+      <div [appTabPanel]="tab()" tabPanelGroup="flow-inspector">
+        @if (tab() === "yaml") {
+        <p class="muted small">
+          The same flow as text. Edits here update the graph as soon as the YAML is valid.
+        </p>
+        <textarea
+          class="yaml mono"
+          aria-label="Flow as YAML"
+          spellcheck="false"
+          [value]="yamlText()"
+          (input)="yamlEdited($event)"
+          (blur)="yamlLeft()"
+        ></textarea>
+        @if (yamlError(); as problem) {
+        <p class="problem" role="alert">{{ problem }}</p>
+        } } @else if (selected(); as step) {
+        <div class="form">
+          <div class="field">
+            <label for="step-id">Id</label>
+            <input id="step-id" [value]="step.id" (change)="setId(step.id, $event)" />
+          </div>
+          <div class="actions">
+            <button type="button" class="ghost" (click)="move(step.id, -1)">↑ Earlier</button>
+            <button type="button" class="ghost" (click)="move(step.id, 1)">↓ Later</button>
+            <button type="button" class="danger" (click)="remove(step.id)">Delete</button>
+          </div>
+          @for (issue of issuesOf(step.id); track $index) {
+          <p class="problem" role="alert">{{ issue.message }}</p>
+          } @switch (step.type) { @case ("input") {
+          <strong>Inputs</strong>
+          @for (decl of inputEntries(step); track decl.name) {
+          <div class="row">
+            <input
+              aria-label="Input name"
+              [value]="decl.name"
+              (change)="renameInput(step, decl.name, $event)"
+            />
+            <select
+              [attr.aria-label]="'Type of ' + decl.name"
+              (change)="setInputDecl(step, decl.name, { type: text($event) })"
             >
-              {{ target }}
-            </option>
+              @for (kind of inputKinds; track kind) {
+              <option [value]="kind" [selected]="kind === decl.type">{{ kind }}</option>
+              }
+            </select>
+            <button
+              type="button"
+              class="ghost"
+              [attr.aria-label]="'Remove ' + decl.name"
+              (click)="removeInput(step, decl.name)"
+            >
+              ✕
+            </button>
+          </div>
+          }
+          <button type="button" class="ghost" (click)="addInput(step)">+ Add input</button>
+          } @case ("llm") {
+          <div class="field">
+            <label for="llm-model">Model</label>
+            <input
+              id="llm-model"
+              placeholder="claude-sonnet-5-5, openai:gpt-4o, ollama:llama3.1:8b"
+              [value]="step.model"
+              (change)="setText(step.id, 'model', $event)"
+            />
+          </div>
+          <div class="field">
+            <label for="llm-system">System prompt (optional)</label>
+            <textarea
+              id="llm-system"
+              rows="3"
+              [value]="step.system ?? ''"
+              (change)="setOptionalText(step.id, 'system', $event)"
+            ></textarea>
+          </div>
+          <div class="field">
+            <label for="llm-prompt">Prompt</label>
+            <textarea
+              id="llm-prompt"
+              rows="6"
+              placeholder="Summarize {{ '{{ steps.issues.result }}' }}"
+              [value]="step.prompt"
+              (change)="setText(step.id, 'prompt', $event)"
+            ></textarea>
+          </div>
+          <strong>Tools the model may call</strong>
+          @for (tool of step.tools ?? []; track $index; let i = $index) {
+          <div class="row">
+            <input
+              aria-label="Server"
+              placeholder="server"
+              [value]="tool.server"
+              (change)="setTool(step, i, 'server', $event)"
+            />
+            <input
+              aria-label="Tool"
+              placeholder="tool"
+              [value]="tool.tool"
+              (change)="setTool(step, i, 'tool', $event)"
+            />
+            <button
+              type="button"
+              class="ghost"
+              aria-label="Remove tool"
+              (click)="removeTool(step, i)"
+            >
+              ✕
+            </button>
+          </div>
+          }
+          <button type="button" class="ghost" (click)="addTool(step)">+ Add tool</button>
+          } @case ("tool") {
+          <div class="field">
+            <label for="tool-server">Server</label>
+            <input
+              id="tool-server"
+              [value]="step.server"
+              (change)="setText(step.id, 'server', $event)"
+            />
+          </div>
+          <div class="field">
+            <label for="tool-name">Tool</label>
+            <input id="tool-name" [value]="step.tool" (change)="setText(step.id, 'tool', $event)" />
+          </div>
+          <div class="field">
+            <label for="tool-arguments">Arguments (JSON)</label>
+            <textarea
+              id="tool-arguments"
+              class="mono"
+              rows="6"
+              [value]="argumentsText(step)"
+              (change)="setArguments(step.id, $event)"
+            ></textarea>
+            @if (argumentsError(); as problem) {
+            <span class="problem" role="alert">{{ problem }}</span>
             }
-          </select>
+          </div>
+          } @case ("condition") {
+          <div class="field">
+            <label for="cond-expression">Condition</label>
+            <input
+              id="cond-expression"
+              class="mono"
+              placeholder="len(steps.issues.items) > 3"
+              [value]="step.expression"
+              (change)="setText(step.id, 'expression', $event)"
+            />
+          </div>
+          @for (branch of ["then", "else"]; track branch) {
+          <div class="field">
+            <label [for]="'cond-' + branch">{{ branch }} jump to</label>
+            <select [id]="'cond-' + branch" (change)="setBranch(step.id, $any(branch), $event)">
+              <option value="" [selected]="(branch === 'then' ? step.then : step.else) === null">
+                the next step
+              </option>
+              @for (target of targetsOf(step.id); track target) {
+              <option
+                [value]="target"
+                [selected]="(branch === 'then' ? step.then : step.else) === target"
+              >
+                {{ target }}
+              </option>
+              }
+            </select>
+          </div>
+          } } @case ("transform") {
+          <strong>Values</strong>
+          <app-string-map-editor
+            keyLabel="value"
+            [value]="step.values ?? {}"
+            (valueChange)="set(step.id, { values: $event })"
+          />
+          } @case ("output") {
+          <strong>Results of the flow</strong>
+          <app-string-map-editor
+            keyLabel="result"
+            [value]="step.outputs ?? {}"
+            (valueChange)="set(step.id, { outputs: $event })"
+          />
+          } }
         </div>
-        } } @case ("transform") {
-        <strong>Values</strong>
-        <app-string-map-editor
-          keyLabel="value"
-          [value]="step.values ?? {}"
-          (valueChange)="set(step.id, { values: $event })"
-        />
-        } @case ("output") {
-        <strong>Results of the flow</strong>
-        <app-string-map-editor
-          keyLabel="result"
-          [value]="step.outputs ?? {}"
-          (valueChange)="set(step.id, { outputs: $event })"
-        />
-        } }
+        } @else {
+        <p class="muted">Select a step in the graph to edit it, or add one from the left.</p>
+        }
       </div>
-      } @else {
-      <p class="muted">Select a step in the graph to edit it, or add one from the left.</p>
-      }
 
       <div class="validation" aria-label="Checks">
         <strong>Checks</strong>

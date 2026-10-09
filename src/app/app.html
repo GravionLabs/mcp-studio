@@ -12,7 +12,7 @@
 
     <main class="workspace">
       <app-tabs />
-      <div class="content">
+      <div class="content" [appTabPanel]="tabs.activeId() ?? 'none'" tabPanelGroup="workspace">
         <router-outlet />
       </div>
     </main>

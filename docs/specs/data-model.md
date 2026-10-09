@@ -26,12 +26,18 @@ versioned migrations. Secrets are stored only as keyring references.
   but secrets are masked before storage.
 - A secret in `servers.env` or `servers.headers` is written as `keyring:<service>/<key>` and resolved
   only in Rust when the process or request starts.
-- History retention is configurable (default: 30 days or 100,000 messages, whichever comes first).
+- History retention is configurable on the Settings page (default: 30 days or 100,000 messages, whichever comes first). The limits are stored in the `settings` table under `retention` and applied at startup and when saved.
 
 ## Export and import
 
 - Collections export as JSON files and flows as YAML files, so teams can share them in Git.
 - Server definitions export without secrets; keyring references are kept as placeholders.
+- The whole workspace (servers, environments, collections, saved requests, flows, test suites,
+  prices) exports to one JSON file (`workspace.rs`). The file holds the stored rows, so it names
+  secrets (`keyring:<name>`) but never their values; history, sessions and settings stay local.
+  Import shows what would be added or replaced, applies it in one transaction, never deletes, and
+  lists the secrets that are missing from the keyring. Environments match by name, everything else
+  by id.
 
 ## Migrations
 

@@ -1,0 +1,130 @@
+<section class="page">
+  <h2>Settings</h2>
+
+  <form class="group" (submit)="$event.preventDefault(); save()">
+    <h3>History</h3>
+    <p class="muted">
+      Recorded messages and the tool call history are deleted when they are older than the age limit
+      or beyond the message limit. The limits are applied when the app starts and when you save
+      them.
+    </p>
+    <label>
+      <span>Keep history for (days)</span>
+      <input
+        class="number"
+        inputmode="numeric"
+        [value]="form().maxAgeDays"
+        (input)="patch({ maxAgeDays: text($event) })"
+      />
+    </label>
+    <label>
+      <span>Keep at most (messages)</span>
+      <input
+        class="number"
+        inputmode="numeric"
+        [value]="form().maxMessages"
+        (input)="patch({ maxMessages: text($event) })"
+      />
+    </label>
+    @if (submitted() && problems().length > 0) {
+    <ul class="problems" role="alert">
+      @for (problem of problems(); track problem) {
+      <li>{{ problem }}</li>
+      }
+    </ul>
+    }
+    <div class="actions">
+      <button type="submit" class="primary" [disabled]="busy()">Save</button>
+    </div>
+  </form>
+
+  <div class="group">
+    <h3>Storage</h3>
+    <p>{{ storageText() }}</p>
+    <div class="actions">
+      <button type="button" class="danger" [disabled]="busy()" (click)="deleteHistory()">
+        Delete history now
+      </button>
+    </div>
+  </div>
+
+  <div class="group">
+    <h3>Backup</h3>
+    <p class="muted">
+      Saves servers, environments, collections, flows, test suites and prices to one file, for
+      example to move to another computer. The file names the secrets they use but holds none of
+      their values. History is not included.
+    </p>
+    <div class="actions">
+      <button type="button" [disabled]="busy()" (click)="exportWorkspace()">Save workspace…</button>
+      <button type="button" [disabled]="busy()" (click)="chooseImport()">Import workspace…</button>
+    </div>
+    @if (pending(); as pending) {
+    <div class="preview" role="region" aria-label="Import preview">
+      @if (hasChanges(pending.changes)) {
+      <p>Importing adds and replaces the following. Nothing is deleted.</p>
+      } @else {
+      <p>Everything in this file is already in your workspace.</p>
+      } @for (table of tablesWithRows(pending.changes); track table.label) {
+      <div>
+        <strong>{{ table.label }}</strong>: {{ describeTable(table) }} @if (table.replacedCount > 0)
+        {
+        <div class="muted">
+          Replaced: {{ table.replaced.join(", ") }} {{ moreNames(table.replacedCount,
+          table.replaced.length) }}
+        </div>
+        } @if (table.addedCount > 0) {
+        <div class="muted">
+          New: {{ table.added.join(", ") }} {{ moreNames(table.addedCount, table.added.length) }}
+        </div>
+        }
+      </div>
+      } @if (pending.changes.missingSecrets.length > 0) {
+      <p>These secrets are not on this computer and must be entered again after the import:</p>
+      <ul>
+        @for (secret of pending.changes.missingSecrets; track secret.name) {
+        <li>{{ describeSecret(secret) }}</li>
+        }
+      </ul>
+      }
+      <div class="actions">
+        <button
+          type="button"
+          class="primary"
+          [disabled]="busy() || !hasChanges(pending.changes)"
+          (click)="applyImport()"
+        >
+          Import
+        </button>
+        <button type="button" (click)="cancelImport()">Cancel</button>
+      </div>
+    </div>
+    } @if (imported(); as done) { @if (done.missingSecrets.length > 0) {
+    <div class="preview" role="status">
+      <p>Imported. Open these servers and environments and enter the missing secrets again:</p>
+      <ul>
+        @for (secret of done.missingSecrets; track secret.name) {
+        <li>{{ describeSecret(secret) }}</li>
+        }
+      </ul>
+    </div>
+    } }
+  </div>
+
+  <div class="group">
+    <h3>Theme</h3>
+    <label class="inline">
+      <input type="radio" name="theme" [checked]="theme.isDark()" (change)="theme.set('dark')" />
+      Dark
+    </label>
+    <label class="inline">
+      <input type="radio" name="theme" [checked]="!theme.isDark()" (change)="theme.set('light')" />
+      Light
+    </label>
+  </div>
+
+  <div class="group">
+    <h3>OpenTelemetry export</h3>
+    <app-trace-export />
+  </div>
+</section>

@@ -16,7 +16,6 @@ use mcp_studio_core::{
     flow_runs::FlowRuns,
     flows::Flows,
     http_proxy::{self, HttpProxy},
-    message_store::{self, RetentionPolicy},
     otlp::TraceExporter,
     prices::Prices,
     proxy::{discovery_path, ProxyService},
@@ -24,6 +23,7 @@ use mcp_studio_core::{
     secrets::{KeyringStore, SecretStore},
     session::SessionManager,
     settings::Settings,
+    storage,
     test_suites::TestSuites,
 };
 use tauri::Manager;
@@ -70,10 +70,9 @@ pub fn run() {
             let db = tauri::async_runtime::block_on(Db::open(&dir.join("mcp-studio.sqlite")))?;
             let cleanup_db = db.clone();
             tauri::async_runtime::spawn(async move {
-                let _ = message_store::cleanup(&cleanup_db, RetentionPolicy::default()).await;
-                let _ = mcp_studio_core::history::History::new(cleanup_db)
-                    .cleanup(5000, 30)
-                    .await;
+                let settings = Settings::new(cleanup_db.clone());
+                let policy = storage::load_policy(&settings).await.unwrap_or_default();
+                let _ = storage::apply_policy(&cleanup_db, policy).await;
             });
             let registry = Registry::new(db.clone());
             let environments = Environments::new(db.clone());
@@ -154,6 +153,13 @@ pub fn run() {
             commands::trace_export_set_config,
             commands::trace_export_status,
             commands::trace_export_now,
+            commands::retention_get,
+            commands::retention_set,
+            commands::storage_info,
+            commands::history_delete_all,
+            commands::workspace_export,
+            commands::workspace_preview,
+            commands::workspace_import,
             commands::token_counting_status,
             commands::token_counting_set_model,
             commands::message_count_exact,
@@ -227,6 +233,7 @@ pub fn run() {
             commands::history_clear,
             commands::proxy_info,
             commands::azure_login,
+            commands::demo_server_path,
             commands::proxy_set_environment,
             commands::oauth_sign_in,
             commands::oauth_sign_out,

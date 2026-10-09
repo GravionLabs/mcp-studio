@@ -30,7 +30,7 @@ use crate::{
         Completion, CompletionRequest, ContentBlock, Message, ProviderSettings, ProviderStatus,
         ProviderTestResult, Role, StopReason, StreamEvent, ToolDefinition, Usage,
     },
-    message_store::MessageFilter,
+    message_store::{MessageFilter, RetentionPolicy},
     metering::{ContextCost, SessionUsage, ToolCost},
     model::AppInfo,
     otlp::{ExportConfig, ExportStatus},
@@ -38,10 +38,12 @@ use crate::{
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
+    storage::StorageInfo,
     test_suites::{Expectation, TestCase, TestCaseInput, TestSuite, TestSuiteInput},
     tokens::{CountingStatus, TokenSource},
     trace::{Span, SpanFilter, SpanKind, SpanStatus},
     update::UpdateInfo,
+    workspace::{MissingSecret, TableChanges, WorkspaceChanges},
 };
 
 /// All types exposed to the frontend.
@@ -115,6 +117,11 @@ pub fn ipc_types() -> Types {
         .register::<SpanFilter>()
         .register::<ExportConfig>()
         .register::<ExportStatus>()
+        .register::<RetentionPolicy>()
+        .register::<StorageInfo>()
+        .register::<WorkspaceChanges>()
+        .register::<TableChanges>()
+        .register::<MissingSecret>()
         .register::<Role>()
         .register::<ContentBlock>()
         .register::<Message>()

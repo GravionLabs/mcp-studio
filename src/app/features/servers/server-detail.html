@@ -44,14 +44,14 @@
     }
   </p>
 
-  <div class="tabs" role="tablist" aria-label="Server sections">
+  <div class="tabs" appTablist="server" aria-label="Server sections">
     @for (tab of visibleTabs(); track tab.id) {
     <button
       type="button"
-      role="tab"
       class="ghost"
+      [appTab]="tab.id"
+      [tabSelected]="activeTab() === tab.id"
       [class.active]="activeTab() === tab.id"
-      [attr.aria-selected]="activeTab() === tab.id"
       (click)="selectedTab.set(tab.id)"
     >
       {{ tab.label }} @if (tab.id === "logs" && logs().length > 0) {
@@ -61,7 +61,7 @@
     }
   </div>
 
-  <div class="panel" role="tabpanel">
+  <div class="panel" [appTabPanel]="activeTab()" tabPanelGroup="server">
     @switch (activeTab()) { @case ("explorer") {
     <app-explorer [serverId]="s.id" />
     } @case ("context") {
