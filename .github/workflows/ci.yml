@@ -44,7 +44,7 @@ jobs:
               - '.github/workflows/ci.yml'
             package:
               - '.github/workflows/ci.yml'
-              - 'scripts/build-proxy-sidecar.mjs'
+              - 'scripts/build-sidecars.mjs'
               - 'src-tauri/tauri.conf.json'
               - 'src-tauri/tauri.bundle.conf.json'
 
@@ -190,9 +190,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # The proxy program ships next to the app (Tauri sidecar); see tauri.bundle.conf.json.
-      - name: Build proxy sidecar
-        run: node scripts/build-proxy-sidecar.mjs ${{ matrix.target }}
+      # The proxy program and the reference server ship next to the app (Tauri sidecars); see
+      # tauri.bundle.conf.json.
+      - name: Build sidecars
+        run: node scripts/build-sidecars.mjs ${{ matrix.target }}
 
       - uses: tauri-apps/tauri-action@v0
         env:

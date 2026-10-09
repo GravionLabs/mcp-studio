@@ -373,13 +373,25 @@ pub struct ProxyInfo {
 /// Finds the `mcp-studio-proxy` program: `MCP_STUDIO_PROXY_BIN`, then next to the running
 /// executable (where bundled sidecars are installed, and where `cargo build` puts it in development).
 pub fn locate_proxy_binary() -> Option<PathBuf> {
-    locate_proxy_binary_with(
-        std::env::var_os("MCP_STUDIO_PROXY_BIN").map(PathBuf::from),
+    locate_sidecar("mcp-studio-proxy", "MCP_STUDIO_PROXY_BIN")
+}
+
+/// Finds the reference server `mcp-studio-testserver` that ships with the app, the same way.
+/// `MCP_STUDIO_DEMO_SERVER_BIN` overrides the location.
+pub fn locate_demo_server() -> Option<PathBuf> {
+    locate_sidecar("mcp-studio-testserver", "MCP_STUDIO_DEMO_SERVER_BIN")
+}
+
+fn locate_sidecar(name: &str, override_var: &str) -> Option<PathBuf> {
+    locate_sidecar_with(
+        name,
+        std::env::var_os(override_var).map(PathBuf::from),
         std::env::current_exe().ok(),
     )
 }
 
-fn locate_proxy_binary_with(
+fn locate_sidecar_with(
+    name: &str,
     override_path: Option<PathBuf>,
     current_exe: Option<PathBuf>,
 ) -> Option<PathBuf> {
@@ -388,12 +400,12 @@ fn locate_proxy_binary_with(
     }
     let dir = current_exe?.parent()?.to_path_buf();
     let name = if cfg!(windows) {
-        "mcp-studio-proxy.exe"
+        format!("{name}.exe")
     } else {
-        "mcp-studio-proxy"
+        name.to_owned()
     };
     // Test binaries live in `deps/`; the real program is one level up.
-    [dir.join(name), dir.join("..").join(name)]
+    [dir.join(&name), dir.join("..").join(&name)]
         .into_iter()
         .find(|p| p.is_file())
         .map(|p| p.canonicalize().unwrap_or(p))
@@ -462,25 +474,44 @@ mod tests {
         std::fs::write(&program, "").unwrap();
         let app = dir.path().join("mcp-studio");
         assert_eq!(
-            locate_proxy_binary_with(None, Some(app.clone()))
+            locate_sidecar_with("mcp-studio-proxy", None, Some(app.clone()))
                 .map(|p| p.file_name().unwrap().to_owned()),
             Some(name.into())
         );
         let nested = dir.path().join("deps").join("test-binary");
         std::fs::create_dir_all(nested.parent().unwrap()).unwrap();
         assert!(
-            locate_proxy_binary_with(None, Some(nested)).is_some(),
+            locate_sidecar_with("mcp-studio-proxy", None, Some(nested)).is_some(),
             "found one level up"
         );
-        assert!(locate_proxy_binary_with(
+        assert!(locate_sidecar_with(
+            "mcp-studio-proxy",
             Some(dir.path().join("missing")),
             Some(dir.path().join("x/y"))
         )
         .is_none());
         assert_eq!(
-            locate_proxy_binary_with(Some(program.clone()), None),
+            locate_sidecar_with("mcp-studio-proxy", Some(program.clone()), None),
             Some(program)
         );
+    }
+
+    #[test]
+    fn the_demo_server_is_found_next_to_the_app_and_not_mistaken_for_the_proxy() {
+        let dir = tempfile::tempdir().unwrap();
+        let name = if cfg!(windows) {
+            "mcp-studio-testserver.exe"
+        } else {
+            "mcp-studio-testserver"
+        };
+        std::fs::write(dir.path().join(name), "").unwrap();
+        let app = dir.path().join("mcp-studio");
+        assert_eq!(
+            locate_sidecar_with("mcp-studio-testserver", None, Some(app.clone()))
+                .map(|p| p.file_name().unwrap().to_owned()),
+            Some(name.into())
+        );
+        assert!(locate_sidecar_with("mcp-studio-proxy", None, Some(app)).is_none());
     }
 
     #[test]

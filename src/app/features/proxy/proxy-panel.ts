@@ -13,10 +13,11 @@ import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { proxyCommand } from "./proxy.model";
 import { CLIENTS, ClientKind, Snippet, snippetsFor } from "./snippets";
+import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
 /** Explains how to route a real client through MCP Studio so its traffic shows up in the inspector. */
 @Component({
-  imports: [RouterLink],
+  imports: [TabList, Tab, TabPanel, RouterLink],
   selector: "app-proxy-panel",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./proxy-panel.html",

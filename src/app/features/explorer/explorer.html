@@ -1,10 +1,11 @@
 <section class="explorer">
   <header class="head">
-    <div class="tabs" role="tablist">
+    <div class="tabs" appTablist="explorer" aria-label="Sections">
       <button
         type="button"
-        role="tab"
         class="ghost"
+        appTab="tools"
+        [tabSelected]="section() === 'tools'"
         [class.active]="section() === 'tools'"
         (click)="show('tools')"
       >
@@ -12,8 +13,9 @@
       </button>
       <button
         type="button"
-        role="tab"
         class="ghost"
+        appTab="resources"
+        [tabSelected]="section() === 'resources'"
         [class.active]="section() === 'resources'"
         (click)="show('resources')"
       >
@@ -22,8 +24,9 @@
       </button>
       <button
         type="button"
-        role="tab"
         class="ghost"
+        appTab="prompts"
+        [tabSelected]="section() === 'prompts'"
         [class.active]="section() === 'prompts'"
         (click)="show('prompts')"
       >
@@ -51,7 +54,7 @@
   </p>
   }
 
-  <div class="split">
+  <div class="split" [appTabPanel]="section()" tabPanelGroup="explorer">
     <ul class="list">
       @switch (section()) { @case ("tools") { @for (tool of tools(); track tool.name) {
       <li>

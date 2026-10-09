@@ -1078,9 +1078,9 @@ fn entra_error(error: DbError, url: &str, oauth: bool) -> DbError {
     let advice = if oauth {
         "This server uses Microsoft Entra ID, which has no dynamic client registration. Turn on \"Uses the Azure login\" in the server settings, or enter an OAuth client ID."
     } else if azure_auth::is_azure_devops(url) {
-        "This server uses Microsoft Entra ID. Use the Azure DevOps preset in the server settings (it turns on \"Uses the Azure login\"), then sign in with `az login`."
+        "This server uses Microsoft Entra ID. Use the Azure DevOps preset in the server settings (it turns on \"Uses the Azure login\"), then use \"Sign in with Azure\" on the server page."
     } else {
-        "This server uses Microsoft Entra ID. Turn on \"Uses the Azure login\" in the server settings, then sign in with `az login`."
+        "This server uses Microsoft Entra ID. Turn on \"Uses the Azure login\" in the server settings, then use \"Sign in with Azure\" on the server page."
     };
     DbError::Connection(format!("{error}. {advice}"))
 }

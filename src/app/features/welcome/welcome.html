@@ -1,0 +1,66 @@
+<section class="welcome">
+  <h1>MCP Studio</h1>
+  <p class="muted">Connect to an MCP server, explore its tools, and call them.</p>
+
+  <h2>Get started</h2>
+  <ol class="steps">
+    <li>
+      <a class="action" routerLink="/servers/new">Add a server</a>
+      <span class="muted">Enter a command (stdio) or a URL (Streamable HTTP).</span>
+    </li>
+    <li>
+      <a class="action" routerLink="/servers/import">Import from Claude</a>
+      <span class="muted">Take the servers from Claude Desktop or Claude Code.</span>
+    </li>
+    <li>
+      <button type="button" class="action" [disabled]="busy()" (click)="tryDemo()">
+        Try a demo server
+      </button>
+      <span class="muted">
+        @if (demoNeedsNode()) { The MCP reference server with sample tools, resources and prompts.
+        Needs Node.js, because it runs with <code>npx</code>. } @else { The test server that ships
+        with MCP Studio, with tools such as <code>echo</code> and <code>add</code>. }
+      </span>
+    </li>
+  </ol>
+
+  <h2>Go further</h2>
+  <ul class="steps">
+    <li>
+      @if (firstServer(); as server) {
+      <a class="action" [routerLink]="['/servers', server.id]" [queryParams]="{ tab: 'client' }"
+        >Record a real client</a
+      >
+      } @else {
+      <a class="action" routerLink="/servers/new">Record a real client</a>
+      }
+      <span class="muted">
+        Route Claude Desktop or another client through MCP Studio and watch its traffic in the
+        inspector. @if (!hasServers()) {Add a server first.}
+      </span>
+    </li>
+    <li>
+      <a class="action" routerLink="/clients">Route Claude servers through MCP Studio</a>
+      <span class="muted">
+        Point a server in Claude Desktop or Claude Code at MCP Studio with one click, and put it
+        back later.
+      </span>
+    </li>
+    <li>
+      <a class="action" routerLink="/providers">Set up a model provider</a>
+      <span class="muted">Needed for flows, variants and test suites that call a model.</span>
+    </li>
+  </ul>
+
+  @if (loaded() && hasServers()) {
+  <h2>Recent servers</h2>
+  <ul class="recent">
+    @for (server of recent(); track server.id) {
+    <li>
+      <a [routerLink]="['/servers', server.id]">{{ server.name }}</a>
+      <span class="muted">{{ server.transport === "stdio" ? "stdio" : "Streamable HTTP" }}</span>
+    </li>
+    }
+  </ul>
+  }
+</section>

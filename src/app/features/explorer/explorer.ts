@@ -18,13 +18,14 @@ import { missingArguments, promptMessages, resourceBlocks } from "../results/mcp
 import { JsonView } from "../../ui/json-view/json-view";
 import { describeParameters, matches } from "./explorer.model";
 import { ExplorerStore } from "./explorer.store";
+import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
 type Section = "tools" | "resources" | "prompts";
 
 /** Browse what a connected server offers: tools, resources, and prompts. */
 @Component({
   selector: "app-explorer",
-  imports: [JsonView, RouterLink, ResultView],
+  imports: [JsonView, RouterLink, ResultView, TabList, Tab, TabPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./explorer.html",
   styleUrl: "./explorer.scss",

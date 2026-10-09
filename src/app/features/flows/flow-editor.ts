@@ -35,11 +35,12 @@ import {
 } from "./editor.model";
 import { STEP_TYPES } from "./flows.model";
 import { StringMapEditor } from "./string-map-editor";
+import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
 /** Edits a flow as a graph, with the same flow as YAML next to it. Both views edit one flow. */
 @Component({
   selector: "app-flow-editor",
-  imports: [FFlowModule, RouterLink, StringMapEditor],
+  imports: [FFlowModule, RouterLink, StringMapEditor, TabList, Tab, TabPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flow-editor.html",
   styleUrl: "./flow-editor.scss",

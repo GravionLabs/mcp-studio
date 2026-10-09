@@ -5,6 +5,7 @@ import { HistoryPage } from "./features/history/history-page";
 import { ImportPage } from "./features/import/import-page";
 import { ClientsPage } from "./features/clients/clients-page";
 import { PricesPage } from "./features/prices/prices-page";
+import { SettingsPage } from "./features/settings/settings-page";
 import { TracesPage } from "./features/traces/traces-page";
 import { FlowsPage } from "./features/flows/flows-page";
 import { ProvidersPage } from "./features/providers/providers-page";
@@ -28,6 +29,7 @@ export const routes: Routes = [
   },
   { path: "providers", component: ProvidersPage },
   { path: "prices", component: PricesPage },
+  { path: "settings", component: SettingsPage },
   { path: "clients", component: ClientsPage },
   { path: "traces", component: TracesPage },
   { path: "servers/import", component: ImportPage },
