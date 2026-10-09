@@ -23,6 +23,22 @@ export type CaseResult = {
 	error: string | null,
 };
 
+export type ClientEntry = {
+	/**  "Claude Desktop" or "Claude Code (user)". */
+	client: string,
+	/**  "top level" or "project /path". */
+	origin: string,
+	kind: EntryKind,
+	/**  The command line or URL. */
+	summary: string,
+	/**  The entry already goes through MCP Studio. */
+	routed: boolean,
+	/**  Set when MCP Studio did the routing and can undo it. */
+	routeId: string | null,
+	/**  Why the entry cannot be routed. */
+	unsupported: string | null,
+} & EntryRef;
+
 export type CollectionNode = {
 	id: string,
 	parentId: string | null,
@@ -122,6 +138,16 @@ export type Direction =
 "out" | 
 /**  Received from the peer. */
 "in";
+
+export type EntryKind = "stdio" | "http" | "unsupported";
+
+/**  One entry of a client's configuration file. */
+export type EntryRef = {
+	path: string,
+	/**  JSON pointer to the object that holds the servers, e.g. `/mcpServers`. */
+	pointer: string,
+	name: string,
+};
 
 export type Environment = {
 	id: string,
@@ -493,6 +519,26 @@ export type ResourceTemplateInfo = {
 
 export type Role = "user" | "assistant";
 
+/**  What routing an entry would change. */
+export type RoutePreview = {
+	client: string,
+	path: string,
+	before: string,
+	after: string,
+	/**  Environment variables and headers whose values would move into the OS keyring. */
+	secrets: string[],
+	/**  The MCP Studio server that is used when the same server is already registered. */
+	existingServer: string | null,
+	backupDir: string,
+};
+
+export type RouteResult = {
+	routeId: string,
+	serverName: string,
+	backupPath: string,
+	secretsMoved: number,
+};
+
 /**  Progress of a run, for the UI. */
 export type RunEvent = { type: "run_started"; runId: string; flowName: string } | { type: "step_started"; runId: string; stepId: string; kind: string } | { type: "step_finished"; runId: string; stepId: string; status: StepStatus; error: string | null } | 
 /**  A piece of the answer of an LLM step, as the model writes it. */
@@ -793,6 +839,12 @@ export type ToolRef = {
 
 /**  How a server is reached. */
 export type TransportKind = "stdio" | "http";
+
+export type UnrouteResult = {
+	restored: boolean,
+	/**  Why nothing was restored: the entry changed (or is gone) since it was routed. */
+	conflict: string | null,
+};
 
 export type UpdateInfo = {
 	/**  Version that would be installed. */

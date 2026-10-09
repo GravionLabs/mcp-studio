@@ -1,0 +1,98 @@
+<section class="page">
+  <h2>Clients</h2>
+  <p class="muted">
+    Send the traffic of a server in Claude Desktop or Claude Code through MCP Studio, to see every
+    message in the inspector. MCP Studio changes only that entry in the client's configuration file,
+    keeps a copy of the file, and can put the original back. The client has to be restarted after a
+    change. A routed server only works while MCP Studio is running.
+  </p>
+
+  @if (pending(); as pending) {
+  <div class="preview" role="region" aria-label="Route preview">
+    <p>
+      <strong>{{ pending.entry.name }}</strong> in {{ pending.entry.client }} ({{
+      pending.entry.origin }}) will change in <code>{{ pending.preview.path }}</code>:
+    </p>
+    <div class="diff">
+      <div>
+        <span class="muted">Before</span>
+        <pre class="mono">{{ pending.preview.before }}</pre>
+      </div>
+      <div>
+        <span class="muted">After</span>
+        <pre class="mono">{{ pending.preview.after }}</pre>
+      </div>
+    </div>
+    <ul>
+      @if (pending.preview.existingServer; as existing) {
+      <li>
+        MCP Studio already has this server as "{{ existing }}" and uses it. Its settings do not
+        change.
+      </li>
+      } @else {
+      <li>The server is added to MCP Studio, with the settings of this entry.</li>
+      } @if (pending.preview.secrets.length > 0) {
+      <li>
+        The values of {{ pending.preview.secrets.join(", ") }} move into the OS keyring; the file
+        will not contain them any more.
+      </li>
+      }
+      <li>
+        A copy of the whole file is kept in <code>{{ pending.preview.backupDir }}</code> (readable
+        only by you) until you restore the entry.
+      </li>
+      <li>Restart {{ pending.entry.client }} for the change to take effect.</li>
+    </ul>
+    <div class="actions">
+      <button type="button" class="primary" [disabled]="busy()" (click)="confirm()">
+        Route through MCP Studio
+      </button>
+      <button type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
+    </div>
+  </div>
+  } @if (loaded() && groups().length === 0) {
+  <p class="muted">
+    No client configuration with servers was found. Servers of other clients can be recorded by
+    hand: see "Record a client" on a server's page.
+  </p>
+  } @for (group of groups(); track group.path) {
+  <h3>{{ group.client }}</h3>
+  <p class="muted path mono">{{ group.path }}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Server</th>
+        <th>Scope</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (entry of group.entries; track entry.pointer + entry.name) {
+      <tr>
+        <td>
+          <strong>{{ entry.name }}</strong>
+          <div class="muted mono summary">{{ entry.summary }}</div>
+        </td>
+        <td class="muted">{{ entry.origin }}</td>
+        <td>{{ statusLabel(entry) }}</td>
+        <td class="row-actions">
+          @if (canRoute(entry)) {
+          <button type="button" [disabled]="busy()" (click)="review(entry)">
+            Route through MCP Studio…
+          </button>
+          } @else if (canRestore(entry)) {
+          <button type="button" [disabled]="busy()" (click)="restore(entry)">Restore</button>
+          }
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  }
+  <p class="muted">
+    To record a client that is not listed, see "Record a client" on a server's page.
+    <a routerLink="/servers/import">Import servers from Claude</a> instead copies them into MCP
+    Studio and leaves the client's file alone.
+  </p>
+</section>
