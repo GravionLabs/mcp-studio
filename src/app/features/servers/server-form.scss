@@ -42,3 +42,13 @@ label,
   display: flex;
   gap: 8px;
 }
+
+.presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  small {
+    color: var(--text-muted);
+  }
+}
