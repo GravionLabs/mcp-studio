@@ -27,11 +27,12 @@ import { ServersStore } from "../servers/servers.store";
 import { parseRaw, readiness, toArguments, toRawText } from "./playground.model";
 import { SchemaForm } from "./schema-form";
 import { JsonSchema, defaultValue } from "./schema-form.model";
+import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
 /** Call one tool: fill the generated form (or edit raw JSON), run it, inspect the result. */
 @Component({
   selector: "app-tool-playground",
-  imports: [RouterLink, SchemaForm, JsonEditor, JsonView, ResultView],
+  imports: [RouterLink, SchemaForm, JsonEditor, JsonView, ResultView, TabList, Tab, TabPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./tool-playground.html",
   styleUrl: "./tool-playground.scss",

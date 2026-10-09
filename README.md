@@ -62,7 +62,8 @@ cargo build --workspace
 pnpm tauri dev
 ```
 
-`pnpm bundle` builds installers including the proxy program as a sidecar.
+`pnpm bundle` builds installers including the proxy program and the test server as sidecars
+(`pnpm sidecars` builds just those).
 
 ## Record a real client
 
@@ -91,9 +92,11 @@ How the two transports work:
 If the panel says that `mcp-studio-proxy` was not found, run `cargo build -p mcp-studio-proxy` or
 set `MCP_STUDIO_PROXY_BIN` to its path.
 
-To try it without a real client, register the reference server
-`target/debug/mcp-studio-testserver` (stdio; `--http <port>` for HTTP) and call its `echo` and `add`
-tools. The design is described in
+To try it without a real client, use "Try a demo server" on the welcome page. It registers the test
+server that ships with the app (`mcp-studio-testserver`, stdio; `--http <port>` for HTTP); call its
+`echo` and `add` tools. In development the page uses `target/debug/mcp-studio-testserver` when it
+exists (set `MCP_STUDIO_DEMO_SERVER_BIN` to point elsewhere) and otherwise the MCP reference server
+through `npx`. The design is described in
 [Recording, proxy, token metering, and tracing](docs/specs/recording-and-observability.md).
 
 ## Documents

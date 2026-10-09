@@ -26,12 +26,18 @@ versioned migrations. Secrets are stored only as keyring references.
   but secrets are masked before storage.
 - A secret in `servers.env` or `servers.headers` is written as `keyring:<service>/<key>` and resolved
   only in Rust when the process or request starts.
-- History retention is configurable (default: 30 days or 100,000 messages, whichever comes first).
+- History retention is configurable on the Settings page (default: 30 days or 100,000 messages, whichever comes first). The limits are stored in the `settings` table under `retention` and applied at startup and when saved.
 
 ## Export and import
 
 - Collections export as JSON files and flows as YAML files, so teams can share them in Git.
 - Server definitions export without secrets; keyring references are kept as placeholders.
+- The whole workspace (servers, environments, collections, saved requests, flows, test suites,
+  prices) exports to one JSON file (`workspace.rs`). The file holds the stored rows, so it names
+  secrets (`keyring:<name>`) but never their values; history, sessions and settings stay local.
+  Import shows what would be added or replaced, applies it in one transaction, never deletes, and
+  lists the secrets that are missing from the keyring. Environments match by name, everything else
+  by id.
 
 ## Migrations
 
@@ -42,6 +48,20 @@ versioned migrations. Secrets are stored only as keyring references.
 | `0003_history`                  | The `history` table                           |
 | `0004_server_oauth`             | `servers.oauth`                               |
 | `0009_server_azure_credentials` | `servers.azure_credentials`                   |
+| `0010_client_routes`            | `client_routes`                               |
+
+## Routing clients
+
+`client_routes` remembers entries of other clients' configuration files (Claude Desktop, Claude
+Code, VS Code's `mcp.json`, the Copilot CLI's `mcp-config.json`, OpenCode's `opencode.json`) that MCP
+Studio pointed at its proxy (`client_routes.rs`; the file layouts are in `client_formats.rs`). Routing registers the server in MCP
+Studio (secrets move into the keyring), copies the file to `<app data>/client-backups/` (readable
+by the user only), and replaces just that entry. The row holds the entry that was written; the
+original is read back from the backup when the route is undone, and is not restored over an entry
+that was edited since unless forced. Files are written atomically and not when another program
+changed them in between. Keys of an entry that are the client's own (a tool list, an `enabled` flag)
+stay; entries that use `${...}` variables or an `envFile` are not routed, because MCP Studio does
+not expand them; a file that is not plain JSON (VS Code allows comments) is reported, not changed.
 
 ## Keyring entries
 

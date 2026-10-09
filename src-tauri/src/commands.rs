@@ -1,5 +1,9 @@
 use mcp_studio_core::{
+    client_formats::{self, ClientSource},
     client_import::{self, ConfigSource, ImportCandidate, ImportSummary},
+    client_routes::{
+        self, ClientEntries, EntryRef, RouteContext, RoutePreview, RouteResult, UnrouteResult,
+    },
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     compare::{self, EvalEvent, Variant},
     docs_gen::{self, DocsInput},
@@ -19,7 +23,7 @@ use mcp_studio_core::{
         CompletionRequest, Message, ProviderSettings, ProviderStatus, ProviderTestResult,
         OPENAI_KEY_NAME,
     },
-    message_store::{query_messages, MessageFilter},
+    message_store::{query_messages, MessageFilter, RetentionPolicy},
     metering::{self, ContextCost, SessionUsage},
     model::{AppInfo, JsonValue},
     oauth,
@@ -29,10 +33,12 @@ use mcp_studio_core::{
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
     session::{ToolCallRequest, ToolCallResult},
+    storage::{self, StorageInfo},
     test_suites::{TestSuite, TestSuiteInput},
     tokens::{self, CountingStatus},
     trace::{query_spans, Span, SpanFilter},
     update::UpdateInfo,
+    workspace::{self, WorkspaceChanges},
 };
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -213,6 +219,66 @@ pub async fn message_count_exact(
     };
     let counter = mcp_studio_llm::AnthropicCounter::new(key, counting_model(&state).await?);
     Ok(tokens::count_message_exact(&state.db, &counter, i64::from(message_id)).await?)
+}
+
+/// The limits after which recorded history is deleted.
+#[tauri::command]
+pub async fn retention_get(state: State<'_, AppState>) -> CommandResult<RetentionPolicy> {
+    Ok(storage::load_policy(&state.settings).await?)
+}
+
+/// Stores the limits and applies them right away.
+#[tauri::command]
+pub async fn retention_set(
+    state: State<'_, AppState>,
+    policy: RetentionPolicy,
+) -> CommandResult<RetentionPolicy> {
+    let policy = storage::save_policy(&state.settings, policy).await?;
+    storage::apply_policy(&state.db, policy).await?;
+    Ok(policy)
+}
+
+#[tauri::command]
+pub async fn storage_info(state: State<'_, AppState>) -> CommandResult<StorageInfo> {
+    Ok(storage::storage_info(&state.db).await?)
+}
+
+/// Writes servers, environments, collections, flows, test suites and prices to one file.
+/// The file names the secrets they use but holds none of their values.
+#[tauri::command]
+pub async fn workspace_export(state: State<'_, AppState>, path: String) -> CommandResult<()> {
+    let bundle = workspace::export(&state.db).await?;
+    std::fs::write(&path, bundle).map_err(|e| CommandError(format!("could not write {path}: {e}")))
+}
+
+/// What importing the file would add and replace. Changes nothing.
+#[tauri::command]
+pub async fn workspace_preview(
+    state: State<'_, AppState>,
+    path: String,
+) -> CommandResult<WorkspaceChanges> {
+    let bundle = read_workspace_file(&path)?;
+    Ok(workspace::preview(&state.db, state.secrets.as_ref(), &bundle).await?)
+}
+
+/// Adds and replaces what the file holds; nothing is deleted.
+#[tauri::command]
+pub async fn workspace_import(
+    state: State<'_, AppState>,
+    path: String,
+) -> CommandResult<WorkspaceChanges> {
+    let bundle = read_workspace_file(&path)?;
+    Ok(workspace::import(&state.db, state.secrets.as_ref(), &bundle).await?)
+}
+
+fn read_workspace_file(path: &str) -> CommandResult<String> {
+    std::fs::read_to_string(path).map_err(|e| CommandError(format!("could not read {path}: {e}")))
+}
+
+/// Deletes all recorded messages and the tool call history. Returns the number of messages.
+#[tauri::command]
+pub async fn history_delete_all(state: State<'_, AppState>) -> CommandResult<u64> {
+    Ok(storage::delete_history(&state.db).await?)
 }
 
 #[tauri::command]
@@ -1101,6 +1167,18 @@ pub async fn history_clear(
     Ok(state.sessions.history().clear(server_id.as_deref()).await?)
 }
 
+/// Runs `az login` so the user can sign in to Azure in the browser. Returns when the CLI is done.
+#[tauri::command]
+pub async fn azure_login(tenant: Option<String>) -> CommandResult<()> {
+    Ok(mcp_studio_core::azure_auth::login(tenant.as_deref()).await?)
+}
+
+/// Absolute path of the reference server that ships with the app, if it was found.
+#[tauri::command]
+pub fn demo_server_path() -> Option<String> {
+    mcp_studio_core::proxy::locate_demo_server().map(|p| p.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 pub fn proxy_info(state: State<'_, AppState>) -> ProxyInfo {
     state
@@ -1142,6 +1220,73 @@ pub fn import_sources(app: AppHandle) -> Vec<ConfigSource> {
     let home = app.path().home_dir().ok();
     let app_data = app.path().data_dir().ok();
     client_import::detect_sources(home.as_deref(), app_data.as_deref())
+}
+
+/// Everything the routing of client entries needs from the running app.
+fn route_context<'a>(app: &AppHandle, state: &'a AppState) -> CommandResult<RouteContext<'a>> {
+    let backup_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| CommandError(e.to_string()))?
+        .join("client-backups");
+    Ok(RouteContext {
+        db: &state.db,
+        registry: &state.registry,
+        secrets: state.secrets.as_ref(),
+        proxy_binary: mcp_studio_core::proxy::locate_proxy_binary(),
+        http_proxy_port: state.http_proxy.port(),
+        backup_dir,
+    })
+}
+
+/// The configuration files of the clients that can be routed through MCP Studio. Only these files
+/// are ever changed.
+fn client_sources(app: &AppHandle) -> Vec<ClientSource> {
+    let home = app.path().home_dir().ok();
+    let app_data = app.path().data_dir().ok();
+    client_formats::detect_sources(home.as_deref(), app_data.as_deref())
+}
+
+/// The servers of every detected client configuration file, and whether they go through MCP Studio.
+#[tauri::command]
+pub async fn client_entries(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> CommandResult<ClientEntries> {
+    let sources = client_sources(&app);
+    Ok(client_routes::list_entries(&route_context(&app, &state)?, &sources).await?)
+}
+
+/// What routing an entry through MCP Studio would change. Changes nothing.
+#[tauri::command]
+pub async fn client_route_preview(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    target: EntryRef,
+) -> CommandResult<RoutePreview> {
+    let sources = client_sources(&app);
+    Ok(client_routes::preview(&route_context(&app, &state)?, &sources, &target).await?)
+}
+
+/// Points an entry of a client's configuration at the MCP Studio proxy, after a backup.
+#[tauri::command]
+pub async fn client_route(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    target: EntryRef,
+) -> CommandResult<RouteResult> {
+    let sources = client_sources(&app);
+    Ok(client_routes::route(&route_context(&app, &state)?, &sources, &target).await?)
+}
+
+/// Puts the original entry back. Without `force`, an entry that was changed since is left alone.
+#[tauri::command]
+pub async fn client_unroute(
+    state: State<'_, AppState>,
+    route_id: String,
+    force: bool,
+) -> CommandResult<UnrouteResult> {
+    Ok(client_routes::unroute(&state.db, &route_id, force).await?)
 }
 
 /// Lists the servers defined in a client configuration file.

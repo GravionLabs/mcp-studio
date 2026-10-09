@@ -7,7 +7,12 @@ use specta::Types;
 use specta_typescript::Typescript;
 
 use crate::{
+    client_formats::{ClientFormat, ClientSource},
     client_import::{ConfigSource, ImportCandidate, ImportSummary},
+    client_routes::{
+        ClientEntries, ClientEntry, EntryKind, EntryRef, RoutePreview, RouteResult, UnreadableFile,
+        UnrouteResult,
+    },
     collections::{CollectionNode, CollectionTree, ImportReport, SavedRequest, SavedRequestInput},
     compare::{CaseResult, EvalEvent, Variant, VariantResult},
     environments::{Environment, EnvironmentInput},
@@ -30,7 +35,7 @@ use crate::{
         Completion, CompletionRequest, ContentBlock, Message, ProviderSettings, ProviderStatus,
         ProviderTestResult, Role, StopReason, StreamEvent, ToolDefinition, Usage,
     },
-    message_store::MessageFilter,
+    message_store::{MessageFilter, RetentionPolicy},
     metering::{ContextCost, SessionUsage, ToolCost},
     model::AppInfo,
     otlp::{ExportConfig, ExportStatus},
@@ -38,10 +43,12 @@ use crate::{
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
     session::{ToolCallRequest, ToolCallResult},
+    storage::StorageInfo,
     test_suites::{Expectation, TestCase, TestCaseInput, TestSuite, TestSuiteInput},
     tokens::{CountingStatus, TokenSource},
     trace::{Span, SpanFilter, SpanKind, SpanStatus},
     update::UpdateInfo,
+    workspace::{MissingSecret, TableChanges, WorkspaceChanges},
 };
 
 /// All types exposed to the frontend.
@@ -79,6 +86,16 @@ pub fn ipc_types() -> Types {
         .register::<ConfigSource>()
         .register::<ImportCandidate>()
         .register::<ImportSummary>()
+        .register::<EntryRef>()
+        .register::<EntryKind>()
+        .register::<ClientEntry>()
+        .register::<ClientEntries>()
+        .register::<UnreadableFile>()
+        .register::<ClientFormat>()
+        .register::<ClientSource>()
+        .register::<RoutePreview>()
+        .register::<RouteResult>()
+        .register::<UnrouteResult>()
         .register::<HistoryEntry>()
         .register::<HistoryFilter>()
         .register::<Flow>()
@@ -115,6 +132,11 @@ pub fn ipc_types() -> Types {
         .register::<SpanFilter>()
         .register::<ExportConfig>()
         .register::<ExportStatus>()
+        .register::<RetentionPolicy>()
+        .register::<StorageInfo>()
+        .register::<WorkspaceChanges>()
+        .register::<TableChanges>()
+        .register::<MissingSecret>()
         .register::<Role>()
         .register::<ContentBlock>()
         .register::<Message>()

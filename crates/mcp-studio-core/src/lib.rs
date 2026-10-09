@@ -2,7 +2,9 @@
 
 pub mod azure_auth;
 pub mod bindings;
+pub mod client_formats;
 pub mod client_import;
+pub mod client_routes;
 pub mod collections;
 pub mod compare;
 pub mod db;
@@ -36,10 +38,12 @@ pub mod registry;
 pub mod secrets;
 pub mod session;
 pub mod settings;
+pub mod storage;
 pub mod test_suites;
 pub mod tokens;
 pub mod trace;
 pub mod update;
+pub mod workspace;
 
 /// Returns the crate version, used by the app shell and smoke tests.
 pub fn version() -> &'static str {

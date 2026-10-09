@@ -13,12 +13,17 @@
       }
     </select>
   </label>
-  <div class="tabs" role="tablist">
+  <p class="muted hint">
+    Claude, VS Code, Copilot CLI or OpenCode? The <a routerLink="/clients">Clients page</a> can
+    route a server through MCP Studio for you, and put it back later.
+  </p>
+  <div class="tabs" appTablist="proxy-client" aria-label="Client">
     @for (snippet of snippets(); track snippet.title; let index = $index) {
     <button
       type="button"
-      role="tab"
       class="ghost"
+      [appTab]="'' + index"
+      [tabSelected]="index === selected()"
       [class.active]="index === selected()"
       (click)="selected.set(index)"
     >
@@ -26,13 +31,15 @@
     </button>
     }
   </div>
-  @if (current(); as snippet) {
-  <p class="muted hint">{{ snippet.hint }}</p>
-  <div class="command">
-    <pre class="mono">{{ snippet.text }}</pre>
-    <button type="button" (click)="copy(snippet.text)">Copy</button>
+  <div [appTabPanel]="'' + selected()" tabPanelGroup="proxy-client">
+    @if (current(); as snippet) {
+    <p class="muted hint">{{ snippet.hint }}</p>
+    <div class="command">
+      <pre class="mono">{{ snippet.text }}</pre>
+      <button type="button" (click)="copy(snippet.text)">Copy</button>
+    </div>
+    }
   </div>
-  }
   <p class="muted status">
     @if (transport() === "stdio") { Proxy is listening on 127.0.0.1:{{ i.controlPort }}. } @else {
     Proxy is listening on 127.0.0.1:{{ i.httpPort }}; MCP Studio adds this server's headers. } MCP

@@ -23,6 +23,48 @@ export type CaseResult = {
 	error: string | null,
 };
 
+/**  The servers found in the known configuration files. */
+export type ClientEntries = {
+	entries: ClientEntry[],
+	unreadable: UnreadableFile[],
+};
+
+export type ClientEntry = {
+	/**  "Claude Desktop", "VS Code (user)", ... */
+	client: string,
+	/**  "top level" or "project /path". */
+	origin: string,
+	kind: EntryKind,
+	/**  The command line or URL. */
+	summary: string,
+	/**  The entry already goes through MCP Studio. */
+	routed: boolean,
+	/**  Set when MCP Studio did the routing and can undo it. */
+	routeId: string | null,
+	/**  Why the entry cannot be routed. */
+	unsupported: string | null,
+} & EntryRef;
+
+/**  How a client's configuration file is laid out. */
+export type ClientFormat = 
+/**  `mcpServers`, plus one per project in Claude Code's `~/.claude.json`. */
+"claude" | 
+/**  `servers` in VS Code's `mcp.json`. */
+"vsCode" | 
+/**  `mcpServers` in the Copilot CLI's `mcp-config.json`. */
+"copilotCli" | 
+/**  `mcp` in `opencode.json`, where a local server's command is one array. */
+"openCode";
+
+/**  A client configuration file that may contain servers. */
+export type ClientSource = {
+	/**  "Claude Desktop", "Claude Code (user)", "VS Code (user)", "Copilot CLI" or "OpenCode". */
+	label: string,
+	path: string,
+	exists: boolean,
+	format: ClientFormat,
+};
+
 export type CollectionNode = {
 	id: string,
 	parentId: string | null,
@@ -122,6 +164,16 @@ export type Direction =
 "out" | 
 /**  Received from the peer. */
 "in";
+
+export type EntryKind = "stdio" | "http" | "unsupported";
+
+/**  One entry of a client's configuration file. */
+export type EntryRef = {
+	path: string,
+	/**  JSON pointer to the object that holds the servers, e.g. `/mcpServers`. */
+	pointer: string,
+	name: string,
+};
 
 export type Environment = {
 	id: string,
@@ -387,6 +439,13 @@ export type MessageRecord = {
 	spanId: string | null,
 };
 
+/**  A secret the workspace refers to that is not in this computer's keyring. */
+export type MissingSecret = {
+	name: string,
+	/**  Where it is used, for example "server GitHub" or "environment Staging". */
+	usedBy: string[],
+};
+
 /**  Price of one model, in `currency` per million tokens. */
 export type Price = {
 	model: string,
@@ -491,7 +550,33 @@ export type ResourceTemplateInfo = {
 	mimeType?: string | null,
 };
 
+/**  How long history is kept. */
+export type RetentionPolicy = {
+	maxAgeDays?: number,
+	maxMessages?: number,
+};
+
 export type Role = "user" | "assistant";
+
+/**  What routing an entry would change. */
+export type RoutePreview = {
+	client: string,
+	path: string,
+	before: string,
+	after: string,
+	/**  Environment variables and headers whose values would move into the OS keyring. */
+	secrets: string[],
+	/**  The MCP Studio server that is used when the same server is already registered. */
+	existingServer: string | null,
+	backupDir: string,
+};
+
+export type RouteResult = {
+	routeId: string,
+	serverName: string,
+	backupPath: string,
+	secretsMoved: number,
+};
 
 /**  Progress of a run, for the UI. */
 export type RunEvent = { type: "run_started"; runId: string; flowName: string } | { type: "step_started"; runId: string; stepId: string; kind: string } | { type: "step_finished"; runId: string; stepId: string; status: StepStatus; error: string | null } | 
@@ -686,12 +771,30 @@ export type StopReason =
 /**  The answer was cut off at `max_tokens`. */
 "max_tokens" | { other: string };
 
+export type StorageInfo = {
+	/**  Size of the database file, including free pages. */
+	databaseBytes: number | null,
+	messages: number,
+	historyEntries: number,
+};
+
 /**  Progress of a streamed answer. */
 export type StreamEvent = { type: "text_delta"; text: string } | 
 /**  The model starts a tool call; its arguments follow as they are generated. */
 { type: "tool_use_start"; id: string; name: string } | 
 /**  A fragment of the JSON arguments of the tool call that is being generated. */
 { type: "tool_input_delta"; partial_json: string };
+
+export type TableChanges = {
+	label: string,
+	/**  Names of rows the import would add (at most 50). */
+	added: string[],
+	/**  Names of rows the import would replace because they differ (at most 50). */
+	replaced: string[],
+	addedCount: number,
+	replacedCount: number,
+	unchangedCount: number,
+};
 
 export type TestCase = {
 	id: string,
@@ -794,6 +897,19 @@ export type ToolRef = {
 /**  How a server is reached. */
 export type TransportKind = "stdio" | "http";
 
+/**  A configuration file that could not be read, so none of its servers are listed. */
+export type UnreadableFile = {
+	client: string,
+	path: string,
+	reason: string,
+};
+
+export type UnrouteResult = {
+	restored: boolean,
+	/**  Why nothing was restored: the entry changed (or is gone) since it was routed. */
+	conflict: string | null,
+};
+
 export type UpdateInfo = {
 	/**  Version that would be installed. */
 	version: string,
@@ -834,4 +950,9 @@ export type VariantResult = {
 	outputTokens: number,
 	/**  Estimated tokens of the tool definitions that every request of this variant carries. */
 	definitionTokens: number,
+};
+
+export type WorkspaceChanges = {
+	tables: TableChanges[],
+	missingSecrets: MissingSecret[],
 };

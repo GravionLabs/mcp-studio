@@ -21,19 +21,39 @@ import { ToolLint } from "../lint/tool-lint";
 import { ContextCostPanel } from "../prices/context-cost-panel";
 import { ProxyPanel } from "../proxy/proxy-panel";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
-import { type ServerTab, activeTab, visibleTabs } from "./server-detail.model";
+import {
+  SERVER_TABS,
+  type ServerTab,
+  activeTab,
+  needsAzureLogin,
+  needsTenant,
+  visibleTabs,
+} from "./server-detail.model";
 import { ServersStore } from "./servers.store";
+import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
 /** Summary of one server. The explorer takes over this page in a later PBI. */
 @Component({
   selector: "app-server-detail",
-  imports: [RouterLink, Explorer, ProxyPanel, ContextCostPanel, ToolLint, ToolDocs],
+  imports: [
+    RouterLink,
+    Explorer,
+    ProxyPanel,
+    ContextCostPanel,
+    ToolLint,
+    ToolDocs,
+    TabList,
+    Tab,
+    TabPanel,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./server-detail.html",
   styleUrl: "./server-detail.scss",
 })
 export class ServerDetail {
   readonly id = input.required<string>();
+  /** `?tab=client` opens that section; unknown or hidden sections are ignored. */
+  readonly tab = input<string>();
 
   private readonly store = inject(ServersStore);
   private readonly router = inject(Router);
@@ -49,6 +69,7 @@ export class ServerDetail {
   /** `null` while unknown. Only meaningful for servers that use OAuth. */
   protected readonly signedIn = signal<boolean | null>(null);
   protected readonly signingIn = signal(false);
+  protected readonly azureSigningIn = signal(false);
   protected readonly state = computed(() => this.status.stateOf(this.id()));
   protected readonly lastError = computed(
     () =>
@@ -65,6 +86,10 @@ export class ServerDetail {
   protected readonly loaded = this.store.loaded;
 
   constructor() {
+    effect(() => {
+      const wanted = SERVER_TABS.find((t) => t.id === this.tab());
+      if (wanted) this.selectedTab.set(wanted.id);
+    });
     effect(() => {
       const server = this.server();
       this.signedIn.set(null);
@@ -128,6 +153,33 @@ export class ServerDetail {
     } catch (error) {
       this.toasts.fail("Could not sign out", error);
     }
+  }
+
+  /** Whether the last connection error says that the Azure login is missing. */
+  protected readonly azureLoginNeeded = computed(() => needsAzureLogin(this.lastError()));
+
+  /** Runs `az login` (the CLI opens the browser) and connects once the user has signed in. */
+  protected async azureLogin(): Promise<void> {
+    let tenant: string | null = null;
+    if (needsTenant(this.lastError())) {
+      tenant = await this.dialogs.prompt(
+        "Your tenant requires multi-factor authentication. Enter its tenant ID or domain (for example contoso.onmicrosoft.com).",
+        "",
+        "Sign in",
+      );
+      if (tenant === null) return;
+    }
+    this.azureSigningIn.set(true);
+    try {
+      await this.ipc.azureLogin(tenant);
+    } catch (error) {
+      this.toasts.fail("Could not sign in to Azure", error);
+      return;
+    } finally {
+      this.azureSigningIn.set(false);
+    }
+    this.toasts.success("Signed in to Azure");
+    await this.connect();
   }
 
   protected async connect(): Promise<void> {

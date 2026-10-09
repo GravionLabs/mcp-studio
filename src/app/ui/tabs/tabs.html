@@ -1,13 +1,15 @@
-<div class="tabs" role="tablist">
+<div class="tabs" appTablist="workspace" aria-label="Open pages">
   @for (tab of tabs.tabs(); track tab.id) {
+  <!-- The tab directive makes this focusable (roving tabindex). -->
+  <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
   <div
     class="tab"
-    role="tab"
-    tabindex="0"
+    [appTab]="tab.id"
+    [tabSelected]="tab.id === tabs.activeId()"
     [class.active]="tab.id === tabs.activeId()"
-    [attr.aria-selected]="tab.id === tabs.activeId()"
     (click)="select(tab.id, tab.route)"
     (keydown.enter)="select(tab.id, tab.route)"
+    (keydown.space)="$event.preventDefault(); select(tab.id, tab.route)"
   >
     <span class="title">{{ tab.title }}</span>
     <button

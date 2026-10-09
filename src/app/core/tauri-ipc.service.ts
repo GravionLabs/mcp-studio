@@ -3,7 +3,9 @@ import type {
   AppInfo,
   CollectionNode,
   CollectionTree,
+  ClientEntries,
   ConfigSource,
+  EntryRef,
   ContextCost,
   ExportConfig,
   ExportStatus,
@@ -27,6 +29,12 @@ import type {
   MessageFilter,
   MessageRecord,
   ProxyInfo,
+  RetentionPolicy,
+  StorageInfo,
+  WorkspaceChanges,
+  RoutePreview,
+  RouteResult,
+  UnrouteResult,
   PromptInfo,
   Price,
   ProviderSettings,
@@ -112,6 +120,34 @@ export class TauriIpcService {
 
   spansQuery(filter: SpanFilter): Promise<Span[]> {
     return this.call("spans_query", { filter });
+  }
+
+  retentionGet(): Promise<RetentionPolicy> {
+    return this.call("retention_get");
+  }
+
+  retentionSet(policy: RetentionPolicy): Promise<RetentionPolicy> {
+    return this.call("retention_set", { policy });
+  }
+
+  storageInfo(): Promise<StorageInfo> {
+    return this.call("storage_info");
+  }
+
+  historyDeleteAll(): Promise<number> {
+    return this.call("history_delete_all");
+  }
+
+  workspaceExport(path: string): Promise<void> {
+    return this.call("workspace_export", { path });
+  }
+
+  workspacePreview(path: string): Promise<WorkspaceChanges> {
+    return this.call("workspace_preview", { path });
+  }
+
+  workspaceImport(path: string): Promise<WorkspaceChanges> {
+    return this.call("workspace_import", { path });
   }
 
   traceExportConfig(): Promise<ExportConfig> {
@@ -497,6 +533,15 @@ export class TauriIpcService {
     return this.call("history_clear", { serverId });
   }
 
+  /** Runs `az login`; resolves when the user has finished in the browser. */
+  azureLogin(tenant: string | null): Promise<void> {
+    return this.call("azure_login", { tenant });
+  }
+
+  demoServerPath(): Promise<string | null> {
+    return this.call("demo_server_path");
+  }
+
   proxyInfo(): Promise<ProxyInfo> {
     return this.call("proxy_info");
   }
@@ -516,6 +561,22 @@ export class TauriIpcService {
 
   oauthStatus(id: string): Promise<boolean> {
     return this.call("oauth_status", { id });
+  }
+
+  clientEntries(): Promise<ClientEntries> {
+    return this.call("client_entries");
+  }
+
+  clientRoutePreview(target: EntryRef): Promise<RoutePreview> {
+    return this.call("client_route_preview", { target });
+  }
+
+  clientRoute(target: EntryRef): Promise<RouteResult> {
+    return this.call("client_route", { target });
+  }
+
+  clientUnroute(routeId: string, force: boolean): Promise<UnrouteResult> {
+    return this.call("client_unroute", { routeId, force });
   }
 
   importSources(): Promise<ConfigSource[]> {

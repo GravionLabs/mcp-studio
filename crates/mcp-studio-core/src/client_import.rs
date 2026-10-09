@@ -14,7 +14,7 @@ use specta::Type;
 
 use crate::{
     db::{DbError, DbResult},
-    registry::{Registry, ServerInput, TransportKind},
+    registry::{Registry, ServerDefinition, ServerInput, TransportKind},
     secrets::{reference, SecretStore},
 };
 
@@ -158,7 +158,7 @@ fn string_map(value: Option<&Value>) -> BTreeMap<String, String> {
         .unwrap_or_default()
 }
 
-fn to_input(name: &str, entry: &Value) -> (ServerInput, Option<String>) {
+pub(crate) fn to_input(name: &str, entry: &Value) -> (ServerInput, Option<String>) {
     let kind = entry.get("type").and_then(Value::as_str).unwrap_or("");
     let is_remote =
         entry.get("url").is_some() || matches!(kind, "http" | "sse" | "streamable-http");
@@ -229,8 +229,65 @@ pub fn looks_secret(name: &str) -> bool {
     .any(|word| upper.contains(word))
 }
 
-/// Creates the selected servers. Secret-looking values move into the keyring. A name that is already
-/// taken gets a numeric suffix.
+/// What importing one server did.
+pub struct ImportedServer {
+    pub server: ServerDefinition,
+    /// The name was already taken, so a numeric suffix was added.
+    pub renamed: bool,
+    /// Values (tokens, API keys) that were moved from the config into the OS keyring.
+    pub secrets_moved: u32,
+}
+
+/// Creates one server. Secret-looking values move into the keyring. A name that is already taken
+/// gets a numeric suffix.
+pub async fn import_one(
+    registry: &Registry,
+    secrets: &dyn SecretStore,
+    mut input: ServerInput,
+) -> DbResult<ImportedServer> {
+    let taken: Vec<String> = registry
+        .list()
+        .await?
+        .into_iter()
+        .map(|s| s.input.name.to_lowercase())
+        .collect();
+    let original = input.name.clone();
+    let mut suffix = 1;
+    while taken.contains(&input.name.to_lowercase()) {
+        suffix += 1;
+        input.name = format!("{original} ({suffix})");
+    }
+    let renamed = input.name != original;
+
+    let mut stored = Vec::new();
+    for map in [&mut input.env, &mut input.headers] {
+        for (key, value) in map.iter_mut() {
+            if looks_secret(key) && !value.is_empty() && !value.starts_with("keyring:") {
+                let name = format!("imported/{}", crate::db::new_id());
+                if secrets.set(&name, value).is_ok() {
+                    *value = reference(&name);
+                    stored.push(name);
+                }
+            }
+        }
+    }
+    match registry.create(input).await {
+        Ok(server) => Ok(ImportedServer {
+            server,
+            renamed,
+            secrets_moved: stored.len() as u32,
+        }),
+        Err(error) => {
+            // Do not leave orphaned secrets behind.
+            for name in stored {
+                let _ = secrets.delete(&name);
+            }
+            Err(error)
+        }
+    }
+}
+
+/// Creates the selected servers; see [`import_one`].
 pub async fn import_servers(
     registry: &Registry,
     secrets: &dyn SecretStore,
@@ -242,50 +299,15 @@ pub async fn import_servers(
         secrets_moved: 0,
         failed: vec![],
     };
-    for mut input in candidates {
-        let taken: Vec<String> = match registry.list().await {
-            Ok(list) => list
-                .into_iter()
-                .map(|s| s.input.name.to_lowercase())
-                .collect(),
-            Err(error) => {
-                summary.failed.push(format!("{}: {error}", input.name));
-                continue;
-            }
-        };
+    for input in candidates {
         let original = input.name.clone();
-        let mut suffix = 1;
-        while taken.contains(&input.name.to_lowercase()) {
-            suffix += 1;
-            input.name = format!("{original} ({suffix})");
-        }
-        let renamed = input.name != original;
-
-        let mut stored = Vec::new();
-        for map in [&mut input.env, &mut input.headers] {
-            for (key, value) in map.iter_mut() {
-                if looks_secret(key) && !value.is_empty() && !value.starts_with("keyring:") {
-                    let name = format!("imported/{}", crate::db::new_id());
-                    if secrets.set(&name, value).is_ok() {
-                        *value = reference(&name);
-                        stored.push(name);
-                    }
-                }
-            }
-        }
-        match registry.create(input).await {
-            Ok(_) => {
+        match import_one(registry, secrets, input).await {
+            Ok(imported) => {
                 summary.created += 1;
-                summary.renamed += u32::from(renamed);
-                summary.secrets_moved += stored.len() as u32;
+                summary.renamed += u32::from(imported.renamed);
+                summary.secrets_moved += imported.secrets_moved;
             }
-            Err(error) => {
-                // Do not leave orphaned secrets behind.
-                for name in stored {
-                    let _ = secrets.delete(&name);
-                }
-                summary.failed.push(format!("{original}: {error}"));
-            }
+            Err(error) => summary.failed.push(format!("{original}: {error}")),
         }
     }
     summary
