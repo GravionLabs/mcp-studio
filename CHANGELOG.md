@@ -5,6 +5,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.6] — 2026-10-09
+
+### Features
+- Explain servers that use Microsoft Entra ID when they reject us (#256)
+
+
 ## [1.0.5] — 2026-10-09
 
 ### Bug Fixes
