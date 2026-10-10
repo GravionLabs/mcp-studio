@@ -1325,7 +1325,14 @@ pub async fn oauth_status(state: State<'_, AppState>, id: String) -> CommandResu
 pub fn import_sources(app: AppHandle) -> Vec<ConfigSource> {
     let home = app.path().home_dir().ok();
     let app_data = app.path().data_dir().ok();
-    client_import::detect_sources(home.as_deref(), app_data.as_deref())
+    client_formats::detect_sources(home.as_deref(), app_data.as_deref())
+        .into_iter()
+        .map(|s| ConfigSource {
+            label: s.label,
+            path: s.path,
+            exists: s.exists,
+        })
+        .collect()
 }
 
 /// Everything the routing of client entries needs from the running app.
