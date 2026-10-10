@@ -21,6 +21,8 @@ export class PricesStore {
     const model = this._activeModel();
     return model !== null && this._prices().some((p) => p.model === model) ? model : null;
   });
+  /** Prices exist but none is chosen, so no cost can be shown. */
+  readonly needsModel = computed(() => this._prices().length > 0 && this.activeModel() === null);
   readonly activePrice = computed(() => this._prices().find((p) => p.model === this.activeModel()));
 
   /** Loads the table once; later calls reuse the result. */
@@ -42,6 +44,8 @@ export class PricesStore {
         a.model.localeCompare(b.model, undefined, { sensitivity: "base" }),
       ),
     );
+    // Costs are only computed for the chosen model, so the first price is chosen right away.
+    if (this.activeModel() === null) this.setActive(saved.model);
     return saved;
   }
 

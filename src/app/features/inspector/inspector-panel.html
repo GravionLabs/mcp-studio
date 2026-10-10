@@ -44,6 +44,13 @@
     </button>
   </div>
 
+  @if (needsModel()) {
+  <p class="count muted">
+    Prices are set but no model is chosen, so no costs are shown.
+    <a routerLink="/prices">Choose a model</a>
+  </p>
+  }
+
   <div class="count muted">
     {{ store.messages().length }} messages @if (!follow()) {
     <button type="button" class="ghost" (click)="jumpToEnd()">↓ Follow</button>

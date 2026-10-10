@@ -61,6 +61,24 @@ describe("PricesStore", () => {
     expect(store.activeModel()).toBeNull();
   });
 
+  it("chooses the first saved price when none is chosen, and keeps a chosen one", async () => {
+    const { store } = create([]);
+    await store.load();
+    expect(store.needsModel()).toBe(false);
+    await store.save(price("a"));
+    expect(store.activeModel()).toBe("a");
+    await store.save(price("b"));
+    expect(store.activeModel()).toBe("a");
+  });
+
+  it("says when prices exist but none is chosen", async () => {
+    const { store } = create([price("a")]);
+    await store.load();
+    expect(store.needsModel()).toBe(true);
+    store.setActive("a");
+    expect(store.needsModel()).toBe(false);
+  });
+
   it("adds, replaces, sorts, and removes prices", async () => {
     const { store } = create([price("b")]);
     await store.load();
