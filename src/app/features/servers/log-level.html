@@ -1,0 +1,17 @@
+@if (supported()) {
+<label class="level">
+  <span class="muted">Log level</span>
+  <select aria-label="Log level" (change)="choose($event)">
+    <option value="" [selected]="current() === null" [disabled]="current() !== null">
+      server default
+    </option>
+    @for (level of levels; track level) {
+    <option [value]="level" [selected]="current() === level">{{ level }}</option>
+    }
+  </select>
+  <span class="muted">
+    @if (current(); as level) { The server sends {{ level }} and above. } @else { Not set in this
+    session. }
+  </span>
+</label>
+}

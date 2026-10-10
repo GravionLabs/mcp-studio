@@ -349,10 +349,10 @@ async fn explorer_lists_tools_resources_prompts_and_details() {
     assert_eq!(prompts[0].name, "greet");
     assert!(prompts[0].arguments[0].required);
 
-    assert!(explorer::list_resource_templates(&session.peer)
+    let templates = explorer::list_resource_templates(&session.peer)
         .await
-        .unwrap()
-        .is_empty());
+        .unwrap();
+    assert_eq!(templates[0].uri_template, "test://users/{name}");
     h.manager.disconnect_all().await;
 }
 

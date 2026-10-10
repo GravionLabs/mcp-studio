@@ -83,6 +83,12 @@
           <span class="name"
             >{{ resource.label }} @if (resource.template) {
             <span class="badge">template</span>
+            } @if (changed().has(resource.key)) {
+            <span class="badge changed" title="Changed on the server since you read it"
+              >changed</span
+            >
+            } @else if (watched().has(resource.key)) {
+            <span class="badge" title="Watching for changes">watching</span>
             }
           </span>
           <span class="sub muted mono">{{ resource.sub }}</span>
@@ -165,21 +171,54 @@
       <p class="mono muted">{{ resource.sub }}</p>
       <app-json-view [value]="resource.item" />
       <h4>Content</h4>
-      @if (resource.template) {
+      @if (resource.template) { @if (templateVars(); as variables) {
+      <p class="muted">Fill in the variables and read the resource.</p>
+      @for (name of variables; track name) {
+      <label class="uri">
+        <span class="mono">{{ name }}</span>
+        <input
+          class="mono"
+          [attr.list]="'template-' + name"
+          [value]="templateValues()[name] ?? ''"
+          (input)="setTemplateValue(name, text($event))"
+        />
+        <datalist [id]="'template-' + name">
+          @for (option of suggestions()['template:' + name] ?? []; track option) {
+          <option [value]="option"></option>
+          }
+        </datalist>
+      </label>
+      }
+      <p class="muted mono">{{ templateTarget() }}</p>
+      } @else {
       <label class="uri">
         <span class="muted">Fill in the template and read it</span>
         <input class="mono" [value]="templateUri()" (input)="templateUri.set(text($event))" />
       </label>
+      }
       <button
         type="button"
-        [disabled]="busy() || !templateUri()"
-        (click)="readResource(templateUri())"
+        [disabled]="busy() || !templateTarget()"
+        (click)="readResource(templateTarget())"
       >
         Read
       </button>
       } @else {
-      <button type="button" [disabled]="busy()" (click)="readResource(resource.key)">Read</button>
-      } @if (resourceView(); as view) {
+      <div class="actions">
+        <button type="button" [disabled]="busy()" (click)="readResource(resource.key)">
+          {{ changed().has(resource.key) ? "Read again" : "Read" }}
+        </button>
+        @if (canWatch()) {
+        <button type="button" (click)="toggleWatch(resource.key)">
+          {{ watched().has(resource.key) ? "Stop watching" : "Watch for changes" }}
+        </button>
+        }
+      </div>
+      @if (changed().has(resource.key)) {
+      <p class="changed-note" role="status">
+        The server says this resource changed. Read it again to see the new content.
+      </p>
+      } } @if (resourceView(); as view) {
       <app-result-view [result]="view" />
       } } @else if (section() === "prompts" && selectedPrompt(); as prompt) {
       <h3>{{ prompt.title || prompt.name }}</h3>
@@ -200,12 +239,48 @@
               <span class="req" title="required">*</span>
               }
             </td>
+            <td>
+              <input
+                class="mono"
+                [attr.aria-label]="a.name"
+                [attr.list]="'prompt-' + a.name"
+                [value]="promptValues()[a.name] ?? ''"
+                (input)="setPromptValue(a.name, text($event))"
+              />
+              <datalist [id]="'prompt-' + a.name">
+                @for (option of suggestions()['prompt:' + a.name] ?? []; track option) {
+                <option [value]="option"></option>
+                }
+              </datalist>
+            </td>
             <td>{{ a.description }}</td>
           </tr>
           }
         </tbody>
       </table>
-      } } @else {
+      }
+      <div class="actions">
+        <button
+          type="button"
+          [disabled]="busy() || promptMissing().length > 0"
+          (click)="getPrompt(prompt)"
+        >
+          Get prompt
+        </button>
+        @if (promptMissing().length > 0) {
+        <span class="muted">Missing: {{ promptMissing().join(", ") }}</span>
+        }
+      </div>
+      @if (promptView(); as view) { @if (view.description) {
+      <p class="muted">{{ view.description }}</p>
+      } @for (message of view.messages; track $index) {
+      <div class="message">
+        <span class="role muted">{{ message.role }}</span>
+        <app-result-view
+          [result]="{ blocks: [message.block], structured: undefined, isError: false }"
+        />
+      </div>
+      } } } @else {
       <p class="muted">Select an item to see its details.</p>
       }
     </div>

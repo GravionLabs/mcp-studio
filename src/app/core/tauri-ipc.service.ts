@@ -58,6 +58,9 @@ import type {
   CaseResult,
   ClientAnswer,
   ClientRequest,
+  CompletionTarget,
+  Completions,
+  SessionState,
   SamplingSuggestion,
   GeneratedFlow,
   ToolPolicy,
@@ -176,6 +179,34 @@ export class TauriIpcService {
 
   tokenCountingSetModel(model: string): Promise<void> {
     return this.call("token_counting_set_model", { model });
+  }
+
+  /** What is set up in the live session of a server: watched resources and the log level. */
+  sessionState(id: string): Promise<SessionState> {
+    return this.call("session_state", { id });
+  }
+
+  resourceSubscribe(id: string, uri: string): Promise<void> {
+    return this.call("resource_subscribe", { id, uri });
+  }
+
+  resourceUnsubscribe(id: string, uri: string): Promise<void> {
+    return this.call("resource_unsubscribe", { id, uri });
+  }
+
+  serverSetLogLevel(id: string, level: string): Promise<void> {
+    return this.call("server_set_log_level", { id, level });
+  }
+
+  /** Suggestions of the server for a partly typed prompt argument or template variable. */
+  completionComplete(
+    id: string,
+    target: CompletionTarget,
+    argument: string,
+    value: string,
+    context: Record<string, string>,
+  ): Promise<Completions> {
+    return this.call("completion_complete", { id, target, argument, value, context });
   }
 
   /** The questions of servers (sampling, elicitation) that wait for the user. */

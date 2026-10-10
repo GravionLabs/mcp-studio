@@ -145,3 +145,38 @@ details {
     color: var(--accent);
   }
 }
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.uri {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0;
+}
+
+.badge.changed {
+  color: var(--accent);
+}
+
+.changed-note {
+  margin: 4px 0;
+  color: var(--accent);
+}
+
+.message {
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+
+  .role {
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+}

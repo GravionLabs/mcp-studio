@@ -10,7 +10,10 @@ use mcp_studio_core::{
     docs_gen::{self, DocsInput},
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
-    explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
+    explorer::{
+        self, CompletionTarget, Completions, PromptInfo, ResourceInfo, ResourceTemplateInfo,
+        ServerDetails, ToolInfo,
+    },
     flow::{self, Flow, FlowValidation, ToolCatalog},
     flow_gen::{self, GeneratedFlow},
     flow_replay::ReplayTools,
@@ -33,7 +36,7 @@ use mcp_studio_core::{
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
-    session::{ToolCallRequest, ToolCallResult},
+    session::{SessionState, ToolCallRequest, ToolCallResult},
     storage::{self, StorageInfo},
     test_suites::{TestSuite, TestSuiteInput},
     tokens::{self, CountingStatus},
@@ -1107,6 +1110,59 @@ pub async fn prompt_get(
     arguments: BTreeMap<String, String>,
 ) -> CommandResult<JsonValue> {
     Ok(state.sessions.get_prompt(&id, &name, &arguments).await?)
+}
+
+/// What is set up in the live session of a server: watched resources and the log level.
+#[tauri::command]
+pub fn session_state(state: State<'_, AppState>, id: String) -> SessionState {
+    state.sessions.session_state(&id)
+}
+
+#[tauri::command]
+pub async fn resource_subscribe(
+    state: State<'_, AppState>,
+    id: String,
+    uri: String,
+) -> CommandResult<()> {
+    Ok(state.sessions.subscribe_resource(&id, &uri).await?)
+}
+
+#[tauri::command]
+pub async fn resource_unsubscribe(
+    state: State<'_, AppState>,
+    id: String,
+    uri: String,
+) -> CommandResult<()> {
+    Ok(state.sessions.unsubscribe_resource(&id, &uri).await?)
+}
+
+#[tauri::command]
+pub async fn server_set_log_level(
+    state: State<'_, AppState>,
+    id: String,
+    level: String,
+) -> CommandResult<()> {
+    Ok(state.sessions.set_log_level(&id, &level).await?)
+}
+
+/// Suggestions of the server for a partly typed prompt argument or template variable.
+#[tauri::command]
+pub async fn completion_complete(
+    state: State<'_, AppState>,
+    id: String,
+    target: CompletionTarget,
+    argument: String,
+    value: String,
+    context: BTreeMap<String, String>,
+) -> CommandResult<Completions> {
+    Ok(explorer::complete(
+        &state.sessions.peer(&id)?,
+        &target,
+        &argument,
+        &value,
+        &context,
+    )
+    .await?)
 }
 
 #[tauri::command]

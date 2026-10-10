@@ -329,3 +329,107 @@ async fn a_disconnect_withdraws_open_questions() {
     assert!(h.manager.requests().pending(None).is_empty());
     assert_eq!(h.sink.client_requests_done.lock().unwrap().len(), 1);
 }
+
+#[tokio::test]
+async fn the_server_details_say_what_can_be_used() {
+    let h = harness().await;
+    let server = connected(&h, vec![]).await;
+    let details = mcp_studio_core::explorer::details(&h.manager.peer(&server.id).unwrap()).unwrap();
+    assert!(details.can_subscribe && details.has_completions && details.has_logging);
+}
+
+#[tokio::test]
+async fn a_subscribed_resource_reports_updates_until_it_is_dropped_or_the_session_ends() {
+    let h = harness().await;
+    let server = connected(&h, vec![]).await;
+    let uri = "test://greeting";
+
+    assert_eq!(
+        call(&h, &server, "touch", json!({"uri": uri})).await,
+        "not subscribed"
+    );
+    h.manager.subscribe_resource(&server.id, uri).await.unwrap();
+    assert_eq!(h.manager.session_state(&server.id).subscriptions, [uri]);
+    assert_eq!(
+        call(&h, &server, "touch", json!({"uri": uri})).await,
+        "notified"
+    );
+    for _ in 0..100 {
+        if !h.sink.resource_updates.lock().unwrap().is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let updates = h.sink.resource_updates.lock().unwrap().clone();
+    assert_eq!(updates.len(), 1);
+    assert_eq!(
+        (updates[0].server_id.as_str(), updates[0].uri.as_str()),
+        (server.id.as_str(), uri)
+    );
+
+    h.manager
+        .unsubscribe_resource(&server.id, uri)
+        .await
+        .unwrap();
+    assert!(h.manager.session_state(&server.id).subscriptions.is_empty());
+    assert_eq!(
+        call(&h, &server, "touch", json!({"uri": uri})).await,
+        "not subscribed"
+    );
+
+    h.manager.subscribe_resource(&server.id, uri).await.unwrap();
+    h.manager.disconnect(&server.id).await.unwrap();
+    assert_eq!(h.manager.session_state(&server.id), Default::default());
+}
+
+#[tokio::test]
+async fn prompt_arguments_and_template_variables_are_completed() {
+    use mcp_studio_core::explorer::{complete, CompletionTarget};
+    let h = harness().await;
+    let server = connected(&h, vec![]).await;
+    let peer = h.manager.peer(&server.id).unwrap();
+    let none = BTreeMap::new();
+
+    let prompt = CompletionTarget::Prompt {
+        name: "greet".into(),
+    };
+    let found = complete(&peer, &prompt, "name", "al", &none).await.unwrap();
+    assert_eq!(found.values, ["alice", "alex"]);
+    assert!(!found.has_more);
+
+    let template = CompletionTarget::Resource {
+        uri_template: "test://users/{name}".into(),
+    };
+    let found = complete(&peer, &template, "name", "b", &none)
+        .await
+        .unwrap();
+    assert_eq!(found.values, ["bob"]);
+    let found = complete(&peer, &template, "other", "x", &none)
+        .await
+        .unwrap();
+    assert!(found.values.is_empty());
+}
+
+#[tokio::test]
+async fn the_log_level_is_sent_and_remembered_for_the_session() {
+    let h = harness().await;
+    let server = connected(&h, vec![]).await;
+    assert_eq!(call(&h, &server, "log_level", json!({})).await, "none");
+    assert_eq!(h.manager.session_state(&server.id).log_level, None);
+
+    h.manager
+        .set_log_level(&server.id, "warning")
+        .await
+        .unwrap();
+    assert_eq!(call(&h, &server, "log_level", json!({})).await, "warning");
+    assert_eq!(
+        h.manager.session_state(&server.id).log_level.as_deref(),
+        Some("warning")
+    );
+
+    assert!(h.manager.set_log_level(&server.id, "loud").await.is_err());
+    assert_eq!(
+        h.manager.session_state(&server.id).log_level.as_deref(),
+        Some("warning")
+    );
+}

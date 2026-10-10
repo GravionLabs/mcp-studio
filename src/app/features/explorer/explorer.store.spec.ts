@@ -8,12 +8,18 @@ const tool = (name: string): ToolInfo => ({ name });
 
 function create(overrides: Record<string, unknown> = {}) {
   let tools = [tool("a")];
-  let handler: ((e: ListChangedEvent) => void) | undefined;
+  const handlers = new Map<string, (e: never) => void>();
+  const subscribed: string[] = [];
   const ipc = {
-    listen: async (_: string, h: (e: ListChangedEvent) => void) => {
-      handler = h;
+    listen: async (event: string, h: (e: never) => void) => {
+      handlers.set(event, h);
       return () => {};
     },
+    resourceSubscribe: async (_: string, uri: string) => {
+      subscribed.push(uri);
+    },
+    resourceUnsubscribe: async () => undefined,
+    sessionState: async () => ({ subscriptions: ["test://kept"], logLevel: null }),
     serverDetails: async () => ({ name: "srv", version: "1", protocolVersion: "x" }),
     toolsList: async () => tools,
     resourcesList: async () => [],
@@ -25,7 +31,9 @@ function create(overrides: Record<string, unknown> = {}) {
   return {
     store: runInInjectionContext(injector, () => new ExplorerStore()),
     setTools: (next: ToolInfo[]) => (tools = next),
-    emit: (e: ListChangedEvent) => handler?.(e),
+    emit: (e: ListChangedEvent) => handlers.get("mcp://list-changed")?.(e as never),
+    send: (event: string, payload: unknown) => handlers.get(event)?.(payload as never),
+    subscribed,
   };
 }
 
@@ -78,5 +86,43 @@ describe("ExplorerStore", () => {
     await store.load("s");
     store.clear("s");
     expect(store.snapshots().has("s")).toBe(false);
+  });
+
+  it("marks a watched resource as changed until it is read again", async () => {
+    const { store, send } = create();
+    await store.listen();
+    await store.watch("s", "test://a");
+    send("mcp://resource-updated", { serverId: "s", uri: "test://a" });
+    send("mcp://resource-updated", { serverId: "s", uri: "test://other" });
+    expect([...store.changed("s")]).toEqual(["test://a"]);
+    store.markRead("s", "test://a");
+    expect(store.changed("s").size).toBe(0);
+    expect(store.watched("s").has("test://a")).toBe(true);
+  });
+
+  it("stops watching and forgets the change", async () => {
+    const { store, send } = create();
+    await store.listen();
+    await store.watch("s", "test://a");
+    send("mcp://resource-updated", { serverId: "s", uri: "test://a" });
+    await store.unwatch("s", "test://a");
+    expect(store.watched("s").size).toBe(0);
+    expect(store.changed("s").size).toBe(0);
+  });
+
+  it("forgets subscriptions when the session ends", async () => {
+    const { store, send } = create();
+    await store.listen();
+    await store.watch("s", "test://a");
+    send("mcp://status", { serverId: "s", sessionId: null, state: "connected", message: null });
+    expect(store.watched("s").size).toBe(1);
+    send("mcp://status", { serverId: "s", sessionId: null, state: "disconnected", message: null });
+    expect(store.watched("s").size).toBe(0);
+  });
+
+  it("takes over the subscriptions of the live session", async () => {
+    const { store } = create();
+    await store.loadSession("s");
+    expect([...store.watched("s")]).toEqual(["test://kept"]);
   });
 });

@@ -1,6 +1,7 @@
 use mcp_studio_core::client_requests::{ClientRequest, ClientRequestDone};
 use mcp_studio_core::events::{
-    EventSink, ListChangedEvent, LogEvent, MessageRecord, ProgressEvent, StatusEvent,
+    EventSink, ListChangedEvent, LogEvent, MessageRecord, ProgressEvent, ResourceUpdatedEvent,
+    StatusEvent,
 };
 use tauri::{AppHandle, Emitter};
 
@@ -28,6 +29,10 @@ impl EventSink for TauriSink {
 
     fn progress(&self, event: ProgressEvent) {
         let _ = self.app.emit("mcp://progress", event);
+    }
+
+    fn resource_updated(&self, event: ResourceUpdatedEvent) {
+        let _ = self.app.emit("mcp://resource-updated", event);
     }
 
     fn client_request(&self, event: ClientRequest) {

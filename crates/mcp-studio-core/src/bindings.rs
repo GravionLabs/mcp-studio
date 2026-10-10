@@ -22,10 +22,11 @@ use crate::{
     events::ProgressEvent,
     events::{
         ConnectionState, ListChangedEvent, ListKind, LogEvent, LogSource, MessageRecord,
-        StatusEvent,
+        ResourceUpdatedEvent, StatusEvent,
     },
     explorer::{
-        PromptArgumentInfo, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo,
+        CompletionTarget, Completions, PromptArgumentInfo, PromptInfo, ResourceInfo,
+        ResourceTemplateInfo, ServerDetails, ToolInfo,
     },
     flow::{Flow, FlowIssue, FlowIssueCode, FlowValidation, InputDecl, Step, StepKind, ToolRef},
     flow_gen::GeneratedFlow,
@@ -45,7 +46,7 @@ use crate::{
     prices::{Cost, Price},
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput, TransportKind},
-    session::{ToolCallRequest, ToolCallResult},
+    session::{SessionState, ToolCallRequest, ToolCallResult},
     storage::StorageInfo,
     test_suites::{Expectation, TestCase, TestCaseInput, TestSuite, TestSuiteInput},
     tokens::{CountingStatus, TokenSource},
@@ -71,6 +72,10 @@ pub fn ipc_types() -> Types {
         .register::<MessageFilter>()
         .register::<ListKind>()
         .register::<ListChangedEvent>()
+        .register::<ResourceUpdatedEvent>()
+        .register::<SessionState>()
+        .register::<CompletionTarget>()
+        .register::<Completions>()
         .register::<ClientRequest>()
         .register::<ClientRequestKind>()
         .register::<ClientRequestDone>()
