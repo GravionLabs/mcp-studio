@@ -99,7 +99,9 @@
     </dl>
     } @case ("client") {
     <app-proxy-panel [serverName]="s.name" [transport]="s.transport" />
-    } @case ("logs") { @if (logs().length === 0) {
+    } @case ("logs") { @if (state() === "connected") {
+    <app-log-level [serverId]="s.id" />
+    } @if (logs().length === 0) {
     <p class="muted">No log output yet.</p>
     } @else {
     <pre

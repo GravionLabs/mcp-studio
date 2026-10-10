@@ -162,6 +162,7 @@ async fn add_server(h: &Harness, scopes: Option<&str>, oauth: bool) -> String {
             oauth_scopes: scopes.map(str::to_owned),
             oauth_callback_port: None,
             azure_credentials: !oauth,
+            roots: vec![],
         })
         .await
         .unwrap()
@@ -285,6 +286,7 @@ async fn add_plain_server(h: &Harness, path: &str, azure: bool) -> String {
             oauth_scopes: None,
             oauth_callback_port: None,
             azure_credentials: azure,
+            roots: vec![],
         })
         .await
         .unwrap()

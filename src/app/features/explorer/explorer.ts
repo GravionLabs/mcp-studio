@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   OnInit,
   computed,
   effect,
@@ -16,7 +17,8 @@ import { ToastService } from "../../core/toast.service";
 import { ResultView } from "../results/result-view";
 import { missingArguments, promptMessages, resourceBlocks } from "../results/mcp-content";
 import { JsonView } from "../../ui/json-view/json-view";
-import { describeParameters, matches } from "./explorer.model";
+import { CompletionSource } from "./completion-source";
+import { describeParameters, fillTemplate, matches, templateVariables } from "./explorer.model";
 import { ExplorerStore } from "./explorer.store";
 import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
@@ -36,6 +38,12 @@ export class Explorer implements OnInit {
   private readonly store = inject(ExplorerStore);
   private readonly toasts = inject(ToastService);
   private readonly ipc = inject(TauriIpcService);
+
+  /** Suggestions of the server while the user types an argument or a template variable. */
+  private readonly completions = new CompletionSource(
+    (key, value) => this.fetchSuggestions(key, value),
+    (key, values) => this.suggestions.update((all) => ({ ...all, [key]: values })),
+  );
 
   protected readonly section = signal<Section>("tools");
   protected readonly query = signal("");
@@ -85,6 +93,23 @@ export class Explorer implements OnInit {
   /** Result of reading the selected resource. */
   protected readonly resourceResult = signal<unknown>(null);
   protected readonly templateUri = signal("");
+  protected readonly templateValues = signal<Record<string, string>>({});
+  /** Suggestions per field: `prompt:<argument>` or `template:<variable>`. */
+  protected readonly suggestions = signal<Record<string, string[]>>({});
+  protected readonly watched = computed(() => this.store.watched(this.serverId()));
+  protected readonly changed = computed(() => this.store.changed(this.serverId()));
+  protected readonly canWatch = computed(() => this.snapshot().details?.canSubscribe === true);
+  protected readonly templateVars = computed(() => {
+    const resource = this.selectedResource();
+    return resource?.template ? templateVariables(resource.key) : null;
+  });
+  protected readonly templateTarget = computed(() =>
+    this.templateVars() === null ? this.templateUri() : this.filledTemplate(),
+  );
+  private readonly filledTemplate = computed(() => {
+    const resource = this.selectedResource();
+    return resource ? fillTemplate(resource.key, this.templateValues()) : "";
+  });
   protected readonly promptValues = signal<Record<string, string>>({});
   protected readonly promptResult = signal<unknown>(null);
   protected readonly busy = signal(false);
@@ -105,6 +130,7 @@ export class Explorer implements OnInit {
   });
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.completions.cancel());
     effect(() => {
       // Switching the selection clears what was read for the previous item. Only the selection is a
       // dependency; reloaded lists must not clear a result the user is looking at.
@@ -113,6 +139,9 @@ export class Explorer implements OnInit {
         this.resourceResult.set(null);
         this.promptResult.set(null);
         this.promptValues.set({});
+        this.templateValues.set({});
+        this.suggestions.set({});
+        this.completions.cancel();
         const resource = this.resources().find((r) => r.key === name);
         this.templateUri.set(resource?.template ? resource.key : "");
       });
@@ -124,6 +153,7 @@ export class Explorer implements OnInit {
       const id = this.serverId();
       untracked(() => {
         void this.store.load(id);
+        this.store.loadSession(id).catch(() => undefined);
         this.selectedName.set(null);
       });
     });
@@ -149,6 +179,7 @@ export class Explorer implements OnInit {
     this.busy.set(true);
     try {
       this.resourceResult.set(await this.ipc.resourceRead(this.serverId(), uri));
+      this.store.markRead(this.serverId(), uri);
     } catch (error) {
       this.toasts.fail("Could not read the resource", error);
     } finally {
@@ -156,8 +187,51 @@ export class Explorer implements OnInit {
     }
   }
 
+  protected async toggleWatch(uri: string): Promise<void> {
+    try {
+      if (this.watched().has(uri)) await this.store.unwatch(this.serverId(), uri);
+      else await this.store.watch(this.serverId(), uri);
+    } catch (error) {
+      this.toasts.fail("Could not change the subscription", error);
+    }
+  }
+
   protected setPromptValue(name: string, value: string): void {
     this.promptValues.update((all) => ({ ...all, [name]: value }));
+    this.suggest(`prompt:${name}`, value);
+  }
+
+  protected setTemplateValue(name: string, value: string): void {
+    this.templateValues.update((all) => ({ ...all, [name]: value }));
+    this.suggest(`template:${name}`, value);
+  }
+
+  private suggest(key: string, value: string): void {
+    if (this.snapshot().details?.hasCompletions) this.completions.request(key, value);
+  }
+
+  private async fetchSuggestions(key: string, value: string): Promise<string[]> {
+    const [kind, ...rest] = key.split(":");
+    const argument = rest.join(":");
+    const prompt = this.selectedPrompt();
+    const resource = this.selectedResource();
+    const target =
+      kind === "prompt" && prompt
+        ? ({ type: "prompt", name: prompt.name } as const)
+        : kind === "template" && resource
+          ? ({ type: "resource", uriTemplate: resource.key } as const)
+          : null;
+    if (!target) return [];
+    const filled = Object.entries(kind === "prompt" ? this.promptValues() : this.templateValues());
+    const context = Object.fromEntries(filled.filter(([name, v]) => name !== argument && v !== ""));
+    const found = await this.ipc.completionComplete(
+      this.serverId(),
+      target,
+      argument,
+      value,
+      context,
+    );
+    return found.values;
   }
 
   protected async getPrompt(prompt: PromptInfo): Promise<void> {

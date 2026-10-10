@@ -91,6 +91,7 @@ fn stdio_server(command: &str, args: &[&str]) -> ServerInput {
         oauth_scopes: None,
         oauth_callback_port: None,
         azure_credentials: false,
+        roots: vec![],
     }
 }
 
@@ -254,6 +255,7 @@ async fn connects_over_streamable_http_with_headers() {
             oauth_scopes: None,
             oauth_callback_port: None,
             azure_credentials: false,
+            roots: vec![],
         })
         .await
         .unwrap();
@@ -347,10 +349,10 @@ async fn explorer_lists_tools_resources_prompts_and_details() {
     assert_eq!(prompts[0].name, "greet");
     assert!(prompts[0].arguments[0].required);
 
-    assert!(explorer::list_resource_templates(&session.peer)
+    let templates = explorer::list_resource_templates(&session.peer)
         .await
-        .unwrap()
-        .is_empty());
+        .unwrap();
+    assert_eq!(templates[0].uri_template, "test://users/{name}");
     h.manager.disconnect_all().await;
 }
 

@@ -1,6 +1,7 @@
 use mcp_studio_core::{
     client_formats::{self, ClientSource},
     client_import::{self, ConfigSource, ImportCandidate, ImportSummary},
+    client_requests::{self, ClientAnswer, ClientRequest, SamplingSuggestion},
     client_routes::{
         self, ClientEntries, EntryRef, RouteContext, RoutePreview, RouteResult, UnrouteResult,
     },
@@ -9,7 +10,10 @@ use mcp_studio_core::{
     docs_gen::{self, DocsInput},
     environments::{Environment, EnvironmentInput},
     events::{LogEvent, MessageRecord},
-    explorer::{self, PromptInfo, ResourceInfo, ResourceTemplateInfo, ServerDetails, ToolInfo},
+    explorer::{
+        self, CompletionTarget, Completions, PromptInfo, ResourceInfo, ResourceTemplateInfo,
+        ServerDetails, ToolInfo,
+    },
     flow::{self, Flow, FlowValidation, ToolCatalog},
     flow_gen::{self, GeneratedFlow},
     flow_replay::ReplayTools,
@@ -32,7 +36,7 @@ use mcp_studio_core::{
     proxy::ProxyInfo,
     registry::{ServerDefinition, ServerInput},
     secrets::{self, references_in},
-    session::{ToolCallRequest, ToolCallResult},
+    session::{SessionState, ToolCallRequest, ToolCallResult},
     storage::{self, StorageInfo},
     test_suites::{TestSuite, TestSuiteInput},
     tokens::{self, CountingStatus},
@@ -877,6 +881,7 @@ pub async fn server_update(
 ) -> CommandResult<ServerDefinition> {
     let previous = state.registry.get(&id).await?;
     let updated = state.registry.update(&id, input).await?;
+    state.sessions.roots_changed(&id).await?;
     // Drop secrets the edited definition no longer references.
     let still_used = references_in(&updated.input);
     for name in references_in(&previous.input) {
@@ -885,6 +890,54 @@ pub async fn server_update(
         }
     }
     Ok(updated)
+}
+
+/// The questions of servers (sampling, elicitation) that wait for the user, optionally of one server.
+#[tauri::command]
+pub fn client_requests_pending(
+    state: State<'_, AppState>,
+    server_id: Option<String>,
+) -> Vec<ClientRequest> {
+    state.sessions.requests().pending(server_id.as_deref())
+}
+
+/// Gives the answer of the user to a question of a server.
+#[tauri::command]
+pub fn client_request_answer(
+    state: State<'_, AppState>,
+    id: String,
+    answer: ClientAnswer,
+) -> CommandResult<()> {
+    Ok(state.sessions.requests().answer(&id, answer)?)
+}
+
+/// Lets a model write an answer to a sampling request. This sends the messages of the request to
+/// the provider of `model`, so it only runs when the user asks for it. The answer is only a
+/// suggestion: nothing reaches the server until the user sends it.
+#[tauri::command]
+pub async fn client_request_suggest(
+    state: State<'_, AppState>,
+    id: String,
+    model: String,
+) -> CommandResult<SamplingSuggestion> {
+    let request = state
+        .sessions
+        .requests()
+        .get(&id)
+        .ok_or_else(|| CommandError("the request is no longer waiting".into()))?;
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let (provider, model) = resolve_model(&settings, &state, &model)?;
+    let completion = provider
+        .complete(&client_requests::sampling_to_completion(
+            &request.params.0,
+            &model,
+        )?)
+        .await
+        .map_err(|e| CommandError(e.message))?;
+    Ok(SamplingSuggestion {
+        text: completion.text(),
+        model: completion.model,
+    })
 }
 
 #[tauri::command]
@@ -1057,6 +1110,59 @@ pub async fn prompt_get(
     arguments: BTreeMap<String, String>,
 ) -> CommandResult<JsonValue> {
     Ok(state.sessions.get_prompt(&id, &name, &arguments).await?)
+}
+
+/// What is set up in the live session of a server: watched resources and the log level.
+#[tauri::command]
+pub fn session_state(state: State<'_, AppState>, id: String) -> SessionState {
+    state.sessions.session_state(&id)
+}
+
+#[tauri::command]
+pub async fn resource_subscribe(
+    state: State<'_, AppState>,
+    id: String,
+    uri: String,
+) -> CommandResult<()> {
+    Ok(state.sessions.subscribe_resource(&id, &uri).await?)
+}
+
+#[tauri::command]
+pub async fn resource_unsubscribe(
+    state: State<'_, AppState>,
+    id: String,
+    uri: String,
+) -> CommandResult<()> {
+    Ok(state.sessions.unsubscribe_resource(&id, &uri).await?)
+}
+
+#[tauri::command]
+pub async fn server_set_log_level(
+    state: State<'_, AppState>,
+    id: String,
+    level: String,
+) -> CommandResult<()> {
+    Ok(state.sessions.set_log_level(&id, &level).await?)
+}
+
+/// Suggestions of the server for a partly typed prompt argument or template variable.
+#[tauri::command]
+pub async fn completion_complete(
+    state: State<'_, AppState>,
+    id: String,
+    target: CompletionTarget,
+    argument: String,
+    value: String,
+    context: BTreeMap<String, String>,
+) -> CommandResult<Completions> {
+    Ok(explorer::complete(
+        &state.sessions.peer(&id)?,
+        &target,
+        &argument,
+        &value,
+        &context,
+    )
+    .await?)
 }
 
 #[tauri::command]

@@ -199,12 +199,11 @@ pub async fn sign_in(
     Ok(())
 }
 
-/// Builds an authorized HTTP client for a signed-in server. Tokens are refreshed automatically and
-/// written back to the store.
-pub async fn auth_client(
+/// Loads the stored credentials of a signed-in server into a manager that refreshes them.
+async fn signed_in_manager(
     url: &str,
     store: KeyringCredentialStore,
-) -> DbResult<AuthClient<reqwest::Client>> {
+) -> DbResult<AuthorizationManager> {
     let mut manager = AuthorizationManager::new(url)
         .await
         .map_err(|e| oauth_error("could not set up authorization", e))?;
@@ -218,7 +217,42 @@ pub async fn auth_client(
             "sign-in required: this server needs you to sign in first".into(),
         ));
     }
+    Ok(manager)
+}
+
+/// Builds an authorized HTTP client for a signed-in server. Tokens are refreshed automatically and
+/// written back to the store.
+pub async fn auth_client(
+    url: &str,
+    store: KeyringCredentialStore,
+) -> DbResult<AuthClient<reqwest::Client>> {
+    let manager = signed_in_manager(url, store).await?;
     Ok(AuthClient::new(reqwest::Client::new(), manager))
+}
+
+/// The access token of a signed-in server, for requests that are not made through `rmcp` (the HTTP
+/// proxy). The token is refreshed shortly before it expires and the new one is written back to the
+/// store; signing out is noticed on the next request.
+pub struct TokenSource {
+    manager: AuthorizationManager,
+}
+
+impl TokenSource {
+    /// Fails with "sign-in required" when the server was never signed in to.
+    pub async fn open(url: &str, store: KeyringCredentialStore) -> DbResult<Self> {
+        Ok(Self {
+            manager: signed_in_manager(url, store).await?,
+        })
+    }
+
+    pub async fn token(&self) -> DbResult<String> {
+        self.manager.get_access_token().await.map_err(|e| match e {
+            AuthError::AuthorizationRequired => {
+                DbError::Connection("sign-in required: the sign-in has ended".into())
+            }
+            other => oauth_error("could not get an access token", other),
+        })
+    }
 }
 
 /// Waits for the browser to come back to `/callback` and returns the request target

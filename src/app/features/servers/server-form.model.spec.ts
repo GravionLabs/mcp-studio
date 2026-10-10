@@ -5,7 +5,9 @@ import {
   formToInputWithSecrets,
   formatArgs,
   inputToForm,
+  isRoot,
   parseArgs,
+  parseRoots,
   validateForm,
 } from "./server-form.model";
 
@@ -73,8 +75,46 @@ describe("form conversion", () => {
       oauthScopes: "api://x/.default",
       oauthCallbackPort: 3118,
       azureCredentials: false,
+      roots: ["/home/me/app", "file:///srv/data"],
     };
     expect(formToInput(inputToForm(input))).toEqual(input);
+  });
+});
+
+describe("roots", () => {
+  const form = { ...emptyForm(), name: "n", command: "c" };
+
+  it("are one per line, trimmed, without empty lines", () => {
+    expect(parseRoots(" /a \r\n\n/b\n")).toEqual(["/a", "/b"]);
+    expect(formToInput({ ...form, roots: "/a\n/b" }).roots).toEqual(["/a", "/b"]);
+  });
+
+  it("accept absolute paths and file addresses", () => {
+    for (const ok of [
+      "/home/me",
+      "C:\\Users\\me",
+      "C:/Users/me",
+      "\\\\host\\share",
+      "file:///srv",
+    ]) {
+      expect(isRoot(ok), ok).toBe(true);
+    }
+  });
+
+  it("refuse relative paths and other addresses", () => {
+    for (const bad of ["src", "./src", "https://example.com", "file://"]) {
+      expect(isRoot(bad), bad).toBe(false);
+    }
+    expect(validateForm({ ...form, roots: "/ok\nrelative" })).toEqual([
+      'Root "relative" must be an absolute folder path or a file:// address.',
+    ]);
+  });
+
+  it("default to none for servers stored before the option existed", () => {
+    const stored = formToInput(form);
+    const legacy = { ...stored } as Record<string, unknown>;
+    delete legacy["roots"];
+    expect(inputToForm(legacy as unknown as typeof stored).roots).toBe("");
   });
 });
 

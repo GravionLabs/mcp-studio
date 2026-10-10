@@ -3,7 +3,11 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::{recording::Direction, tokens::TokenSource};
+use crate::{
+    client_requests::{ClientRequest, ClientRequestDone},
+    recording::Direction,
+    tokens::TokenSource,
+};
 
 /// Connection state of one server.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -98,6 +102,15 @@ pub struct ListChangedEvent {
     pub kind: ListKind,
 }
 
+/// `mcp://resource-updated`: the server sent `notifications/resources/updated` for a resource that
+/// was subscribed to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceUpdatedEvent {
+    pub server_id: String,
+    pub uri: String,
+}
+
 /// `mcp://progress`: progress of a running tool call.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -116,6 +129,11 @@ pub trait EventSink: Send + Sync + 'static {
     fn log(&self, event: LogEvent);
     fn list_changed(&self, event: ListChangedEvent);
     fn progress(&self, event: ProgressEvent);
+    fn resource_updated(&self, event: ResourceUpdatedEvent);
+    /// A server asks the user something (sampling, elicitation).
+    fn client_request(&self, event: ClientRequest);
+    /// That question is not open any more.
+    fn client_request_done(&self, event: ClientRequestDone);
 }
 
 /// Ignores everything.
@@ -127,6 +145,9 @@ impl EventSink for NullSink {
     fn log(&self, _: LogEvent) {}
     fn list_changed(&self, _: ListChangedEvent) {}
     fn progress(&self, _: ProgressEvent) {}
+    fn resource_updated(&self, _: ResourceUpdatedEvent) {}
+    fn client_request(&self, _: ClientRequest) {}
+    fn client_request_done(&self, _: ClientRequestDone) {}
 }
 
 /// Collects events in memory (tests).
@@ -137,6 +158,9 @@ pub struct CollectingSink {
     pub logs: std::sync::Mutex<Vec<LogEvent>>,
     pub list_changes: std::sync::Mutex<Vec<ListChangedEvent>>,
     pub progress: std::sync::Mutex<Vec<ProgressEvent>>,
+    pub resource_updates: std::sync::Mutex<Vec<ResourceUpdatedEvent>>,
+    pub client_requests: std::sync::Mutex<Vec<ClientRequest>>,
+    pub client_requests_done: std::sync::Mutex<Vec<ClientRequestDone>>,
 }
 
 impl EventSink for CollectingSink {
@@ -154,5 +178,14 @@ impl EventSink for CollectingSink {
     }
     fn progress(&self, event: ProgressEvent) {
         self.progress.lock().unwrap().push(event);
+    }
+    fn resource_updated(&self, event: ResourceUpdatedEvent) {
+        self.resource_updates.lock().unwrap().push(event);
+    }
+    fn client_request(&self, event: ClientRequest) {
+        self.client_requests.lock().unwrap().push(event);
+    }
+    fn client_request_done(&self, event: ClientRequestDone) {
+        self.client_requests_done.lock().unwrap().push(event);
     }
 }

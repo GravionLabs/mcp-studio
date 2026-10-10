@@ -29,3 +29,25 @@ export function matches(query: string, ...fields: (string | null | undefined)[])
   const q = query.trim().toLowerCase();
   return q === "" || fields.some((f) => f?.toLowerCase().includes(q));
 }
+
+/**
+ * The variables of a resource template that only uses plain `{name}` expressions, in order of first
+ * appearance. `null` when it has none or uses operators (`{+path}`, `{?query}`, `{list*}`) that the
+ * per-variable form cannot fill in; those are edited as text.
+ */
+export function templateVariables(template: string): string[] | null {
+  const names: string[] = [];
+  for (const match of template.matchAll(/\{([^}]*)\}/g)) {
+    const name = match[1] ?? "";
+    if (!/^[A-Za-z0-9_.]+$/.test(name)) return null;
+    if (!names.includes(name)) names.push(name);
+  }
+  return names.length > 0 ? names : null;
+}
+
+/** The URI of a template with its variables filled in (percent-encoded). */
+export function fillTemplate(template: string, values: Record<string, string>): string {
+  return template.replace(/\{([^}]*)\}/g, (_, name: string) =>
+    encodeURIComponent(values[name] ?? ""),
+  );
+}
