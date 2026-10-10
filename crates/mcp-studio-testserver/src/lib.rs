@@ -6,16 +6,22 @@
 
 pub mod oauth;
 
-use std::future::Future;
+use std::{
+    future::Future,
+    sync::{Arc, Mutex},
+};
 
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::{
-        CreateMessageRequestParams, ElicitRequestParams, ElicitationAction, ElicitationSchema,
-        GetPromptRequestParams, GetPromptResponse, GetPromptResult, ListPromptsResult,
-        ListResourcesResult, PaginatedRequestParams, Prompt, PromptArgument, PromptMessage,
-        ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
-        ResourceContents, Role, SamplingMessage, ServerCapabilities, ServerConfig,
+        CompleteRequestParams, CompleteResult, CompletionInfo, CreateMessageRequestParams,
+        ElicitRequestParams, ElicitationAction, ElicitationSchema, GetPromptRequestParams,
+        GetPromptResponse, GetPromptResult, ListPromptsResult, ListResourceTemplatesResult,
+        ListResourcesResult, LoggingLevel, PaginatedRequestParams, Prompt, PromptArgument,
+        PromptMessage, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
+        Resource, ResourceContents, ResourceTemplate, ResourceUpdatedNotificationParam, Role,
+        SamplingMessage, ServerCapabilities, ServerConfig, SetLevelRequestParams,
+        SubscribeRequestParams, UnsubscribeRequestParams,
     },
     schemars,
     service::{MaybeSendFuture, RequestContext, RoleServer},
@@ -53,15 +59,30 @@ pub struct ElicitToolRequest {
     pub question: String,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct TouchRequest {
+    #[schemars(description = "URI of the resource that changed")]
+    pub uri: String,
+}
+
+/// Names the completions of the test server offer.
+const NAMES: [&str; 4] = ["alice", "alex", "bob", "carol"];
+
 #[derive(Debug, Clone)]
 pub struct TestServer {
     tool_router: ToolRouter<Self>,
+    /// The resources the client subscribed to.
+    subscriptions: Arc<Mutex<Vec<String>>>,
+    /// The level the client set, as MCP names it.
+    level: Arc<Mutex<String>>,
 }
 
 impl TestServer {
     pub fn new() -> Self {
         Self {
             tool_router: Self::tool_router(),
+            subscriptions: Arc::default(),
+            level: Arc::new(Mutex::new("none".to_owned())),
         }
     }
 }
@@ -161,6 +182,28 @@ impl TestServer {
             .join("\n"))
     }
 
+    #[tool(description = "Tell the client that a resource changed (only if it is subscribed to)")]
+    async fn touch(
+        &self,
+        Parameters(TouchRequest { uri }): Parameters<TouchRequest>,
+        context: RequestContext<RoleServer>,
+    ) -> Result<String, String> {
+        if !self.subscriptions.lock().unwrap().contains(&uri) {
+            return Ok("not subscribed".to_owned());
+        }
+        context
+            .peer
+            .notify_resource_updated(ResourceUpdatedNotificationParam::new(uri))
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok("notified".to_owned())
+    }
+
+    #[tool(description = "The log level the client set, or \"none\"")]
+    fn log_level(&self) -> String {
+        self.level.lock().unwrap().clone()
+    }
+
     #[tool(description = "Always fails with a tool error")]
     fn fail(&self) -> Result<String, String> {
         Err("intentional failure".to_owned())
@@ -175,6 +218,9 @@ impl ServerHandler for TestServer {
                 .enable_tools()
                 .enable_resources()
                 .enable_prompts()
+                .enable_resources_subscribe()
+                .enable_completions()
+                .enable_logging()
                 .build(),
         )
         .with_instructions("MCP Studio reference server")
@@ -189,6 +235,82 @@ impl ServerHandler for TestServer {
             .with_description("A friendly greeting")
             .with_mime_type("text/plain")];
         std::future::ready(Ok(ListResourcesResult::with_all_items(resources)))
+    }
+
+    fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<ListResourceTemplatesResult, McpError>> + MaybeSendFuture + '_
+    {
+        let templates =
+            vec![ResourceTemplate::new("test://users/{name}", "user")
+                .with_description("A user by name")];
+        std::future::ready(Ok(ListResourceTemplatesResult::with_all_items(templates)))
+    }
+
+    fn subscribe(
+        &self,
+        request: SubscribeRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<(), McpError>> + MaybeSendFuture + '_ {
+        let mut subscriptions = self.subscriptions.lock().unwrap();
+        if !subscriptions.contains(&request.uri) {
+            subscriptions.push(request.uri);
+        }
+        std::future::ready(Ok(()))
+    }
+
+    fn unsubscribe(
+        &self,
+        request: UnsubscribeRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<(), McpError>> + MaybeSendFuture + '_ {
+        self.subscriptions
+            .lock()
+            .unwrap()
+            .retain(|u| *u != request.uri);
+        std::future::ready(Ok(()))
+    }
+
+    /// Completes the `name` argument of the `greet` prompt and of the `user` template from `NAMES`.
+    fn complete(
+        &self,
+        request: CompleteRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<CompleteResult, McpError>> + MaybeSendFuture + '_ {
+        let values: Vec<String> = if request.argument.name == "name" {
+            NAMES
+                .iter()
+                .filter(|n| n.starts_with(&request.argument.value))
+                .map(|n| (*n).to_owned())
+                .collect()
+        } else {
+            vec![]
+        };
+        let result = CompletionInfo::new(values)
+            .map(CompleteResult::new)
+            .map_err(|e| McpError::internal_error(e, None));
+        std::future::ready(result)
+    }
+
+    fn set_level(
+        &self,
+        request: SetLevelRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<(), McpError>> + MaybeSendFuture + '_ {
+        let name = match request.level {
+            LoggingLevel::Debug => "debug",
+            LoggingLevel::Info => "info",
+            LoggingLevel::Notice => "notice",
+            LoggingLevel::Warning => "warning",
+            LoggingLevel::Error => "error",
+            LoggingLevel::Critical => "critical",
+            LoggingLevel::Alert => "alert",
+            _ => "emergency",
+        };
+        *self.level.lock().unwrap() = name.to_owned();
+        std::future::ready(Ok(()))
     }
 
     fn read_resource(

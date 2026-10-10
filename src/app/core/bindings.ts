@@ -132,6 +132,20 @@ export type CompletionRequest = {
 	temperature: number | null,
 };
 
+/**  What is completed. */
+export type CompletionTarget = 
+/**  An argument of the prompt with this name. */
+{ type: "prompt"; name: string } | 
+/**  A variable of the resource template with this URI template. */
+{ type: "resource"; uriTemplate: string };
+
+/**  The suggestions of a server for a partly typed value. */
+export type Completions = {
+	values: string[],
+	/**  The server has more than it sent. */
+	hasMore: boolean,
+};
+
 /**  A configuration file that may contain servers. */
 export type ConfigSource = {
 	/**  "Claude Desktop" or "Claude Code (user)". */
@@ -588,6 +602,15 @@ export type ResourceTemplateInfo = {
 	mimeType?: string | null,
 };
 
+/**
+ *  `mcp://resource-updated`: the server sent `notifications/resources/updated` for a resource that
+ *  was subscribed to.
+ */
+export type ResourceUpdatedEvent = {
+	serverId: string,
+	uri: string,
+};
+
 /**  How long history is kept. */
 export type RetentionPolicy = {
 	maxAgeDays?: number,
@@ -677,6 +700,12 @@ export type ServerDetails = {
 	hasTools: boolean,
 	hasResources: boolean,
 	hasPrompts: boolean,
+	/**  `resources.subscribe`: resources can be watched. */
+	canSubscribe: boolean,
+	/**  `completions`: prompt arguments and template variables can be completed. */
+	hasCompletions: boolean,
+	/**  `logging`: the server accepts a log level. */
+	hasLogging: boolean,
 };
 
 /**  What the user edits: everything except identity and timestamps. */
@@ -712,6 +741,14 @@ export type ServerInput = {
 	azureCredentials?: boolean,
 	/**  Folders offered to the server as its roots: absolute paths or `file://` URIs. */
 	roots?: string[],
+};
+
+/**  What was set up in a live session. It ends with the session: a new connection starts clean. */
+export type SessionState = {
+	/**  The resources that are being watched. */
+	subscriptions: string[],
+	/**  The level sent with `logging/setLevel`, if any. */
+	logLevel: string | null,
 };
 
 /**  Tokens and cost of one session. */

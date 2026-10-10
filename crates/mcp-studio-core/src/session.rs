@@ -26,7 +26,8 @@ use rmcp::{
         ClientConfig, ClientRequest, CreateMessageRequestParams, CreateMessageResult,
         ElicitRequestParams, ElicitResult, ElicitationAction, ElicitationCapability, ErrorCode,
         FormElicitationCapability, Implementation, ListRootsResult, ProgressNotificationParam,
-        Root, RootsCapabilities, SamplingCapability, SamplingMessage, ServerResult,
+        ResourceUpdatedNotificationParam, Root, RootsCapabilities, SamplingCapability,
+        SamplingMessage, ServerResult,
     },
     service::{
         MaybeSendFuture, NotificationContext, Peer, PeerRequestOptions, QuitReason, RequestContext,
@@ -53,7 +54,7 @@ use crate::{
     environments::Environments,
     events::{
         ConnectionState, EventSink, ListChangedEvent, ListKind, LogEvent, LogSource, ProgressEvent,
-        StatusEvent,
+        ResourceUpdatedEvent, StatusEvent,
     },
     history::{History, NewEntry},
     message_store::MessageWriter,
@@ -369,6 +370,18 @@ impl ClientHandler for StudioClient {
         std::future::ready(())
     }
 
+    fn on_resource_updated(
+        &self,
+        params: ResourceUpdatedNotificationParam,
+        _context: NotificationContext<RoleClient>,
+    ) -> impl Future<Output = ()> + MaybeSendFuture + '_ {
+        self.logs.sink.resource_updated(ResourceUpdatedEvent {
+            server_id: self.server_id.clone(),
+            uri: params.uri,
+        });
+        std::future::ready(())
+    }
+
     fn on_prompt_list_changed(
         &self,
         _context: NotificationContext<RoleClient>,
@@ -472,6 +485,16 @@ pub struct LiveSession {
     closed: watch::Receiver<bool>,
 }
 
+/// What was set up in a live session. It ends with the session: a new connection starts clean.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionState {
+    /// The resources that are being watched.
+    pub subscriptions: Vec<String>,
+    /// The level sent with `logging/setLevel`, if any.
+    pub log_level: Option<String>,
+}
+
 /// Owns all connections. Cheap to share through `Arc`.
 pub struct SessionManager {
     db: Db,
@@ -488,6 +511,7 @@ pub struct SessionManager {
     progress: Arc<Mutex<HashMap<String, String>>>,
     calls: Mutex<HashMap<String, CancellationToken>>,
     requests: Arc<ClientRequests>,
+    state: Mutex<HashMap<String, SessionState>>,
 }
 
 impl SessionManager {
@@ -519,6 +543,7 @@ impl SessionManager {
             progress: Arc::default(),
             calls: Mutex::default(),
             requests,
+            state: Mutex::default(),
         })
     }
 
@@ -535,6 +560,48 @@ impl SessionManager {
     /// The questions servers ask the user (sampling, elicitation).
     pub fn requests(&self) -> &Arc<ClientRequests> {
         &self.requests
+    }
+
+    /// What is set up in the live session of a server (empty when not connected).
+    pub fn session_state(&self, server_id: &str) -> SessionState {
+        self.state
+            .lock()
+            .unwrap()
+            .get(server_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Starts watching a resource of a connected server.
+    pub async fn subscribe_resource(&self, server_id: &str, uri: &str) -> DbResult<()> {
+        crate::explorer::subscribe(&self.peer(server_id)?, uri).await?;
+        let mut all = self.state.lock().unwrap();
+        let subscriptions = &mut all.entry(server_id.to_owned()).or_default().subscriptions;
+        if !subscriptions.iter().any(|u| u == uri) {
+            subscriptions.push(uri.to_owned());
+        }
+        Ok(())
+    }
+
+    /// Stops watching a resource.
+    pub async fn unsubscribe_resource(&self, server_id: &str, uri: &str) -> DbResult<()> {
+        crate::explorer::unsubscribe(&self.peer(server_id)?, uri).await?;
+        if let Some(state) = self.state.lock().unwrap().get_mut(server_id) {
+            state.subscriptions.retain(|u| u != uri);
+        }
+        Ok(())
+    }
+
+    /// Sets the log level of a connected server.
+    pub async fn set_log_level(&self, server_id: &str, level: &str) -> DbResult<()> {
+        crate::explorer::set_log_level(&self.peer(server_id)?, level).await?;
+        self.state
+            .lock()
+            .unwrap()
+            .entry(server_id.to_owned())
+            .or_default()
+            .log_level = Some(level.to_owned());
+        Ok(())
     }
 
     /// Tells a connected server that its roots changed, after the definition was edited.
@@ -776,6 +843,7 @@ impl SessionManager {
     ) {
         self.live.lock().unwrap().remove(&session.server_id);
         self.requests.drop_server(&session.server_id);
+        self.state.lock().unwrap().remove(&session.server_id);
         self.end_session(&session.session_id).await;
         let user_requested = session.user_requested.load(Ordering::SeqCst);
         if user_requested || matches!(reason, Some(QuitReason::Cancelled)) {

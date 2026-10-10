@@ -20,6 +20,7 @@ import { ToolDocs } from "../docs/tool-docs";
 import { ToolLint } from "../lint/tool-lint";
 import { ContextCostPanel } from "../prices/context-cost-panel";
 import { ProxyPanel } from "../proxy/proxy-panel";
+import { LogLevel } from "./log-level";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import {
   SERVER_TABS,
@@ -38,6 +39,7 @@ import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
   imports: [
     RouterLink,
     Explorer,
+    LogLevel,
     ProxyPanel,
     ContextCostPanel,
     ToolLint,

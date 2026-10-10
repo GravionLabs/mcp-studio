@@ -5,8 +5,14 @@
 
 use std::collections::BTreeMap;
 
+// Server logging is deprecated in the MCP spec (SEP-2577) but servers still offer it.
+#[allow(deprecated)]
+use rmcp::model::{LoggingLevel, SetLevelRequestParams};
 use rmcp::{
-    model::{GetPromptRequestParams, ReadResourceRequestParams},
+    model::{
+        ArgumentInfo, CompleteRequestParams, CompletionContext, GetPromptRequestParams,
+        ReadResourceRequestParams, Reference, SubscribeRequestParams, UnsubscribeRequestParams,
+    },
     service::Peer,
     RoleClient,
 };
@@ -96,6 +102,12 @@ pub struct ServerDetails {
     pub has_tools: bool,
     pub has_resources: bool,
     pub has_prompts: bool,
+    /// `resources.subscribe`: resources can be watched.
+    pub can_subscribe: bool,
+    /// `completions`: prompt arguments and template variables can be completed.
+    pub has_completions: bool,
+    /// `logging`: the server accepts a log level.
+    pub has_logging: bool,
 }
 
 fn convert<T: DeserializeOwned>(value: &impl Serialize) -> DbResult<T> {
@@ -138,6 +150,9 @@ pub fn details(peer: &Peer<RoleClient>) -> DbResult<ServerDetails> {
         has_tools: has("tools"),
         has_resources: has("resources"),
         has_prompts: has("prompts"),
+        can_subscribe: capabilities["resources"]["subscribe"] == Value::Bool(true),
+        has_completions: has("completions"),
+        has_logging: has("logging"),
         capabilities: JsonValue(capabilities),
     })
 }
@@ -212,6 +227,137 @@ pub async fn get_prompt(
     ))
 }
 
+/// What is completed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CompletionTarget {
+    /// An argument of the prompt with this name.
+    Prompt { name: String },
+    /// A variable of the resource template with this URI template.
+    Resource {
+        #[serde(rename = "uriTemplate")]
+        uri_template: String,
+    },
+}
+
+/// The suggestions of a server for a partly typed value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Completions {
+    pub values: Vec<String>,
+    /// The server has more than it sent.
+    pub has_more: bool,
+}
+
+/// Asks the server to complete `value` for `argument`. `context` holds the arguments that are
+/// already filled in. A server without the `completions` capability gives no suggestions.
+pub async fn complete(
+    peer: &Peer<RoleClient>,
+    target: &CompletionTarget,
+    argument: &str,
+    value: &str,
+    context: &BTreeMap<String, String>,
+) -> DbResult<Completions> {
+    if !details(peer)?.has_completions {
+        return Ok(Completions {
+            values: vec![],
+            has_more: false,
+        });
+    }
+    let reference = match target {
+        CompletionTarget::Prompt { name } => Reference::for_prompt(name),
+        CompletionTarget::Resource { uri_template } => Reference::for_resource(uri_template),
+    };
+    let mut params = CompleteRequestParams::new(reference, ArgumentInfo::new(argument, value));
+    if !context.is_empty() {
+        params = params.with_context(CompletionContext::with_arguments(
+            context
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+        ));
+    }
+    let info = peer
+        .complete(params)
+        .await
+        .map_err(service_error)?
+        .completion;
+    let has_more = info.has_more.unwrap_or(false)
+        || info
+            .total
+            .is_some_and(|total| total as usize > info.values.len());
+    Ok(Completions {
+        values: info.values,
+        has_more,
+    })
+}
+
+/// Starts watching a resource. Needs `resources.subscribe`.
+///
+/// `resources/subscribe` is legacy in the newest protocol version, but it is what servers of the
+/// versions we negotiate offer.
+#[allow(deprecated)]
+pub async fn subscribe(peer: &Peer<RoleClient>, uri: &str) -> DbResult<()> {
+    if !details(peer)?.can_subscribe {
+        return Err(DbError::Invalid(
+            "the server does not support resource subscriptions".into(),
+        ));
+    }
+    peer.subscribe(SubscribeRequestParams::new(uri))
+        .await
+        .map_err(service_error)
+}
+
+/// Stops watching a resource.
+#[allow(deprecated)]
+pub async fn unsubscribe(peer: &Peer<RoleClient>, uri: &str) -> DbResult<()> {
+    peer.unsubscribe(UnsubscribeRequestParams::new(uri))
+        .await
+        .map_err(service_error)
+}
+
+/// The log levels of MCP, least to most severe.
+pub const LOG_LEVELS: [&str; 8] = [
+    "debug",
+    "info",
+    "notice",
+    "warning",
+    "error",
+    "critical",
+    "alert",
+    "emergency",
+];
+
+#[allow(deprecated)]
+fn log_level(name: &str) -> Option<LoggingLevel> {
+    Some(match name {
+        "debug" => LoggingLevel::Debug,
+        "info" => LoggingLevel::Info,
+        "notice" => LoggingLevel::Notice,
+        "warning" => LoggingLevel::Warning,
+        "error" => LoggingLevel::Error,
+        "critical" => LoggingLevel::Critical,
+        "alert" => LoggingLevel::Alert,
+        "emergency" => LoggingLevel::Emergency,
+        _ => return None,
+    })
+}
+
+/// Sends `logging/setLevel`. Needs the `logging` capability.
+#[allow(deprecated)]
+pub async fn set_log_level(peer: &Peer<RoleClient>, level: &str) -> DbResult<()> {
+    let parsed = log_level(level)
+        .ok_or_else(|| DbError::Invalid(format!("unknown log level \"{level}\"")))?;
+    if !details(peer)?.has_logging {
+        return Err(DbError::Invalid(
+            "the server does not support setting the log level".into(),
+        ));
+    }
+    peer.set_level(SetLevelRequestParams::new(parsed))
+        .await
+        .map_err(service_error)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,6 +388,35 @@ mod tests {
         .unwrap();
         assert!(!prompt.arguments[0].required);
         assert!(prompt.arguments[1].required);
+    }
+
+    #[test]
+    fn completion_targets_use_the_wire_names() {
+        let prompt: CompletionTarget =
+            serde_json::from_value(json!({"type": "prompt", "name": "greet"})).unwrap();
+        assert_eq!(
+            prompt,
+            CompletionTarget::Prompt {
+                name: "greet".into()
+            }
+        );
+        let resource: CompletionTarget =
+            serde_json::from_value(json!({"type": "resource", "uriTemplate": "test://u/{n}"}))
+                .unwrap();
+        assert_eq!(
+            resource,
+            CompletionTarget::Resource {
+                uri_template: "test://u/{n}".into()
+            }
+        );
+    }
+
+    #[test]
+    fn every_log_level_has_a_name_and_back() {
+        for name in LOG_LEVELS {
+            assert!(log_level(name).is_some(), "{name}");
+        }
+        assert!(log_level("loud").is_none());
     }
 
     #[test]

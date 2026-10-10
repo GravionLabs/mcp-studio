@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeParameters, matches } from "./explorer.model";
+import { describeParameters, fillTemplate, matches, templateVariables } from "./explorer.model";
 
 describe("describeParameters", () => {
   it("lists parameters with type, required flag, and description", () => {
@@ -43,5 +43,27 @@ describe("matches", () => {
     expect(matches("ECH", "echo", null)).toBe(true);
     expect(matches("zzz", "echo", "Echo tool")).toBe(false);
     expect(matches("tool", undefined, "Echo tool")).toBe(true);
+  });
+});
+
+describe("templateVariables", () => {
+  it("lists plain variables once, in order", () => {
+    expect(templateVariables("test://users/{name}/posts/{id}?x={name}")).toEqual(["name", "id"]);
+  });
+
+  it("gives up on operators and on templates without variables", () => {
+    expect(templateVariables("file:///{+path}")).toBeNull();
+    expect(templateVariables("test://x{?a,b}")).toBeNull();
+    expect(templateVariables("test://fixed")).toBeNull();
+  });
+});
+
+describe("fillTemplate", () => {
+  it("fills and encodes the variables", () => {
+    expect(fillTemplate("test://users/{name}", { name: "a b/c" })).toBe("test://users/a%20b%2Fc");
+  });
+
+  it("leaves unfilled variables empty", () => {
+    expect(fillTemplate("test://{a}/{b}", { a: "x" })).toBe("test://x/");
   });
 });
