@@ -3,7 +3,11 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::{recording::Direction, tokens::TokenSource};
+use crate::{
+    client_requests::{ClientRequest, ClientRequestDone},
+    recording::Direction,
+    tokens::TokenSource,
+};
 
 /// Connection state of one server.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -116,6 +120,10 @@ pub trait EventSink: Send + Sync + 'static {
     fn log(&self, event: LogEvent);
     fn list_changed(&self, event: ListChangedEvent);
     fn progress(&self, event: ProgressEvent);
+    /// A server asks the user something (sampling, elicitation).
+    fn client_request(&self, event: ClientRequest);
+    /// That question is not open any more.
+    fn client_request_done(&self, event: ClientRequestDone);
 }
 
 /// Ignores everything.
@@ -127,6 +135,8 @@ impl EventSink for NullSink {
     fn log(&self, _: LogEvent) {}
     fn list_changed(&self, _: ListChangedEvent) {}
     fn progress(&self, _: ProgressEvent) {}
+    fn client_request(&self, _: ClientRequest) {}
+    fn client_request_done(&self, _: ClientRequestDone) {}
 }
 
 /// Collects events in memory (tests).
@@ -137,6 +147,8 @@ pub struct CollectingSink {
     pub logs: std::sync::Mutex<Vec<LogEvent>>,
     pub list_changes: std::sync::Mutex<Vec<ListChangedEvent>>,
     pub progress: std::sync::Mutex<Vec<ProgressEvent>>,
+    pub client_requests: std::sync::Mutex<Vec<ClientRequest>>,
+    pub client_requests_done: std::sync::Mutex<Vec<ClientRequestDone>>,
 }
 
 impl EventSink for CollectingSink {
@@ -154,5 +166,11 @@ impl EventSink for CollectingSink {
     }
     fn progress(&self, event: ProgressEvent) {
         self.progress.lock().unwrap().push(event);
+    }
+    fn client_request(&self, event: ClientRequest) {
+        self.client_requests.lock().unwrap().push(event);
+    }
+    fn client_request_done(&self, event: ClientRequestDone) {
+        self.client_requests_done.lock().unwrap().push(event);
     }
 }

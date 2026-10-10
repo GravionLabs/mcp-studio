@@ -140,6 +140,19 @@
   }
 
   <label>
+    <span>Roots</span>
+    <textarea
+      class="mono"
+      rows="3"
+      [value]="form().roots"
+      (input)="patch({ roots: text($event) })"
+      placeholder="Folders this server may work in, one per line, e.g. /home/me/project"
+    ></textarea>
+    <small class="muted"
+      >Offered to the server when it asks for its roots (MCP roots). Empty offers none.</small
+    >
+  </label>
+  <label>
     <span>Tags</span>
     <input
       [value]="form().tags"

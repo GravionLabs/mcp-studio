@@ -25,6 +25,8 @@ export interface ServerFormState {
   oauthCallbackPort: string;
   /** The HTTP server (Microsoft Entra ID) takes its token from the user's Azure login. */
   azureCredentials: boolean;
+  /** Folders offered to the server as its roots, one per line. */
+  roots: string;
 }
 
 /** The address of Azure DevOps MCP servers; the organization name is appended. */
@@ -46,7 +48,26 @@ export function emptyForm(transport: TransportKind = "stdio"): ServerFormState {
     oauthScopes: "",
     oauthCallbackPort: "",
     azureCredentials: false,
+    roots: "",
   };
+}
+
+/** The roots in a text area: one absolute folder path or `file://` address per line. */
+export function parseRoots(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+}
+
+/** Whether a root is something the server can use: a `file://` address or an absolute path. */
+export function isRoot(root: string): boolean {
+  return (
+    /^file:\/\/\S/i.test(root) ||
+    root.startsWith("/") ||
+    /^[A-Za-z]:[\\/]/.test(root) ||
+    root.startsWith("\\\\")
+  );
 }
 
 /**
@@ -130,6 +151,7 @@ function buildInput(
     oauthScopes: oauth || azure ? form.oauthScopes.trim() || null : null,
     oauthCallbackPort: oauth ? parsePort(form.oauthCallbackPort) : null,
     azureCredentials: azure,
+    roots: parseRoots(form.roots),
   };
 }
 
@@ -149,6 +171,7 @@ export function inputToForm(input: ServerInput): ServerFormState {
     oauthScopes: input.oauthScopes ?? "",
     oauthCallbackPort: input.oauthCallbackPort?.toString() ?? "",
     azureCredentials: input.azureCredentials ?? false,
+    roots: (input.roots ?? []).join("\n"),
   };
 }
 
@@ -178,6 +201,11 @@ export function validateForm(form: ServerFormState): string[] {
     const port = form.oauthCallbackPort.trim();
     if (port !== "" && parsePort(port) === null) {
       problems.push("The callback port must be a number between 1 and 65535.");
+    }
+  }
+  for (const root of parseRoots(form.roots)) {
+    if (!isRoot(root)) {
+      problems.push(`Root "${root}" must be an absolute folder path or a file:// address.`);
     }
   }
   return problems;

@@ -45,6 +45,7 @@ with Tauri 2, a Rust core, and an Angular 22 frontend (the same stack as Bench).
 | Automatic tool documentation | M4 (v0.4) | Markdown docs per server from schemas and recorded examples; lint of tool descriptions                                             |
 | Prompt optimization          | M4 (v0.4) | Run prompt variants against test cases, compare accuracy and tokens                                                                |
 | Flow generation              | M4 (v0.4) | Generate a flow from a natural-language goal and the available tools                                                               |
+| Answer server requests       | 1.0+      | Sampling (answer by hand or with a draft from a provider), elicitation (form from the requested schema) and roots (per server)     |
 
 The MVP covers the core loop: add a server, connect, call tools, inspect every call — including
 calls made by a real client through the proxy. Flows and AI features come once this loop is stable.

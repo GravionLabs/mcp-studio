@@ -1,4 +1,8 @@
-//! A tiny deterministic MCP server for tests: `echo`, `add`, and `fail` tools.
+//! A tiny deterministic MCP server for tests: `echo`, `add`, `sleep` and `fail` tools, and tools that
+//! ask the client for something: `sample` (sampling), `elicit` (elicitation) and `roots` (roots).
+
+// Sampling and roots are deprecated in the MCP spec (SEP-2577), but servers still use them.
+#![allow(deprecated)]
 
 pub mod oauth;
 
@@ -7,10 +11,11 @@ use std::future::Future;
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::{
+        CreateMessageRequestParams, ElicitRequestParams, ElicitationAction, ElicitationSchema,
         GetPromptRequestParams, GetPromptResponse, GetPromptResult, ListPromptsResult,
         ListResourcesResult, PaginatedRequestParams, Prompt, PromptArgument, PromptMessage,
         ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
-        ResourceContents, Role, ServerCapabilities, ServerConfig,
+        ResourceContents, Role, SamplingMessage, ServerCapabilities, ServerConfig,
     },
     schemars,
     service::{MaybeSendFuture, RequestContext, RoleServer},
@@ -34,6 +39,18 @@ pub struct AddRequest {
 pub struct SleepRequest {
     #[schemars(description = "Milliseconds to wait")]
     pub ms: u64,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SampleRequest {
+    #[schemars(description = "What to ask the client's model")]
+    pub prompt: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ElicitToolRequest {
+    #[schemars(description = "What to ask the user")]
+    pub question: String,
 }
 
 #[derive(Debug, Clone)]
@@ -71,6 +88,77 @@ impl TestServer {
     async fn sleep(&self, Parameters(SleepRequest { ms }): Parameters<SleepRequest>) -> String {
         tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
         "done".to_owned()
+    }
+
+    #[tool(description = "Ask the client for a model answer (sampling) and return its text")]
+    async fn sample(
+        &self,
+        Parameters(SampleRequest { prompt }): Parameters<SampleRequest>,
+        context: RequestContext<RoleServer>,
+    ) -> Result<String, String> {
+        let request =
+            CreateMessageRequestParams::new(vec![SamplingMessage::user_text(prompt)], 256)
+                .with_system_prompt("You answer briefly.");
+        let answer = context
+            .peer
+            .create_message(request)
+            .await
+            .map_err(|e| format!("sampling failed: {e}"))?;
+        let text = serde_json::to_value(&answer.message.content)
+            .ok()
+            .and_then(|content| {
+                content
+                    .get("text")
+                    .and_then(|t| t.as_str())
+                    .map(str::to_owned)
+            })
+            .unwrap_or_default();
+        Ok(format!("{} said: {text}", answer.model))
+    }
+
+    #[tool(
+        description = "Ask the user a question (elicitation); answers accept, decline or cancel"
+    )]
+    async fn elicit(
+        &self,
+        Parameters(ElicitToolRequest { question }): Parameters<ElicitToolRequest>,
+        context: RequestContext<RoleServer>,
+    ) -> Result<String, String> {
+        let schema = ElicitationSchema::builder()
+            .required_string("answer")
+            .build()
+            .map_err(|e| e.to_string())?;
+        let result = context
+            .peer
+            .create_elicitation(ElicitRequestParams::FormElicitationParams {
+                meta: None,
+                message: question,
+                requested_schema: schema,
+            })
+            .await
+            .map_err(|e| format!("elicitation failed: {e}"))?;
+        Ok(match result.action {
+            ElicitationAction::Accept => {
+                format!("accept: {}", result.content.unwrap_or_default())
+            }
+            ElicitationAction::Decline => "decline".to_owned(),
+            _ => "cancel".to_owned(),
+        })
+    }
+
+    #[tool(description = "List the roots the client offers, one URI per line")]
+    async fn roots(&self, context: RequestContext<RoleServer>) -> Result<String, String> {
+        let roots = context
+            .peer
+            .list_roots()
+            .await
+            .map_err(|e| format!("roots failed: {e}"))?;
+        Ok(roots
+            .roots
+            .iter()
+            .map(|r| r.uri.clone())
+            .collect::<Vec<_>>()
+            .join("\n"))
     }
 
     #[tool(description = "Always fails with a tool error")]

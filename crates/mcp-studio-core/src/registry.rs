@@ -57,6 +57,9 @@ pub struct ServerInput {
     /// overrides the scope the server advertises.
     #[serde(default)]
     pub azure_credentials: bool,
+    /// Folders offered to the server as its roots: absolute paths or `file://` URIs.
+    #[serde(default)]
+    pub roots: Vec<String>,
 }
 
 /// A stored server definition.
@@ -132,6 +135,7 @@ impl ServerInput {
                 self.cwd = None;
             }
         }
+        self.roots = normalize_roots(self.roots)?;
         self.oauth_client_id = clean(self.oauth_client_id);
         self.oauth_scopes = clean(self.oauth_scopes);
         if self.oauth && self.azure_credentials {
@@ -151,6 +155,43 @@ impl ServerInput {
         }
         Ok(self)
     }
+}
+
+/// A root as the server sees it: its `file://` URI and a name for people.
+pub fn root_uri(root: &str) -> Option<(String, String)> {
+    let url = if root.starts_with("file://") {
+        url::Url::parse(root).ok()?
+    } else {
+        url::Url::from_file_path(root).ok()?
+    };
+    let name = url
+        .to_file_path()
+        .ok()
+        .and_then(|path| path.file_name().map(|n| n.to_string_lossy().into_owned()))
+        .or_else(|| {
+            url.path_segments()
+                .and_then(|mut segments| segments.rfind(|s| !s.is_empty()))
+                .map(str::to_owned)
+        })
+        .unwrap_or_default();
+    Some((url.to_string(), name))
+}
+
+fn normalize_roots(roots: Vec<String>) -> DbResult<Vec<String>> {
+    let mut clean: Vec<String> = Vec::new();
+    for root in roots {
+        let root = root.trim().to_owned();
+        if root.is_empty() || clean.contains(&root) {
+            continue;
+        }
+        if root_uri(&root).is_none() {
+            return Err(DbError::Invalid(format!(
+                "root \"{root}\" must be an absolute folder path or a file:// URI"
+            )));
+        }
+        clean.push(root);
+    }
+    Ok(clean)
 }
 
 fn clean(value: Option<String>) -> Option<String> {
@@ -174,6 +215,7 @@ struct Row {
     oauth_scopes: Option<String>,
     oauth_callback_port: Option<u16>,
     azure_credentials: bool,
+    roots: String,
     created_at: i64,
     updated_at: i64,
 }
@@ -205,6 +247,7 @@ impl TryFrom<Row> for ServerDefinition {
                 oauth_scopes: row.oauth_scopes.clone(),
                 oauth_callback_port: row.oauth_callback_port,
                 azure_credentials: row.azure_credentials,
+                roots: serde_json::from_str(&row.roots).map_err(json)?,
             },
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -214,10 +257,10 @@ impl TryFrom<Row> for ServerDefinition {
 
 const SELECT_ALL: &str =
     "SELECT id, name, transport, command, args, env, cwd, url, headers, tags, \
-     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, azure_credentials, created_at, updated_at FROM servers ORDER BY name COLLATE NOCASE";
+     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, azure_credentials, roots, created_at, updated_at FROM servers ORDER BY name COLLATE NOCASE";
 const SELECT_ONE: &str =
     "SELECT id, name, transport, command, args, env, cwd, url, headers, tags, \
-     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, azure_credentials, created_at, updated_at FROM servers WHERE id = ?";
+     oauth, oauth_client_id, oauth_scopes, oauth_callback_port, azure_credentials, roots, created_at, updated_at FROM servers WHERE id = ?";
 
 /// Access to stored server definitions.
 #[derive(Clone, Debug)]
@@ -251,8 +294,8 @@ impl Registry {
         let now = now_ms();
         sqlx::query(
             "INSERT INTO servers (id, name, transport, command, args, env, cwd, url, headers, tags, oauth, \
-             oauth_client_id, oauth_scopes, oauth_callback_port, azure_credentials, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             oauth_client_id, oauth_scopes, oauth_callback_port, azure_credentials, roots, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&id)
         .bind(&input.name)
@@ -269,6 +312,7 @@ impl Registry {
         .bind(&input.oauth_scopes)
         .bind(input.oauth_callback_port)
         .bind(input.azure_credentials)
+        .bind(serde_json::to_string(&input.roots).unwrap_or_default())
         .bind(now)
         .bind(now)
         .execute(self.db.pool())
@@ -282,7 +326,7 @@ impl Registry {
         let result = sqlx::query(
             "UPDATE servers SET name = ?, transport = ?, command = ?, args = ?, env = ?, cwd = ?, url = ?, \
              headers = ?, tags = ?, oauth = ?, \
-             oauth_client_id = ?, oauth_scopes = ?, oauth_callback_port = ?, azure_credentials = ?, updated_at = ? WHERE id = ?",
+             oauth_client_id = ?, oauth_scopes = ?, oauth_callback_port = ?, azure_credentials = ?, roots = ?, updated_at = ? WHERE id = ?",
         )
         .bind(&input.name)
         .bind(input.transport.as_str())
@@ -298,6 +342,7 @@ impl Registry {
         .bind(&input.oauth_scopes)
         .bind(input.oauth_callback_port)
         .bind(input.azure_credentials)
+        .bind(serde_json::to_string(&input.roots).unwrap_or_default())
         .bind(now_ms())
         .bind(id)
         .execute(self.db.pool())
@@ -355,6 +400,7 @@ mod tests {
             oauth_scopes: None,
             oauth_callback_port: None,
             azure_credentials: false,
+            roots: vec![],
         }
     }
 
@@ -374,6 +420,7 @@ mod tests {
             oauth_scopes: None,
             oauth_callback_port: None,
             azure_credentials: false,
+            roots: vec![],
         }
     }
 
@@ -515,5 +562,44 @@ mod tests {
         assert_eq!(normalized.tags, vec!["a"]);
         assert_eq!(normalized.url, None);
         assert!(normalized.headers.is_empty());
+    }
+
+    #[tokio::test]
+    async fn roots_are_cleaned_stored_and_read_back() {
+        let registry = registry().await;
+        let mut input = stdio("With roots");
+        input.roots = vec![
+            "  file:///work/app ".into(),
+            "".into(),
+            "file:///work/app".into(),
+            "file:///work/lib".into(),
+        ];
+        let created = registry.create(input).await.unwrap();
+        assert_eq!(
+            created.input.roots,
+            ["file:///work/app", "file:///work/lib"]
+        );
+        assert_eq!(registry.get(&created.id).await.unwrap(), created);
+    }
+
+    #[test]
+    fn a_root_must_be_an_absolute_path_or_a_file_uri() {
+        for bad in ["relative/dir", "https://example.com/x", "work"] {
+            let mut input = stdio("r");
+            input.roots = vec![bad.into()];
+            assert!(input.normalized().is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_root_becomes_a_uri_with_the_folder_name() {
+        let (uri, name) = root_uri("file:///work/my%20app/").unwrap();
+        assert_eq!(uri, "file:///work/my%20app/");
+        assert_eq!(name, "my app");
+        #[cfg(unix)]
+        assert_eq!(
+            root_uri("/work/app").unwrap(),
+            ("file:///work/app".into(), "app".into())
+        );
     }
 }

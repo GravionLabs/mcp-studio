@@ -260,6 +260,7 @@ fn parse_opencode(name: &str, entry: &Value) -> (ServerInput, Option<String>) {
         oauth_scopes: None,
         oauth_callback_port: None,
         azure_credentials: false,
+        roots: vec![],
     };
     (input, unsupported)
 }
@@ -284,6 +285,7 @@ mod tests {
             oauth_scopes: None,
             oauth_callback_port: None,
             azure_credentials: false,
+            roots: vec![],
         }
     }
 

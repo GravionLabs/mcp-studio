@@ -1,0 +1,106 @@
+@if (current(); as request) {
+<div class="backdrop" role="presentation">
+  <div
+    class="dialog"
+    role="alertdialog"
+    aria-modal="true"
+    [attr.aria-label]="request.kind === 'sampling' ? 'Answer a sampling request' : 'Input requested'"
+  >
+    @if (sampling(); as view) {
+    <h3>{{ serverName() }} asks for a model answer</h3>
+    <p class="muted">
+      This is a sampling request. Write the answer yourself, or let a model draft it; nothing is
+      sent until you press Send answer.
+    </p>
+    @if (view.system) {
+    <div class="block">
+      <span class="label">System prompt</span>
+      <pre class="text mono">{{ view.system }}</pre>
+    </div>
+    } @for (message of view.messages; track $index) {
+    <div class="block">
+      <span class="label">{{ message.role }}</span>
+      <pre class="text mono">{{ message.text }}</pre>
+    </div>
+    }
+    <p class="muted meta">
+      @if (view.maxTokens !== null) { <span>max {{ view.maxTokens }} tokens</span> } @if
+      (view.temperature !== null) { <span>temperature {{ view.temperature }}</span> } @if
+      (view.preferences) { <span>{{ view.preferences }}</span> }
+    </p>
+    <label class="field">
+      <span class="label">Your answer</span>
+      <textarea
+        rows="5"
+        aria-label="Your answer"
+        [value]="answerText()"
+        (input)="answerText.set(text($event))"
+      ></textarea>
+    </label>
+    <div class="draft">
+      <input
+        aria-label="Model"
+        [value]="model()"
+        (input)="model.set(text($event))"
+        placeholder="claude-sonnet-5-5, openai:…, ollama:…"
+      />
+      <button type="button" [disabled]="drafting()" (click)="draft(request)">
+        {{ drafting() ? "Asking…" : "Draft with model" }}
+      </button>
+    </div>
+    <p class="muted">Drafting sends the messages above to the provider of that model.</p>
+    @if (queue().length > 1) {
+    <p class="muted">{{ queue().length - 1 }} more waiting.</p>
+    }
+    <div class="actions">
+      <button type="button" class="danger" (click)="answer(request, { action: 'reject' })">
+        Reject
+      </button>
+      <span class="spacer"></span>
+      <button
+        type="button"
+        class="primary"
+        [disabled]="blocker() !== null"
+        [attr.title]="blocker()"
+        (click)="respond(request)"
+      >
+        Send answer
+      </button>
+    </div>
+    } @else if (elicitation(); as view) {
+    <h3>{{ serverName() }} needs your input</h3>
+    <p class="message">{{ view.message }}</p>
+    <app-schema-form
+      [schema]="view.schema"
+      [root]="view.schema"
+      [value]="formValue()"
+      (valueChange)="formValue.set($event)"
+    />
+    @if (problems().length > 0) {
+    <ul class="problems">
+      @for (problem of problems(); track problem) {
+      <li>{{ problem }}</li>
+      }
+    </ul>
+    } @if (queue().length > 1) {
+    <p class="muted">{{ queue().length - 1 }} more waiting.</p>
+    }
+    <div class="actions">
+      <button type="button" class="danger" (click)="answer(request, { action: 'cancel' })">
+        Cancel
+      </button>
+      <span class="spacer"></span>
+      <button type="button" (click)="answer(request, { action: 'decline' })">Decline</button>
+      <button
+        type="button"
+        class="primary"
+        [disabled]="problems().length > 0"
+        (click)="accept(request)"
+      >
+        Submit
+      </button>
+    </div>
+    }
+  </div>
+</div>
+}

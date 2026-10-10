@@ -82,6 +82,7 @@ async fn harness() -> Harness {
             oauth_scopes: None,
             oauth_callback_port: None,
             azure_credentials: false,
+            roots: vec![],
         })
         .await
         .unwrap();
