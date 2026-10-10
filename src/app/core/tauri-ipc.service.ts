@@ -56,6 +56,9 @@ import type {
   ToolInfo,
   Variant,
   CaseResult,
+  ClientAnswer,
+  ClientRequest,
+  SamplingSuggestion,
   GeneratedFlow,
   ToolPolicy,
   UpdateInfo,
@@ -173,6 +176,20 @@ export class TauriIpcService {
 
   tokenCountingSetModel(model: string): Promise<void> {
     return this.call("token_counting_set_model", { model });
+  }
+
+  /** The questions of servers (sampling, elicitation) that wait for the user. */
+  clientRequestsPending(serverId?: string): Promise<ClientRequest[]> {
+    return this.call("client_requests_pending", { serverId });
+  }
+
+  clientRequestAnswer(id: string, answer: ClientAnswer): Promise<void> {
+    return this.call("client_request_answer", { id, answer });
+  }
+
+  /** Lets a model draft an answer to a sampling request; sends the request's messages to it. */
+  clientRequestSuggest(id: string, model: string): Promise<SamplingSuggestion> {
+    return this.call("client_request_suggest", { id, model });
   }
 
   providerStatus(): Promise<ProviderStatus> {

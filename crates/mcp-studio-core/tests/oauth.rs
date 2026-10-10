@@ -99,6 +99,7 @@ async fn add_server(h: &Harness, oauth: bool) -> String {
             oauth_scopes: None,
             oauth_callback_port: None,
             azure_credentials: false,
+            roots: vec![],
         })
         .await
         .unwrap()

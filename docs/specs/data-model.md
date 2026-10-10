@@ -5,18 +5,18 @@ versioned migrations. Secrets are stored only as keyring references.
 
 ## Tables
 
-| Table          | Key fields                                                                                                                                                                  |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `servers`      | id, name, transport (`stdio` \| `http`), command, args (JSON), env (JSON, secrets as `keyring:` references), cwd, url, headers (JSON), tags, created_at, updated_at         |
-| `environments` | id, name, variables (JSON) — for `{{var}}` placeholders in args, headers, and tool arguments                                                                                |
-| `collections`  | id, parent_id, name, sort_order — a folder tree                                                                                                                             |
-| `requests`     | id, collection_id, server_id, method, tool_name, arguments (JSON), notes                                                                                                    |
-| `history`      | id, server_id, method, target, arguments (JSON, as entered), is_error, cancelled, duration_ms, result (JSON, secrets masked; large results replaced by a marker), error, ts |
-| `sessions`     | id, server_id, origin (`studio` \| `proxy`), started_at, ended_at, protocol_version, server_info (JSON), capabilities (JSON)                                                |
-| `messages`     | id, session_id, span_id, direction (`out` \| `in`), jsonrpc_id, method, payload (JSON), bytes, is_error, tokens, token_source (`estimate` \| `exact`), ts                   |
-| `spans`        | id, trace_id, parent_id, kind (`session` \| `flow` \| `step` \| `llm` \| `tool`), name, started_at, ended_at, status, attributes (JSON)                                     |
-| `flows`        | id, name, graph (JSON), version, updated_at                                                                                                                                 |
-| `prices`       | model, input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_per_mtok, currency                                                                                 |
+| Table          | Key fields                                                                                                                                                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `servers`      | id, name, transport (`stdio` \| `http`), command, args (JSON), env (JSON, secrets as `keyring:` references), cwd, url, headers (JSON), tags, roots (JSON, folders offered to the server), created_at, updated_at |
+| `environments` | id, name, variables (JSON) — for `{{var}}` placeholders in args, headers, and tool arguments                                                                                                                     |
+| `collections`  | id, parent_id, name, sort_order — a folder tree                                                                                                                                                                  |
+| `requests`     | id, collection_id, server_id, method, tool_name, arguments (JSON), notes                                                                                                                                         |
+| `history`      | id, server_id, method, target, arguments (JSON, as entered), is_error, cancelled, duration_ms, result (JSON, secrets masked; large results replaced by a marker), error, ts                                      |
+| `sessions`     | id, server_id, origin (`studio` \| `proxy`), started_at, ended_at, protocol_version, server_info (JSON), capabilities (JSON)                                                                                     |
+| `messages`     | id, session_id, span_id, direction (`out` \| `in`), jsonrpc_id, method, payload (JSON), bytes, is_error, tokens, token_source (`estimate` \| `exact`), ts                                                        |
+| `spans`        | id, trace_id, parent_id, kind (`session` \| `flow` \| `step` \| `llm` \| `tool`), name, started_at, ended_at, status, attributes (JSON)                                                                          |
+| `flows`        | id, name, graph (JSON), version, updated_at                                                                                                                                                                      |
+| `prices`       | model, input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_per_mtok, currency                                                                                                                      |
 
 ## Rules
 
@@ -49,6 +49,7 @@ versioned migrations. Secrets are stored only as keyring references.
 | `0004_server_oauth`             | `servers.oauth`                               |
 | `0009_server_azure_credentials` | `servers.azure_credentials`                   |
 | `0010_client_routes`            | `client_routes`                               |
+| `0011_server_roots`             | `servers.roots`                               |
 
 ## Routing clients
 
@@ -62,6 +63,13 @@ that was edited since unless forced. Files are written atomically and not when a
 changed them in between. Keys of an entry that are the client's own (a tool list, an `enabled` flag)
 stay; entries that use `${...}` variables or an `envFile` are not routed, because MCP Studio does
 not expand them; a file that is not plain JSON (VS Code allows comments) is reported, not changed.
+
+## Requests from servers
+
+Sampling and elicitation requests are not stored beyond the recorded messages: they wait in memory
+(`client_requests.rs`) until the user answers in the dialog, the server withdraws them, or the
+session ends. Request and answer are recorded like every other JSON-RPC message. A model draft for a
+sampling request is only made when the user asks for it, and only text is sent to the provider.
 
 ## Keyring entries
 

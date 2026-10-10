@@ -91,6 +91,7 @@ fn stdio_server(command: &str, args: &[&str]) -> ServerInput {
         oauth_scopes: None,
         oauth_callback_port: None,
         azure_credentials: false,
+        roots: vec![],
     }
 }
 
@@ -254,6 +255,7 @@ async fn connects_over_streamable_http_with_headers() {
             oauth_scopes: None,
             oauth_callback_port: None,
             azure_credentials: false,
+            roots: vec![],
         })
         .await
         .unwrap();

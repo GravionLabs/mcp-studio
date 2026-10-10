@@ -1,5 +1,8 @@
 //! Live connections to MCP servers: one `rmcp` client per connected server, recorded end to end.
 
+// Sampling, roots and logging are deprecated in the MCP spec (SEP-2577), but servers still use them.
+#![allow(deprecated)]
+
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
     future::Future,
@@ -19,18 +22,21 @@ use azure_core::credentials::TokenCredential;
 use rmcp::model::{LoggingLevel, LoggingMessageNotificationParam};
 use rmcp::{
     model::{
-        CallToolRequest, CallToolRequestParams, CancelledNotificationParam, ClientConfig,
-        ClientRequest, Implementation, ProgressNotificationParam, ServerResult,
+        CallToolRequest, CallToolRequestParams, CancelledNotificationParam, ClientCapabilities,
+        ClientConfig, ClientRequest, CreateMessageRequestParams, CreateMessageResult,
+        ElicitRequestParams, ElicitResult, ElicitationAction, ElicitationCapability, ErrorCode,
+        FormElicitationCapability, Implementation, ListRootsResult, ProgressNotificationParam,
+        Root, RootsCapabilities, SamplingCapability, SamplingMessage, ServerResult,
     },
     service::{
-        MaybeSendFuture, NotificationContext, Peer, PeerRequestOptions, QuitReason, RunningService,
-        RunningServiceCancellationToken,
+        MaybeSendFuture, NotificationContext, Peer, PeerRequestOptions, QuitReason, RequestContext,
+        RunningService, RunningServiceCancellationToken,
     },
     transport::{
         streamable_http_client::StreamableHttpClientTransportConfig, StreamableHttpClientTransport,
         TokioChildProcess,
     },
-    ClientHandler, RoleClient, ServiceExt,
+    ClientHandler, ErrorData as McpError, RoleClient, ServiceExt,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -42,6 +48,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     azure_auth::{self, AzureAuthClient, TokenCache},
+    client_requests::{ClientAnswer, ClientRequestKind, ClientRequests},
     db::{new_id, now_ms, Db, DbError, DbResult},
     environments::Environments,
     events::{
@@ -55,7 +62,7 @@ use crate::{
     path_env,
     placeholders::{placeholders_in, resolve_json, resolve_str},
     recording::RecordingTransport,
-    registry::{Registry, ServerDefinition, TransportKind},
+    registry::{root_uri, Registry, ServerDefinition, TransportKind},
     secrets::{resolve_values, Redactor, SecretStore},
 };
 
@@ -212,6 +219,26 @@ struct StudioClient {
     logs: Arc<Logger>,
     /// rmcp progress token (as text) -> caller-chosen call id.
     progress: Arc<Mutex<HashMap<String, String>>>,
+    /// Questions of the server that wait for the user.
+    requests: Arc<ClientRequests>,
+    /// What `roots/list` answers; replaced when the roots of the server are edited.
+    roots: Arc<Mutex<Vec<Root>>>,
+}
+
+/// The roots of a server as MCP sends them.
+fn roots_of(server: &ServerDefinition) -> Vec<Root> {
+    server
+        .input
+        .roots
+        .iter()
+        .filter_map(|root| root_uri(root))
+        .map(|(uri, name)| Root::new(uri).with_name(name))
+        .collect()
+}
+
+/// A request that the user refused or that cannot be answered.
+fn refused(message: &'static str) -> McpError {
+    McpError::new(ErrorCode(-1), message, None)
 }
 
 impl StudioClient {
@@ -228,7 +255,83 @@ impl ClientHandler for StudioClient {
     fn get_info(&self) -> ClientConfig {
         let mut config = ClientConfig::default();
         config.client_info = Implementation::new("mcp-studio", env!("CARGO_PKG_VERSION"));
+        let mut capabilities = ClientCapabilities::default();
+        capabilities.sampling = Some(SamplingCapability::default());
+        capabilities.elicitation =
+            Some(ElicitationCapability::new().with_form(FormElicitationCapability::new()));
+        let mut roots = RootsCapabilities::default();
+        roots.list_changed = Some(true);
+        capabilities.roots = Some(roots);
+        config.capabilities = capabilities;
         config
+    }
+
+    fn list_roots(
+        &self,
+        _context: RequestContext<RoleClient>,
+    ) -> impl Future<Output = Result<ListRootsResult, McpError>> + MaybeSendFuture + '_ {
+        let roots = self.roots.lock().unwrap().clone();
+        std::future::ready(Ok(ListRootsResult::new(roots)))
+    }
+
+    async fn create_message(
+        &self,
+        params: CreateMessageRequestParams,
+        context: RequestContext<RoleClient>,
+    ) -> Result<CreateMessageResult, McpError> {
+        let params = serde_json::to_value(&params)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let answer = self
+            .requests
+            .ask(
+                &self.server_id,
+                ClientRequestKind::Sampling,
+                params,
+                &context.ct,
+            )
+            .await;
+        match answer {
+            Some(ClientAnswer::Respond { text, model }) => {
+                let model = model
+                    .filter(|m| !m.trim().is_empty())
+                    .unwrap_or_else(|| "mcp-studio-manual".to_owned());
+                let mut result =
+                    CreateMessageResult::new(SamplingMessage::assistant_text(text), model);
+                result.stop_reason = Some(CreateMessageResult::STOP_REASON_END_TURN.to_owned());
+                Ok(result)
+            }
+            Some(_) => Err(refused("User rejected sampling request")),
+            None => Err(refused("The sampling request was cancelled")),
+        }
+    }
+
+    async fn create_elicitation(
+        &self,
+        request: ElicitRequestParams,
+        context: RequestContext<RoleClient>,
+    ) -> Result<ElicitResult, McpError> {
+        // Only forms are advertised; a server that sends a URL request anyway gets "decline".
+        if matches!(request, ElicitRequestParams::UrlElicitationParams { .. }) {
+            return Ok(ElicitResult::new(ElicitationAction::Decline));
+        }
+        let params = serde_json::to_value(&request)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let answer = self
+            .requests
+            .ask(
+                &self.server_id,
+                ClientRequestKind::Elicitation,
+                params,
+                &context.ct,
+            )
+            .await;
+        match answer {
+            Some(ClientAnswer::Accept { content }) => {
+                Ok(ElicitResult::new(ElicitationAction::Accept).with_content(content.0))
+            }
+            Some(ClientAnswer::Decline) => Ok(ElicitResult::new(ElicitationAction::Decline)),
+            _ => Ok(ElicitResult::new(ElicitationAction::Cancel)),
+        }
     }
 
     fn on_progress(
@@ -363,6 +466,7 @@ pub struct LiveSession {
     pub session_id: String,
     pub server_id: String,
     pub peer: Peer<RoleClient>,
+    roots: Arc<Mutex<Vec<Root>>>,
     cancel: Mutex<Option<RunningServiceCancellationToken>>,
     user_requested: AtomicBool,
     closed: watch::Receiver<bool>,
@@ -383,6 +487,7 @@ pub struct SessionManager {
     history: History,
     progress: Arc<Mutex<HashMap<String, String>>>,
     calls: Mutex<HashMap<String, CancellationToken>>,
+    requests: Arc<ClientRequests>,
 }
 
 impl SessionManager {
@@ -394,6 +499,7 @@ impl SessionManager {
         sink: Arc<dyn EventSink>,
     ) -> Arc<Self> {
         let db_for_history = db.clone();
+        let requests = Arc::new(ClientRequests::new(sink.clone()));
         let logger = Arc::new(Logger {
             sink: sink.clone(),
             buffer: LogBuffer::default(),
@@ -412,6 +518,7 @@ impl SessionManager {
             history: History::new(db_for_history),
             progress: Arc::default(),
             calls: Mutex::default(),
+            requests,
         })
     }
 
@@ -423,6 +530,26 @@ impl SessionManager {
 
     pub fn set_connect_timeout(&self, timeout: Duration) {
         *self.connect_timeout.lock().unwrap() = timeout;
+    }
+
+    /// The questions servers ask the user (sampling, elicitation).
+    pub fn requests(&self) -> &Arc<ClientRequests> {
+        &self.requests
+    }
+
+    /// Tells a connected server that its roots changed, after the definition was edited.
+    pub async fn roots_changed(&self, server_id: &str) -> DbResult<()> {
+        let Some(session) = self.session(server_id) else {
+            return Ok(());
+        };
+        let roots = roots_of(&self.registry.get(server_id).await?);
+        if *session.roots.lock().unwrap() == roots {
+            return Ok(());
+        }
+        *session.roots.lock().unwrap() = roots;
+        // Servers that did not ask for roots cannot be told; the failure is not the user's.
+        let _ = session.peer.notify_roots_list_changed().await;
+        Ok(())
     }
 
     /// The connected session of a server, if any.
@@ -498,6 +625,7 @@ impl SessionManager {
         self.logger
             .set_redactor(server_id, prepared.redactor.clone());
 
+        let roots = Arc::new(Mutex::new(roots_of(&server)));
         let session_id = new_id();
         sqlx::query(
             "INSERT INTO sessions (id, server_id, origin, started_at) VALUES (?, ?, 'studio', ?)",
@@ -519,6 +647,8 @@ impl SessionManager {
             server_id: server_id.to_owned(),
             logs: self.logger.clone(),
             progress: self.progress.clone(),
+            requests: self.requests.clone(),
+            roots: roots.clone(),
         };
 
         let timeout = *self.connect_timeout.lock().unwrap();
@@ -602,6 +732,7 @@ impl SessionManager {
             session_id: session_id.clone(),
             server_id: server_id.to_owned(),
             peer,
+            roots,
             cancel: Mutex::new(Some(running.cancellation_token())),
             user_requested: AtomicBool::new(false),
             closed: closed_rx,
@@ -644,6 +775,7 @@ impl SessionManager {
         environment_id: Option<String>,
     ) {
         self.live.lock().unwrap().remove(&session.server_id);
+        self.requests.drop_server(&session.server_id);
         self.end_session(&session.session_id).await;
         let user_requested = session.user_requested.load(Ordering::SeqCst);
         if user_requested || matches!(reason, Some(QuitReason::Cancelled)) {
@@ -1148,6 +1280,7 @@ mod tests {
             oauth_scopes: None,
             oauth_callback_port: None,
             azure_credentials: false,
+            roots: vec![],
         }
     }
 

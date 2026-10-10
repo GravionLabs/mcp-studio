@@ -1,6 +1,7 @@
 use mcp_studio_core::{
     client_formats::{self, ClientSource},
     client_import::{self, ConfigSource, ImportCandidate, ImportSummary},
+    client_requests::{self, ClientAnswer, ClientRequest, SamplingSuggestion},
     client_routes::{
         self, ClientEntries, EntryRef, RouteContext, RoutePreview, RouteResult, UnrouteResult,
     },
@@ -877,6 +878,7 @@ pub async fn server_update(
 ) -> CommandResult<ServerDefinition> {
     let previous = state.registry.get(&id).await?;
     let updated = state.registry.update(&id, input).await?;
+    state.sessions.roots_changed(&id).await?;
     // Drop secrets the edited definition no longer references.
     let still_used = references_in(&updated.input);
     for name in references_in(&previous.input) {
@@ -885,6 +887,54 @@ pub async fn server_update(
         }
     }
     Ok(updated)
+}
+
+/// The questions of servers (sampling, elicitation) that wait for the user, optionally of one server.
+#[tauri::command]
+pub fn client_requests_pending(
+    state: State<'_, AppState>,
+    server_id: Option<String>,
+) -> Vec<ClientRequest> {
+    state.sessions.requests().pending(server_id.as_deref())
+}
+
+/// Gives the answer of the user to a question of a server.
+#[tauri::command]
+pub fn client_request_answer(
+    state: State<'_, AppState>,
+    id: String,
+    answer: ClientAnswer,
+) -> CommandResult<()> {
+    Ok(state.sessions.requests().answer(&id, answer)?)
+}
+
+/// Lets a model write an answer to a sampling request. This sends the messages of the request to
+/// the provider of `model`, so it only runs when the user asks for it. The answer is only a
+/// suggestion: nothing reaches the server until the user sends it.
+#[tauri::command]
+pub async fn client_request_suggest(
+    state: State<'_, AppState>,
+    id: String,
+    model: String,
+) -> CommandResult<SamplingSuggestion> {
+    let request = state
+        .sessions
+        .requests()
+        .get(&id)
+        .ok_or_else(|| CommandError("the request is no longer waiting".into()))?;
+    let settings = mcp_studio_llm::load_settings(&state.settings).await?;
+    let (provider, model) = resolve_model(&settings, &state, &model)?;
+    let completion = provider
+        .complete(&client_requests::sampling_to_completion(
+            &request.params.0,
+            &model,
+        )?)
+        .await
+        .map_err(|e| CommandError(e.message))?;
+    Ok(SamplingSuggestion {
+        text: completion.text(),
+        model: completion.model,
+    })
 }
 
 #[tauri::command]

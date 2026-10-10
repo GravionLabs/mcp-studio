@@ -3,6 +3,7 @@ import { RouterOutlet } from "@angular/router";
 import { ThemeService } from "./core/theme.service";
 import { PaneLayoutService } from "./ui/pane-layout.service";
 import { ResizeHandleDirective } from "./ui/resize-handle.directive";
+import { ClientRequests } from "./features/client-requests/client-requests";
 import { FlowConfirmations } from "./features/flows/flow-confirmations";
 import { DialogHost } from "./ui/dialog/dialog-host";
 import { StatusBar } from "./ui/status-bar/status-bar";
@@ -20,6 +21,7 @@ import { InspectorPanel } from "./features/inspector/inspector-panel";
     RouterOutlet,
     ResizeHandleDirective,
     DialogHost,
+    ClientRequests,
     FlowConfirmations,
     StatusBar,
     TabPanel,

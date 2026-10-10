@@ -1,3 +1,4 @@
+use mcp_studio_core::client_requests::{ClientRequest, ClientRequestDone};
 use mcp_studio_core::events::{
     EventSink, ListChangedEvent, LogEvent, MessageRecord, ProgressEvent, StatusEvent,
 };
@@ -27,6 +28,14 @@ impl EventSink for TauriSink {
 
     fn progress(&self, event: ProgressEvent) {
         let _ = self.app.emit("mcp://progress", event);
+    }
+
+    fn client_request(&self, event: ClientRequest) {
+        let _ = self.app.emit("mcp://client-request", event);
+    }
+
+    fn client_request_done(&self, event: ClientRequestDone) {
+        let _ = self.app.emit("mcp://client-request-done", event);
     }
 }
 

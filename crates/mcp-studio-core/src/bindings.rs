@@ -9,6 +9,9 @@ use specta_typescript::Typescript;
 use crate::{
     client_formats::{ClientFormat, ClientSource},
     client_import::{ConfigSource, ImportCandidate, ImportSummary},
+    client_requests::{
+        ClientAnswer, ClientRequest, ClientRequestDone, ClientRequestKind, SamplingSuggestion,
+    },
     client_routes::{
         ClientEntries, ClientEntry, EntryKind, EntryRef, RoutePreview, RouteResult, UnreadableFile,
         UnrouteResult,
@@ -68,6 +71,11 @@ pub fn ipc_types() -> Types {
         .register::<MessageFilter>()
         .register::<ListKind>()
         .register::<ListChangedEvent>()
+        .register::<ClientRequest>()
+        .register::<ClientRequestKind>()
+        .register::<ClientRequestDone>()
+        .register::<ClientAnswer>()
+        .register::<SamplingSuggestion>()
         .register::<ToolInfo>()
         .register::<ResourceInfo>()
         .register::<ResourceTemplateInfo>()

@@ -23,6 +23,19 @@ export type CaseResult = {
 	error: string | null,
 };
 
+/**  What the user decided. */
+export type ClientAnswer = 
+/**  Sampling: answer with this text. `model` names who wrote it; empty means "manual". */
+{ action: "respond"; text: string; model: string | null } | 
+/**  Sampling: refuse the request. */
+{ action: "reject" } | 
+/**  Elicitation: the user filled in the form. */
+{ action: "accept"; content: unknown } | 
+/**  Elicitation: the user refused to answer but the operation may go on. */
+{ action: "decline" } | 
+/**  Elicitation: the user stops the operation. */
+{ action: "cancel" };
+
 /**  The servers found in the known configuration files. */
 export type ClientEntries = {
 	entries: ClientEntry[],
@@ -55,6 +68,31 @@ export type ClientFormat =
 "copilotCli" | 
 /**  `mcp` in `opencode.json`, where a local server's command is one array. */
 "openCode";
+
+/**  A request that waits for the user. Sent to the UI as `mcp://client-request`. */
+export type ClientRequest = {
+	id: string,
+	serverId: string,
+	kind: ClientRequestKind,
+	/**  The params of the MCP request as the server sent them. */
+	params: unknown,
+	ts: number,
+};
+
+/**
+ *  A request is no longer waiting: it was answered, or the server withdrew it or disconnected.
+ *  Sent to the UI as `mcp://client-request-done`.
+ */
+export type ClientRequestDone = {
+	id: string,
+	serverId: string,
+};
+
+export type ClientRequestKind = 
+/**  `sampling/createMessage`: the server asks for a model answer. */
+"sampling" | 
+/**  `elicitation/create`: the server asks the user for input. */
+"elicitation";
 
 /**  A client configuration file that may contain servers. */
 export type ClientSource = {
@@ -597,6 +635,12 @@ export type RunSummary = {
 	replayOf: string | null,
 };
 
+/**  What a provider wrote for a sampling request. The user still has to send it. */
+export type SamplingSuggestion = {
+	text: string,
+	model: string,
+};
+
 export type SavedRequest = {
 	id: string,
 	sortOrder: number,
@@ -666,6 +710,8 @@ export type ServerInput = {
 	 *  overrides the scope the server advertises.
 	 */
 	azureCredentials?: boolean,
+	/**  Folders offered to the server as its roots: absolute paths or `file://` URIs. */
+	roots?: string[],
 };
 
 /**  Tokens and cost of one session. */
