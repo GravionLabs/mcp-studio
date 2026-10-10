@@ -5,6 +5,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.10] — 2026-10-10
+
+### Bug Fixes
+- Choose a model when the first price is saved and say when none is chosen (#279)
+
+
+### Features
+- Import servers from GitHub Copilot (VS Code, Copilot CLI) and OpenCode (#278)
+
+
 ## [1.0.9] — 2026-10-10
 
 ### Bug Fixes
