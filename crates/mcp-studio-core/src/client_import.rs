@@ -1,7 +1,9 @@
 //! Import server definitions from other MCP clients' configuration files.
 //!
 //! Supported: Claude Desktop (`claude_desktop_config.json`), Claude Code (`~/.claude.json` and
-//! project `.mcp.json`), and any file with the common `{"mcpServers": {...}}` shape.
+//! project `.mcp.json`), VS Code with GitHub Copilot (`mcp.json`, `settings.json`), the GitHub
+//! Copilot CLI (`mcp-config.json`), OpenCode, and any file with the common `{"mcpServers": {...}}`
+//! shape.
 
 use std::{
     collections::BTreeMap,
@@ -13,6 +15,7 @@ use serde_json::Value;
 use specta::Type;
 
 use crate::{
+    client_formats::ClientFormat,
     db::{DbError, DbResult},
     registry::{Registry, ServerDefinition, ServerInput, TransportKind},
     secrets::{reference, SecretStore},
@@ -89,33 +92,30 @@ pub fn detect_sources(home: Option<&Path>, app_data: Option<&Path>) -> Vec<Confi
 }
 
 /// Reads a config file and lists the servers in it. `existing` (name, command/url signature) marks
-/// duplicates.
+/// duplicates. The layout is recognized from the file: `mcpServers` (Claude, Copilot CLI),
+/// `servers` or `mcp.servers` (VS Code with GitHub Copilot) and `mcp` (OpenCode).
 pub fn parse_config(json: &str, existing: &[ServerInput]) -> DbResult<Vec<ImportCandidate>> {
     let root: Value = serde_json::from_str(json)
         .map_err(|e| DbError::Invalid(format!("not a JSON file: {e}")))?;
+    let format = detect_format(&root).ok_or_else(|| {
+        DbError::Invalid(
+            "no MCP servers found in this file (expected \"mcpServers\", \"servers\" or \"mcp\")"
+                .into(),
+        )
+    })?;
     let mut found = Vec::new();
-
-    collect(root.get("mcpServers"), "top level", &mut found);
-    // Claude Code keeps project scoped servers under `projects.<path>.mcpServers`.
-    if let Some(projects) = root.get("projects").and_then(Value::as_object) {
-        for (path, project) in projects {
-            collect(
-                project.get("mcpServers"),
-                &format!("project {path}"),
-                &mut found,
-            );
-        }
-    }
-    if found.is_empty() && root.get("mcpServers").is_none() && root.get("projects").is_none() {
-        return Err(DbError::Invalid(
-            "no \"mcpServers\" found in this file".into(),
-        ));
+    for (pointer, origin) in format_locations(format, &root) {
+        collect(root.pointer(&pointer), &origin, &mut found);
     }
 
     Ok(found
         .into_iter()
         .map(|(name, origin, entry)| {
-            let (input, unsupported) = to_input(&name, &entry);
+            let (input, unsupported) = match format {
+                // Claude's files keep `${VAR}` as text, so they are imported as written.
+                ClientFormat::Claude => to_input(&name, &entry),
+                other => other.parse(&name, &entry),
+            };
             let duplicate = existing.iter().any(|e| is_duplicate(e, &input));
             ImportCandidate {
                 input,
@@ -125,6 +125,31 @@ pub fn parse_config(json: &str, existing: &[ServerInput]) -> DbResult<Vec<Import
             }
         })
         .collect())
+}
+
+/// Which client wrote a file, judged by where it keeps its servers.
+fn detect_format(root: &Value) -> Option<ClientFormat> {
+    let object = |key: &str| root.get(key).is_some_and(Value::is_object);
+    if object("mcpServers") || object("projects") {
+        Some(ClientFormat::Claude)
+    } else if object("servers") || root.pointer("/mcp/servers").is_some_and(Value::is_object) {
+        Some(ClientFormat::VsCode)
+    } else if object("mcp") {
+        Some(ClientFormat::OpenCode)
+    } else {
+        None
+    }
+}
+
+/// The objects that hold servers, with a label for where each one was found.
+fn format_locations(format: ClientFormat, root: &Value) -> Vec<(String, String)> {
+    let mut found = format.locations(root);
+    // VS Code's settings.json nests the same section under `mcp`.
+    if format == ClientFormat::VsCode && root.pointer("/mcp/servers").is_some_and(Value::is_object)
+    {
+        found.push(("/mcp/servers".into(), "settings".into()));
+    }
+    found
 }
 
 fn collect(servers: Option<&Value>, origin: &str, out: &mut Vec<(String, String, Value)>) {
@@ -372,6 +397,60 @@ mod tests {
         assert_eq!(found.len(), 2);
         assert_eq!(found[0].origin, "top level");
         assert_eq!(found[1].origin, "project /home/me/app");
+    }
+
+    #[test]
+    fn parses_vs_code_github_copilot_files() {
+        let json = r#"{
+          "inputs": [{"id": "token", "type": "promptString"}],
+          "servers": {
+            "files": {"type": "stdio", "command": "npx", "args": ["-y", "server-files"], "env": {"A": "1"}},
+            "remote": {"type": "http", "url": "https://example.com/mcp", "headers": {"X-Key": "k"}},
+            "secret": {"type": "http", "url": "https://example.com/s", "headers": {"Authorization": "Bearer ${input:token}"}}
+          }
+        }"#;
+        let found = parse_config(json, &[]).unwrap();
+        assert_eq!(found.len(), 3);
+        assert_eq!(found[0].input.transport, TransportKind::Stdio);
+        assert_eq!(found[0].input.args, ["-y", "server-files"]);
+        assert_eq!(found[1].input.transport, TransportKind::Http);
+        assert_eq!(found[1].origin, "top level");
+        assert!(found[2].unsupported.as_ref().unwrap().contains("${"));
+    }
+
+    #[test]
+    fn parses_the_mcp_section_of_vs_code_settings() {
+        let json = r#"{"editor.fontSize": 14, "mcp": {"servers": {"t": {"command": "node", "args": ["s.js"]}}}}"#;
+        let found = parse_config(json, &[]).unwrap();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].origin, "settings");
+        assert_eq!(found[0].input.command.as_deref(), Some("node"));
+    }
+
+    #[test]
+    fn parses_github_copilot_cli_files() {
+        let json = r#"{"mcpServers": {
+          "local": {"type": "local", "command": "npx", "args": ["srv"], "env": {"A": "1"}, "tools": ["*"]},
+          "web": {"type": "http", "url": "https://example.com/mcp", "tools": ["*"]}
+        }}"#;
+        let found = parse_config(json, &[]).unwrap();
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].input.transport, TransportKind::Stdio);
+        assert_eq!(found[1].input.transport, TransportKind::Http);
+        assert!(found.iter().all(|c| c.unsupported.is_none()));
+    }
+
+    #[test]
+    fn parses_opencode_files() {
+        let json = r#"{"$schema": "https://opencode.ai/config.json", "mcp": {
+          "local": {"type": "local", "command": ["npx", "-y", "srv"], "environment": {"A": "1"}},
+          "web": {"type": "remote", "url": "https://example.com/mcp"}
+        }}"#;
+        let found = parse_config(json, &[]).unwrap();
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].input.command.as_deref(), Some("npx"));
+        assert_eq!(found[0].input.args, ["-y", "srv"]);
+        assert_eq!(found[1].input.transport, TransportKind::Http);
     }
 
     #[test]

@@ -21,7 +21,7 @@ import {
   selectedInputs,
 } from "./import.model";
 
-/** Import servers from Claude Desktop, Claude Code, or any file with an `mcpServers` section. */
+/** Import servers from Claude Desktop, Claude Code, GitHub Copilot (VS Code, CLI), OpenCode, or any MCP client file. */
 @Component({
   selector: "app-import-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
