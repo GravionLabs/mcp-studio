@@ -9,6 +9,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -121,11 +122,14 @@ jobs:
 
   build:
     name: Build installers
-    # Installers are only built from code that passed the checks. The Rust job is skipped on pull
-    # requests that change no Rust files, which is fine.
+    # Installers are only built from code that passed the checks, and never on a pull request: the
+    # macOS and Windows runners are expensive, so the matrix runs once the release branch is merged
+    # into main (or on workflow_dispatch). The Rust job is skipped on pushes that change no Rust
+    # files, which is fine.
     needs: [changes, determine-version, frontend, rust]
     if: >-
-      ${{ !cancelled() && needs.changes.outputs.package == 'true'
+      ${{ !cancelled() && github.event_name != 'pull_request'
+      && needs.changes.outputs.package == 'true'
       && needs.determine-version.result == 'success'
       && needs.frontend.result == 'success'
       && (needs.rust.result == 'success' || needs.rust.result == 'skipped') }}
