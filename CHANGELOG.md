@@ -5,6 +5,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.9] — 2026-10-10
+
+### Bug Fixes
+- Sign requests of the HTTP proxy for OAuth and Azure-login servers (#225)
+
+
+### Features
+- Answer sampling, elicitation and roots requests of servers (#216)
+- Resource subscriptions, argument completion and log level (#220)
+
+
 ## [1.0.8] — 2026-10-09
 
 ### Features
