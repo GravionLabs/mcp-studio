@@ -2,7 +2,9 @@
 //! (with its configured headers) and records every JSON-RPC message in both directions.
 //!
 //! A client is configured with `http://127.0.0.1:<port>/mcp/<server name or id>` and needs no
-//! credentials; MCP Studio adds the server's headers, so secrets stay in the OS keyring.
+//! credentials; MCP Studio adds the server's headers, so secrets stay in the OS keyring. Servers that
+//! use OAuth sign-in or the Azure login are reached with the token of that sign-in (refreshed when
+//! needed); a server nobody signed in to answers with a message that says where to sign in.
 //!
 //! Because the endpoint adds credentials, it only answers requests that were addressed to it as a
 //! loopback host and that do not come from a web page of another site: a page that points its own
@@ -23,14 +25,18 @@ use axum::{
     routing::any,
     Router,
 };
+#[allow(deprecated)]
+use azure_core::credentials::TokenCredential;
 use futures_util::StreamExt;
 use tokio::net::TcpListener;
 
 use crate::{
+    azure_auth::{self, TokenCache},
     db::{new_id, now_ms, Db, DbError, DbResult},
     environments::Environments,
     events::EventSink,
     message_store::MessageWriter,
+    oauth::{KeyringCredentialStore, TokenSource},
     recording::{Direction, RecordedMessage, Recorder},
     registry::{Registry, ServerDefinition, TransportKind},
     secrets::SecretStore,
@@ -75,6 +81,12 @@ struct Inner {
     environment: Mutex<Option<String>>,
     /// (server id, upstream `Mcp-Session-Id` or empty) -> recording session.
     sessions: Mutex<HashMap<(String, String), ProxySession>>,
+    /// Token sources of the servers that sign in with OAuth, by server id and URL.
+    oauth: tokio::sync::Mutex<HashMap<String, Arc<TokenSource>>>,
+    /// Token caches of the servers that sign in with the Azure login, by server id, URL and scopes.
+    azure: tokio::sync::Mutex<HashMap<String, Arc<TokenCache>>>,
+    /// Replaces the Azure developer tools as the token source (tests).
+    azure_credential: Mutex<Option<Arc<dyn TokenCredential>>>,
 }
 
 /// The local HTTP endpoint. Cheap to clone.
@@ -113,6 +125,9 @@ impl HttpProxy {
             port: addr.port(),
             environment: Mutex::new(None),
             sessions: Mutex::default(),
+            oauth: Default::default(),
+            azure: Default::default(),
+            azure_credential: Mutex::new(None),
         });
         let router = Router::new()
             .route("/mcp/{server}", any(forward))
@@ -136,6 +151,12 @@ impl HttpProxy {
             self.port(),
             urlencode(server_name)
         )
+    }
+
+    /// Replaces the Azure developer tools as the token source for servers that use the Azure login
+    /// (tests).
+    pub fn set_azure_credential(&self, credential: Arc<dyn TokenCredential>) {
+        *self.inner.azure_credential.lock().unwrap() = Some(credential);
     }
 
     pub fn set_environment(&self, id: Option<String>) {
@@ -285,6 +306,7 @@ async fn handle(
     let prepared = prepare_server(inner, &server)
         .await
         .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let signer = Signer::for_server(inner, &server, &prepared).await?;
 
     let (parts, body) = request.into_parts();
     let body = axum::body::to_bytes(body, MAX_BODY_BYTES)
@@ -319,23 +341,20 @@ async fn handle(
             "unsupported method".to_owned(),
         )
     })?;
-    let mut upstream = inner.client.request(method, &prepared.url);
-    for (name, value) in &parts.headers {
-        if !is_hop_by_hop(name) && name != header::CONTENT_LENGTH {
-            upstream = upstream.header(name.as_str(), value.as_bytes());
-        }
+    let upstream = Upstream {
+        method,
+        client_headers: &parts.headers,
+        body: &body,
+    };
+    let mut response = upstream
+        .send(inner, &prepared, signer.token(inner).await?)
+        .await?;
+    // A token the server no longer accepts is replaced once; the request is repeated.
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED && signer.rejected().await {
+        response = upstream
+            .send(inner, &prepared, signer.token(inner).await?)
+            .await?;
     }
-    // The server's own headers (e.g. Authorization from the keyring) win over the client's.
-    for (name, value) in &prepared.headers {
-        upstream = upstream.header(name.as_str(), value.as_str());
-    }
-    if !body.is_empty() {
-        upstream = upstream.body(body.to_vec());
-    }
-    let response = upstream
-        .send()
-        .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("upstream error: {e}")))?;
 
     let status =
         StatusCode::from_u16(response.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
@@ -380,6 +399,149 @@ async fn handle(
     *out.headers_mut().expect("builder") = headers;
     out.body(Body::from_stream(stream))
         .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))
+}
+
+/// What signs the requests to a server with the token of the user.
+enum Signer {
+    /// The server needs nothing beyond its configured headers.
+    None,
+    /// The server uses OAuth sign-in. Holds the cache key and the name of the server.
+    Oauth(Arc<TokenSource>, String, String),
+    /// The server uses the Azure login.
+    Azure(Arc<TokenCache>),
+}
+
+impl Signer {
+    async fn for_server(
+        inner: &Inner,
+        server: &ServerDefinition,
+        prepared: &Prepared,
+    ) -> Result<Self, (StatusCode, String)> {
+        let input = &server.input;
+        let url_key = format!("{}|{}", server.id, prepared.url);
+        if input.oauth {
+            let mut all = inner.oauth.lock().await;
+            if let Some(source) = all.get(&url_key) {
+                return Ok(Self::Oauth(source.clone(), url_key, input.name.clone()));
+            }
+            let store = KeyringCredentialStore::new(inner.secrets.clone(), &server.id);
+            return match TokenSource::open(&prepared.url, store).await {
+                Ok(source) => {
+                    let source = Arc::new(source);
+                    all.insert(url_key.clone(), source.clone());
+                    Ok(Self::Oauth(source, url_key, input.name.clone()))
+                }
+                Err(error) => Err(sign_in_needed(&input.name, &error)),
+            };
+        }
+        if input.azure_credentials {
+            let scopes = input.oauth_scopes.clone().unwrap_or_default();
+            let key = format!("{url_key}|{scopes}");
+            let mut all = inner.azure.lock().await;
+            if let Some(tokens) = all.get(&key) {
+                return Ok(Self::Azure(tokens.clone()));
+            }
+            let scopes = azure_auth::resolve_scopes(
+                &inner.client,
+                &prepared.url,
+                input.oauth_scopes.as_deref(),
+            )
+            .await
+            .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+            let credential = inner.azure_credential.lock().unwrap().clone();
+            let credential = match credential {
+                Some(credential) => credential,
+                None => azure_auth::developer_tools()
+                    .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?,
+            };
+            let tokens = Arc::new(TokenCache::new(credential, scopes));
+            all.insert(key, tokens.clone());
+            return Ok(Self::Azure(tokens));
+        }
+        Ok(Self::None)
+    }
+
+    /// The token to send, or `None` when the server needs none.
+    async fn token(&self, inner: &Inner) -> Result<Option<String>, (StatusCode, String)> {
+        match self {
+            Self::None => Ok(None),
+            Self::Oauth(source, key, name) => match source.token().await {
+                Ok(token) => Ok(Some(token)),
+                Err(error) => {
+                    // The sign-in ended or was replaced: the next request starts from the store.
+                    inner.oauth.lock().await.remove(key);
+                    Err(sign_in_needed(name, &error))
+                }
+            },
+            Self::Azure(tokens) => tokens
+                .token()
+                .await
+                .map(Some)
+                .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string())),
+        }
+    }
+
+    /// The server rejected the token. Returns whether a new one will be fetched, so that the
+    /// request is worth repeating.
+    async fn rejected(&self) -> bool {
+        match self {
+            Self::Azure(tokens) => {
+                tokens.invalidate().await;
+                true
+            }
+            // Refreshing is decided by the expiry the server announced.
+            Self::Oauth(..) | Self::None => false,
+        }
+    }
+}
+
+/// The message for a client whose server has no sign-in yet.
+fn sign_in_needed(server_name: &str, error: &DbError) -> (StatusCode, String) {
+    (
+        StatusCode::BAD_GATEWAY,
+        format!(
+            "Sign in to \"{server_name}\" in MCP Studio first: open the server there and choose Sign in. ({error})"
+        ),
+    )
+}
+
+/// One request to the real server, made from what the client sent.
+struct Upstream<'a> {
+    method: reqwest::Method,
+    client_headers: &'a HeaderMap,
+    body: &'a Bytes,
+}
+
+impl Upstream<'_> {
+    async fn send(
+        &self,
+        inner: &Inner,
+        prepared: &Prepared,
+        token: Option<String>,
+    ) -> Result<reqwest::Response, (StatusCode, String)> {
+        let mut upstream = inner.client.request(self.method.clone(), &prepared.url);
+        for (name, value) in self.client_headers {
+            // The credentials of the user replace whatever the client sent.
+            let signed = token.is_some() && name == header::AUTHORIZATION;
+            if !is_hop_by_hop(name) && name != header::CONTENT_LENGTH && !signed {
+                upstream = upstream.header(name.as_str(), value.as_bytes());
+            }
+        }
+        // The server's own headers (e.g. Authorization from the keyring) win over the client's.
+        for (name, value) in &prepared.headers {
+            upstream = upstream.header(name.as_str(), value.as_str());
+        }
+        if let Some(token) = token {
+            upstream = upstream.bearer_auth(token);
+        }
+        if !self.body.is_empty() {
+            upstream = upstream.body(self.body.to_vec());
+        }
+        upstream
+            .send()
+            .await
+            .map_err(|e| (StatusCode::BAD_GATEWAY, format!("upstream error: {e}")))
+    }
 }
 
 fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {
