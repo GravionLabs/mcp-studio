@@ -8,6 +8,7 @@ import {
   signal,
   viewChild,
 } from "@angular/core";
+import { RouterLink } from "@angular/router";
 import type { MessageRecord, SessionUsage } from "../../core/bindings";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
@@ -41,7 +42,7 @@ const METHODS = [
 /** Right column: every JSON-RPC message of every session, live. */
 @Component({
   selector: "app-inspector-panel",
-  imports: [VirtualList, JsonView, JsonDiffView],
+  imports: [VirtualList, JsonView, JsonDiffView, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./inspector-panel.html",
   styleUrl: "./inspector-panel.scss",
@@ -55,6 +56,7 @@ export class InspectorPanel implements OnInit {
   private readonly list = viewChild(VirtualList);
 
   protected readonly methods = METHODS;
+  protected readonly needsModel = this.prices.needsModel;
   /** Totals of the selected message's session. */
   protected readonly usage = signal<SessionUsage | null>(null);
   protected readonly follow = signal(true);
