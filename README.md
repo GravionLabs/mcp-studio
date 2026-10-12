@@ -65,6 +65,12 @@ pnpm tauri dev
 `pnpm bundle` builds installers including the proxy program and the test server as sidecars
 (`pnpm sidecars` builds just those).
 
+## Agent skills
+
+Run `apm install` before working in the repo. It installs the Angular skills declared in `apm.yml`
+into `.claude/skills` and `.agents/skills`. These folders are git-ignored, so a fresh clone has none.
+It needs [apm](https://github.com/microsoft/apm).
+
 ## Record a real client
 
 MCP Studio can sit between a real client and a server, record every JSON-RPC message in both
