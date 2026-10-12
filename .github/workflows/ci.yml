@@ -220,6 +220,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -243,6 +245,11 @@ jobs:
             --repo "${{ github.repository }}" \
             --notes-file RELEASE_NOTES.md \
             --draft=false
+
+      # After a merged release/<x.y> PR: closes the issues it delivered ("Shipped in v...").
+      - uses: GravionLabs/ci/versioning/close-release-issues@main
+        with:
+          version: ${{ needs.determine-version.outputs.semver }}
 
   update-changelog:
     name: Update changelog
