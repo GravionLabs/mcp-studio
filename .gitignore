@@ -52,7 +52,6 @@ Thumbs.db
 # Tauri sidecar binaries are built by scripts/build-sidecars.mjs
 /src-tauri/binaries/
 
-# APM-installed agent skills (run `apm install`)
-/apm_modules/
-/.agents/skills/
-/.claude/skills/
+# APM dependencies
+apm_modules/
+.worktrees/
