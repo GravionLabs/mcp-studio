@@ -11,6 +11,7 @@ export default tseslint.config(
       "src-tauri/**",
       "crates/**",
       "target/**",
+      ".worktrees/**",
     ],
   },
   {
