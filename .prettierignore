@@ -8,3 +8,6 @@ pnpm-lock.yaml
 Cargo.lock
 CHANGELOG.md
 src/app/core/bindings.ts
+.claude
+apm.lock.yaml
+.worktrees
