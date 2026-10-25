@@ -54,3 +54,4 @@ Thumbs.db
 
 # APM dependencies
 apm_modules/
+.worktrees/
