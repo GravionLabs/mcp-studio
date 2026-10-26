@@ -1,0 +1,23 @@
+# Push to a release branch: keeps the release PR open, labels merged issues and sets the project Status/Needs.
+# Reusable workflow GravionLabs/ci release-branch.yml. GH_PAT (classic PAT, scope repo) makes the release PR run its required checks;
+# PROJECT_TOKEN (classic PAT, scope project) is optional and falls back to GH_PAT. Explicit secrets, not `secrets: inherit`.
+name: Release branch
+
+on:
+  push:
+    branches: ['release/**']
+
+permissions: {}
+
+jobs:
+  release-branch:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: GravionLabs/ci/.github/workflows/release-branch.yml@main
+    with:
+      project-url: https://github.com/users/GravionLabs/projects/17
+    secrets:
+      GH_PAT: ${{ secrets.GH_PAT }}
+      PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
