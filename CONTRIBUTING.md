@@ -59,6 +59,7 @@ to regenerate `src/app/core/bindings.ts` (a test fails when it is stale).
 ## Workflow
 
 Work is tracked as Epic → Feature → PBI → Task using GitHub sub-issues.
+The title of an issue starts with its level: `[Epic]`, `[Feature]`, `[PBI]`, `[Task]` or `[Bug]`, then the summary (`[PBI] feat: short summary`).
 
 1. Pick an open PBI (or a bug) and create a branch named `<type>/<issue>-<short-description>` from
    the epic's release branch (see [Releases](#releases)).

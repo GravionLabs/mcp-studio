@@ -6,7 +6,7 @@ name: Release branch
 
 on:
   push:
-    branches: ['release/**']
+    branches: ["release/**"]
 
 permissions: {}
 
