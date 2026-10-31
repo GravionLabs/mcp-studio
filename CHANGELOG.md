@@ -5,6 +5,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.16] — 2026-10-31
+
+### Bug Fixes
+- Push the changelog commit with GH_PAT
+
+
 ## [1.0.10] — 2026-10-10
 
 ### Bug Fixes
