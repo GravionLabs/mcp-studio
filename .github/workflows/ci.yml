@@ -251,6 +251,27 @@ jobs:
         with:
           version: ${{ needs.determine-version.outputs.semver }}
 
+      # Merging the release PR deletes release/next (delete_branch_on_merge). Recreates it at the released commit
+      # when it is missing; an existing branch is never moved or force-pushed (versioning/gh-release/recreate-branch.sh
+      # of GravionLabs/ci).
+      - name: Recreate release/next
+        env:
+          BRANCH: release/next
+          SHA: ${{ github.sha }}
+        run: |
+          rc=0
+          git ls-remote --exit-code --heads origin "refs/heads/$BRANCH" >/dev/null 2>&1 || rc=$?
+          if [ "$rc" = 0 ]; then
+            echo "$BRANCH exists on origin; left unchanged."
+            exit 0
+          fi
+          if [ "$rc" != 2 ]; then
+            echo "::error::Could not query origin for $BRANCH (exit $rc)."
+            exit 1
+          fi
+          git push origin "$SHA:refs/heads/$BRANCH"
+          echo "Created $BRANCH at $SHA."
+
   update-changelog:
     name: Update changelog
     # Runs after the release is published so the new tag is part of the history. The commit is pushed
