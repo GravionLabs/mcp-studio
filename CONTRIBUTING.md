@@ -100,6 +100,9 @@ The app updates itself from the latest release (`latest.json`, checked only when
   update again and a new public key needs a manual reinstall
 
 To make a new key: `pnpm tauri signer generate -w <file>`, then update the public key and both secrets.
+
+The key was replaced once after the earlier private key was lost. Installs made with the earlier key
+cannot verify updates signed with the new one and must be reinstalled by hand once.
 Linux `.deb` and `.rpm` installs are updated through the package manager; the in-app updater
 replaces AppImage, Windows, and macOS installs.
 
