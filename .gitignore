@@ -52,6 +52,5 @@ Thumbs.db
 # Tauri sidecar binaries are built by scripts/build-sidecars.mjs
 /src-tauri/binaries/
 
-# APM dependencies
-apm_modules/
+# git worktrees
 .worktrees/
