@@ -9,5 +9,6 @@ Cargo.lock
 CHANGELOG.md
 src/app/core/bindings.ts
 .claude
+.agents
 apm.lock.yaml
 .worktrees

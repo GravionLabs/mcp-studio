@@ -9,6 +9,7 @@ export default tseslint.config(
       ".angular/**",
       "node_modules/**",
       ".claude/**",
+      ".agents/**",
       "src-tauri/**",
       "crates/**",
       "target/**",

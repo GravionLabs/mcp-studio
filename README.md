@@ -67,9 +67,9 @@ pnpm tauri dev
 
 ## Agent skills
 
-Run `apm install` before working in the repo. It installs the Angular skills declared in `apm.yml`
-into `.claude/skills` and `.agents/skills`. These folders are git-ignored, so a fresh clone has none.
-It needs [apm](https://github.com/microsoft/apm).
+The stack skills from [GravionLabs/skills](https://github.com/GravionLabs/skills) are committed in
+`.agents/skills` and `.claude/skills` and pinned in `skills-lock.json`. Update them with
+`npx skills update`; `/skills-manage` installs the skills of a new stack.
 
 ## Record a real client
 
