@@ -5,6 +5,65 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.19] — 2026-11-18
+
+### Bug Fixes
+- **deps**: 7-day minimum release age (#313)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+
+
+### Security
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+- **deps**: 7-day minimum release age and actions pinned to commit SHAs (#313) (#314)
+
+
 ## [1.0.17] — 2026-11-01
 
 ### Bug Fixes
