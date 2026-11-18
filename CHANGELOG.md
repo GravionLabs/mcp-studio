@@ -5,6 +5,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.17] — 2026-11-01
+
+### Bug Fixes
+- **ci**: Recreate release/next after the release (#304) (#305)
+
+
 ## [1.0.16] — 2026-10-31
 
 ### Bug Fixes
