@@ -1,0 +1,62 @@
+// Renovate keeps npm packages, Cargo crates (the workspace at the root) and GitHub Actions current: a few grouped pull
+// requests a week against release/next, gated by CI, merged by a person (no automerge).
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  // github>GravionLabs/ci: 7 days minimum release age (security fixes exempt), actions pinned to commit SHAs.
+  extends: [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard",
+    "github>GravionLabs/ci",
+  ],
+  baseBranchPatterns: ["release/next"],
+  // `chore(deps): ...` keeps dependency updates out of the release notes.
+  // Issue titles start with their level: the dashboard is a PBI.
+  dependencyDashboard: true,
+  dependencyDashboardTitle: "[PBI] chore: Dependency Dashboard",
+  semanticCommitType: "chore",
+  semanticCommitScope: "deps",
+  timezone: "Europe/Zurich",
+  schedule: ["before 6am on monday"],
+  lockFileMaintenance: { enabled: true, schedule: ["before 6am on the first day of the month"] },
+  // Raise the range in package.json to the new version instead of leaving it as it was.
+  rangeStrategy: "bump",
+  automerge: false,
+  labels: ["dependencies"],
+  enabledManagers: ["npm", "cargo", "github-actions"],
+  ignorePaths: ["**/node_modules/**", "**/target/**"],
+  // A known vulnerability gets a pull request at once, outside the schedule.
+  vulnerabilityAlerts: { enabled: true, labels: ["security"], schedule: ["at any time"] },
+  osvVulnerabilityAlerts: true,
+  packageRules: [
+    {
+      // Rust patch and minor updates in one pull request; majors stay separate.
+      groupName: "rust",
+      matchManagers: ["cargo"],
+      matchUpdateTypes: ["minor", "patch"],
+    },
+    {
+      groupName: "angular",
+      // Angular pins the range of TypeScript it supports: they move together.
+      matchPackageNames: [
+        "@angular/**",
+        "@angular-devkit/**",
+        "@schematics/angular",
+        "angular-eslint",
+        "typescript",
+      ],
+    },
+    { groupName: "codemirror", matchPackageNames: ["@codemirror/**", "@lezer/**"] },
+    { groupName: "foblex", matchPackageNames: ["@foblex/**"] },
+    {
+      // The Tauri crates and the npm packages release together.
+      groupName: "tauri",
+      matchPackageNames: ["tauri", "tauri-*", "@tauri-apps/**"],
+    },
+    {
+      // Majors get their own pull requests, labelled, and a person decides.
+      matchUpdateTypes: ["major"],
+      addLabels: ["major"],
+    },
+  ],
+}
