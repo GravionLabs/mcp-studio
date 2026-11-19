@@ -27,7 +27,7 @@ const NO_STATUS: ExportStatus = {
   imports: [KeyValueEditor],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./trace-export.html",
-  styleUrl: "./trace-export.scss",
+  styleUrl: "./trace-export.css",
 })
 export class TraceExport implements OnInit {
   private readonly ipc = inject(TauriIpcService);

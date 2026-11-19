@@ -31,7 +31,7 @@ import {
   selector: "app-suites-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./suites-page.html",
-  styleUrl: "./suites-page.scss",
+  styleUrl: "./suites-page.css",
 })
 export class SuitesPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

@@ -50,7 +50,7 @@ import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./server-detail.html",
-  styleUrl: "./server-detail.scss",
+  styleUrl: "./server-detail.css",
 })
 export class ServerDetail {
   readonly id = input.required<string>();

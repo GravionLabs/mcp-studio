@@ -21,7 +21,7 @@ import { PricesStore } from "./prices.store";
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./context-cost-panel.html",
-  styleUrl: "./context-cost-panel.scss",
+  styleUrl: "./context-cost-panel.css",
 })
 export class ContextCostPanel {
   readonly serverId = input.required<string>();

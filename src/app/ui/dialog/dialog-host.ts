@@ -13,7 +13,7 @@ import { DialogService } from "../../core/dialog.service";
   selector: "app-dialog-host",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./dialog-host.html",
-  styleUrl: "./dialog-host.scss",
+  styleUrl: "./dialog-host.css",
 })
 export class DialogHost {
   protected readonly dialogs = inject(DialogService);

@@ -9,7 +9,7 @@ import { ExplorerStore } from "../explorer/explorer.store";
   selector: "app-tool-docs",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./tool-docs.html",
-  styleUrl: "./tool-docs.scss",
+  styleUrl: "./tool-docs.css",
 })
 export class ToolDocs {
   readonly serverId = input.required<string>();

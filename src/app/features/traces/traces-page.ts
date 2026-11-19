@@ -21,7 +21,7 @@ import { buildWaterfall, formatDuration } from "./waterfall.model";
   imports: [JsonView, TraceExport],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./traces-page.html",
-  styleUrl: "./traces-page.scss",
+  styleUrl: "./traces-page.css",
 })
 export class TracesPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

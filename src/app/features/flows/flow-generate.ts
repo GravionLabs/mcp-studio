@@ -21,7 +21,7 @@ import { blocker, issueLines, outcome, toggled } from "./generate.model";
   selector: "app-flow-generate",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flow-generate.html",
-  styleUrl: "./flow-generate.scss",
+  styleUrl: "./flow-generate.css",
 })
 export class FlowGenerate {
   private readonly ipc = inject(TauriIpcService);

@@ -31,7 +31,7 @@ import {
   imports: [JsonView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flow-run-panel.html",
-  styleUrl: "./flow-run-panel.scss",
+  styleUrl: "./flow-run-panel.css",
 })
 export class FlowRunPanel implements OnInit, OnDestroy {
   readonly record = input.required<FlowRecord>();

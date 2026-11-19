@@ -18,7 +18,7 @@ import { demoServerInput, findDemoServer, recentServers } from "./welcome.model"
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./welcome.html",
-  styleUrl: "./welcome.scss",
+  styleUrl: "./welcome.css",
 })
 export class Welcome implements OnInit {
   private readonly store = inject(ServersStore);

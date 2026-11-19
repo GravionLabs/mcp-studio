@@ -35,7 +35,7 @@ import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
   imports: [RouterLink, SchemaForm, JsonEditor, JsonView, ResultView, TabList, Tab, TabPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./tool-playground.html",
-  styleUrl: "./tool-playground.scss",
+  styleUrl: "./tool-playground.css",
 })
 export class ToolPlayground {
   readonly id = input.required<string>();

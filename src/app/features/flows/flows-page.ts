@@ -16,7 +16,7 @@ import { describeFlow, newFlow } from "./flows.model";
   imports: [FlowGenerate, FlowRunPanel, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flows-page.html",
-  styleUrl: "./flows-page.scss",
+  styleUrl: "./flows-page.css",
 })
 export class FlowsPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

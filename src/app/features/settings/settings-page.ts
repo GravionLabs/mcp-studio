@@ -38,7 +38,7 @@ interface PendingImport {
   imports: [TraceExport],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./settings-page.html",
-  styleUrl: "./settings-page.scss",
+  styleUrl: "./settings-page.css",
 })
 export class SettingsPage implements OnInit {
   protected readonly theme = inject(ThemeService);

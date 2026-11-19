@@ -45,7 +45,7 @@ const METHODS = [
   imports: [VirtualList, JsonView, JsonDiffView, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./inspector-panel.html",
-  styleUrl: "./inspector-panel.scss",
+  styleUrl: "./inspector-panel.css",
 })
 export class InspectorPanel implements OnInit {
   protected readonly store = inject(InspectorStore);

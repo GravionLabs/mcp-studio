@@ -6,7 +6,7 @@ import { DiffEntry, diffJson, preview, summarizeDiff } from "./json-diff";
   selector: "app-json-diff",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./json-diff-view.html",
-  styleUrl: "./json-diff-view.scss",
+  styleUrl: "./json-diff-view.css",
 })
 export class JsonDiffView {
   readonly before = input.required<unknown>();

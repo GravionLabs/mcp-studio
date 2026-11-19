@@ -6,7 +6,7 @@ import { UpdateService } from "../../core/update.service";
   selector: "app-status-bar",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./status-bar.html",
-  styleUrl: "./status-bar.scss",
+  styleUrl: "./status-bar.css",
 })
 export class StatusBar {
   protected readonly status = inject(ConnectionStatusService);

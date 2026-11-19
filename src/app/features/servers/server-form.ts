@@ -29,7 +29,7 @@ import { ServersStore } from "./servers.store";
   imports: [KeyValueEditor],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./server-form.html",
-  styleUrl: "./server-form.scss",
+  styleUrl: "./server-form.css",
 })
 export class ServerForm {
   /** Route parameter; absent when creating. */
