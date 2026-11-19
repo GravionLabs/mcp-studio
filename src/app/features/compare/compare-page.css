@@ -11,12 +11,13 @@
   align-items: flex-end;
   gap: 12px;
   margin-bottom: 12px;
+}
 
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
+.bar label,
+.actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 table {

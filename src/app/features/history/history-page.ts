@@ -26,7 +26,7 @@ import { HistoryStore } from "./history.store";
   imports: [ResultView, JsonView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./history-page.html",
-  styleUrl: "./history-page.scss",
+  styleUrl: "./history-page.css",
 })
 export class HistoryPage implements OnInit {
   protected readonly history = inject(HistoryStore);

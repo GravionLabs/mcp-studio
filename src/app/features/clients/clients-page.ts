@@ -27,7 +27,7 @@ interface PendingRoute {
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./clients-page.html",
-  styleUrl: "./clients-page.scss",
+  styleUrl: "./clients-page.css",
 })
 export class ClientsPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

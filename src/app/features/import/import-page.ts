@@ -26,7 +26,7 @@ import {
   selector: "app-import-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./import-page.html",
-  styleUrl: "./import-page.scss",
+  styleUrl: "./import-page.css",
 })
 export class ImportPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

@@ -8,7 +8,7 @@ import { ParsedResult, ResultBlock, prettyJson } from "./result.model";
   imports: [JsonView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./result-view.html",
-  styleUrl: "./result-view.scss",
+  styleUrl: "./result-view.css",
 })
 export class ResultView {
   readonly result = input.required<ParsedResult>();

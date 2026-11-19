@@ -21,7 +21,7 @@ import { EnvironmentsStore } from "./environments.store";
   imports: [KeyValueEditor],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./environments-page.html",
-  styleUrl: "./environments-page.scss",
+  styleUrl: "./environments-page.css",
 })
 export class EnvironmentsPage {
   protected readonly store = inject(EnvironmentsStore);

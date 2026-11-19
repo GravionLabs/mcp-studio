@@ -12,7 +12,7 @@ import { describeArguments, describeCall } from "./run.model";
   selector: "app-flow-confirmations",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flow-confirmations.html",
-  styleUrl: "./flow-confirmations.scss",
+  styleUrl: "./flow-confirmations.css",
 })
 export class FlowConfirmations implements OnDestroy {
   private readonly ipc = inject(TauriIpcService);

@@ -9,7 +9,7 @@ import { GITHUB_MODELS_URL, ProviderId, describeTest, qualifiedModel } from "./p
   selector: "app-providers-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./providers-page.html",
-  styleUrl: "./providers-page.scss",
+  styleUrl: "./providers-page.css",
 })
 export class ProvidersPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

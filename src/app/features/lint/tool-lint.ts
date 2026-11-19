@@ -17,7 +17,7 @@ import { groupByTool, ruleTitle, summarize } from "./lint.model";
   selector: "app-tool-lint",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./tool-lint.html",
-  styleUrl: "./tool-lint.scss",
+  styleUrl: "./tool-lint.css",
 })
 export class ToolLint {
   readonly serverId = input.required<string>();

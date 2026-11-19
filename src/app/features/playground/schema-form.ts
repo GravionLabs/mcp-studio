@@ -9,7 +9,7 @@ import { FieldKind, JsonSchema, defaultValue, kindOf, resolve } from "./schema-f
   selector: "app-schema-form",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./schema-form.html",
-  styleUrl: "./schema-form.scss",
+  styleUrl: "./schema-form.css",
 })
 export class SchemaForm {
   readonly schema = input.required<JsonSchema>();

@@ -15,7 +15,7 @@ type NumberField = "input" | "output" | "cacheRead" | "cacheWrite";
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./prices-page.html",
-  styleUrl: "./prices-page.scss",
+  styleUrl: "./prices-page.css",
 })
 export class PricesPage implements OnInit {
   protected readonly store = inject(PricesStore);

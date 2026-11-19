@@ -16,7 +16,7 @@ import { ServersStore } from "../servers/servers.store";
   imports: [RouterLink, RouterLinkActive, CollectionFolder],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./sidebar.html",
-  styleUrl: "./sidebar.scss",
+  styleUrl: "./sidebar.css",
 })
 export class Sidebar implements OnInit {
   protected readonly store = inject(ServersStore);

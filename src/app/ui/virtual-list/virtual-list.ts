@@ -27,7 +27,7 @@ export interface RowContext<T> {
   imports: [NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./virtual-list.html",
-  styleUrl: "./virtual-list.scss",
+  styleUrl: "./virtual-list.css",
 })
 export class VirtualList<T> implements OnDestroy {
   readonly items = input.required<readonly T[]>();

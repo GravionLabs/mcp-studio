@@ -30,7 +30,7 @@ type Section = "tools" | "resources" | "prompts";
   imports: [JsonView, RouterLink, ResultView, TabList, Tab, TabPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./explorer.html",
-  styleUrl: "./explorer.scss",
+  styleUrl: "./explorer.css",
 })
 export class Explorer implements OnInit {
   readonly serverId = input.required<string>();

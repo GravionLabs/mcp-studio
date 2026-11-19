@@ -12,7 +12,7 @@ import { CollectionsStore } from "./collections.store";
   selector: "app-collection-folder",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./collection-folder.html",
-  styleUrl: "./collection-folder.scss",
+  styleUrl: "./collection-folder.css",
 })
 export class CollectionFolder {
   readonly folder = input.required<FolderNode>();

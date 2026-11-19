@@ -43,7 +43,7 @@ import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
   imports: [FFlowModule, RouterLink, StringMapEditor, TabList, Tab, TabPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flow-editor.html",
-  styleUrl: "./flow-editor.scss",
+  styleUrl: "./flow-editor.css",
 })
 export class FlowEditor implements OnInit, OnDestroy {
   /** The flow in the library, from the route. */

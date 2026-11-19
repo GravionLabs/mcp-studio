@@ -21,7 +21,7 @@ import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
   selector: "app-proxy-panel",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./proxy-panel.html",
-  styleUrl: "./proxy-panel.scss",
+  styleUrl: "./proxy-panel.css",
 })
 export class ProxyPanel implements OnInit {
   readonly serverName = input.required<string>();
