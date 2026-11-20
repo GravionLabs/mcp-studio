@@ -45,7 +45,7 @@ const theme = EditorView.theme({
 @Component({
   selector: "app-json-editor",
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div #host class="host"></div>`,
+  templateUrl: "./json-editor.html",
   styles: `
     .host {
       min-width: 0;
