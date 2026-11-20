@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { JsonSchema, defaultValue, kindOf, prune, resolve, validate } from "./schema-form.model";
+import type { JsonSchema } from "./schema-form.model";
+import { defaultValue, kindOf, prune, resolve, validate } from "./schema-form.model";
 
 const schema: JsonSchema = {
   type: "object",

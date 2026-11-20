@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import type { StorageInfo, WorkspaceChanges } from "../../core/bindings";
 import { DialogService } from "../../core/dialog.service";
 import { FileDialogService } from "../../core/file-dialog.service";
@@ -14,8 +8,8 @@ import { ThemeService } from "../../core/theme.service";
 import { ToastService } from "../../core/toast.service";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { TraceExport } from "../traces/trace-export";
+import type { RetentionForm } from "./settings.model";
 import {
-  RetentionForm,
   describeSecret,
   describeStorage,
   describeTable,

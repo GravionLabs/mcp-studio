@@ -1,22 +1,13 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnDestroy,
-  OnInit,
-  computed,
-  inject,
-  input,
-  signal,
-} from "@angular/core";
+import type { OnDestroy, OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from "@angular/core";
 import type { FlowRecord, FlowRun, RunEvent, RunSummary } from "../../core/bindings";
 import { DialogService } from "../../core/dialog.service";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { JsonView } from "../../ui/json-view/json-view";
 import { EnvironmentsStore } from "../environments/environments.store";
+import type { InputField, RunView } from "./run.model";
 import {
-  InputField,
-  RunView,
   applyEvent,
   formatDuration,
   inputFields,

@@ -53,6 +53,21 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+The frontend is formatted by [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html)
+(`.oxfmtrc.json`, `pnpm format`) and linted by two tools (ADR 0006 of GravionLabs/skills):
+
+- **oxlint** (`.oxlintrc.json`) lints every `.ts` and `.js` file, with type-aware rules
+  (`oxlint-tsgolint`) and the Angular class rules (`@angular-eslint/eslint-plugin` as a JS plugin).
+  `pnpm lint:fix` applies the safe fixes.
+- **ESLint** (`eslint.config.mjs`) lints only the Angular templates (`**/*.html`), because oxlint
+  cannot parse them. So every component keeps its template in a `.html` file next to it; an inline
+  `template:` outside a spec file fails `mcp-studio/no-inline-template`.
+- A rule that is turned off or lowered carries its reason as a comment in `.oxlintrc.json`.
+- `src/testing/lint-probe/` breaks known rules on purpose and is left out of `pnpm lint`;
+  `src/testing/lint-probe.spec.ts` fails when oxlint or ESLint stops reporting one of them, for
+  example after an update. oxlint, oxfmt and oxlint-tsgolint are pinned to exact versions: raise
+  them together and only with a green probe.
+
 Types that cross the IPC boundary derive `specta::Type`. After changing them, run `pnpm bindings`
 to regenerate `src/app/core/bindings.ts` (a test fails when it is stale).
 

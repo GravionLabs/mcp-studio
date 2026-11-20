@@ -1,4 +1,5 @@
-import { ResultBlock, parseContent } from "./result.model";
+import type { ResultBlock } from "./result.model";
+import { parseContent } from "./result.model";
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);

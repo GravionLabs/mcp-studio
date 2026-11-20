@@ -1,4 +1,5 @@
-import { Injectable, WritableSignal, inject, signal } from "@angular/core";
+import type { WritableSignal } from "@angular/core";
+import { Injectable, inject, signal } from "@angular/core";
 import type {
   ListChangedEvent,
   PromptInfo,

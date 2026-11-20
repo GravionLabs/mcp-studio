@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from "@angular/core";
-import { DiffEntry, diffJson, preview, summarizeDiff } from "./json-diff";
+import type { DiffEntry } from "./json-diff";
+import { diffJson, preview, summarizeDiff } from "./json-diff";
 
 /** Table of the differences between two JSON documents. */
 @Component({

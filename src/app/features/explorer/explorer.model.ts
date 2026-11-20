@@ -1,4 +1,5 @@
-import { JsonSchema, kindOf, resolve } from "../playground/schema-form.model";
+import type { JsonSchema } from "../playground/schema-form.model";
+import { kindOf, resolve } from "../playground/schema-form.model";
 
 export interface ParameterRow {
   name: string;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { TabElement, TabKeyEvent, handleTabKey, nextTabIndex } from "./tablist.model";
+import type { TabElement, TabKeyEvent } from "./tablist.model";
+import { handleTabKey, nextTabIndex } from "./tablist.model";
 
 describe("nextTabIndex", () => {
   it("moves right and wraps around", () => {

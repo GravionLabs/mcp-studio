@@ -4,7 +4,8 @@ import type { SavedRequest } from "../../core/bindings";
 import { DialogService } from "../../core/dialog.service";
 import { FileDialogService, fileNameFor } from "../../core/file-dialog.service";
 import { ToastService } from "../../core/toast.service";
-import { FolderNode, countRequests } from "./collections.model";
+import type { FolderNode } from "./collections.model";
+import { countRequests } from "./collections.model";
 import { CollectionsStore } from "./collections.store";
 
 /** One folder of the collections tree, with its subfolders and requests. Recursive. */
