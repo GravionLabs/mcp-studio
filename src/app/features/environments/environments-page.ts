@@ -11,7 +11,8 @@ import { DialogService } from "../../core/dialog.service";
 import { ToastService } from "../../core/toast.service";
 import { KeyValueEditor } from "../../ui/key-value-editor/key-value-editor";
 import type { KeyValueRow } from "../../ui/key-value-editor/key-value-row";
-import { SecretWrite, recordToRows, rowsToRecord } from "../../ui/key-value-editor/key-value-rows";
+import type { SecretWrite } from "../../ui/key-value-editor/key-value-rows";
+import { recordToRows, rowsToRecord } from "../../ui/key-value-editor/key-value-rows";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { EnvironmentsStore } from "./environments.store";
 

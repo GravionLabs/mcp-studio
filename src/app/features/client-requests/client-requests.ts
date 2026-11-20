@@ -1,7 +1,7 @@
+import type { OnDestroy } from "@angular/core";
 import {
   ChangeDetectionStrategy,
   Component,
-  OnDestroy,
   computed,
   effect,
   inject,

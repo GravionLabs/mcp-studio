@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, inject, signal } from "@angular/core";
 import type { FlowRecord, ToolPolicy } from "../../core/bindings";
 import { DialogService } from "../../core/dialog.service";
 import { FileDialogService, fileNameFor } from "../../core/file-dialog.service";

@@ -1,6 +1,7 @@
 import type { ServerInput, TransportKind } from "../../core/bindings";
 import type { KeyValueRow } from "../../ui/key-value-editor/key-value-row";
-import { SecretWrite, recordToRows, rowsToRecord } from "../../ui/key-value-editor/key-value-rows";
+import type { SecretWrite } from "../../ui/key-value-editor/key-value-rows";
+import { recordToRows, rowsToRecord } from "../../ui/key-value-editor/key-value-rows";
 
 export type { KeyValueRow, SecretWrite };
 

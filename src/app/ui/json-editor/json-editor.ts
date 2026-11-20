@@ -1,8 +1,8 @@
+import type { OnDestroy } from "@angular/core";
 import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  OnDestroy,
   afterNextRender,
   effect,
   inject,

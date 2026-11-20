@@ -1,4 +1,5 @@
-import { Injectable, Signal, inject, signal } from "@angular/core";
+import type { Signal } from "@angular/core";
+import { Injectable, inject, signal } from "@angular/core";
 import type {
   AppInfo,
   CollectionNode,

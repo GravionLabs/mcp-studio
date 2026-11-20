@@ -6,7 +6,7 @@ describe("CompletionSource", () => {
   afterEach(() => vi.useRealTimers());
 
   it("asks once after a pause, with the last value", async () => {
-    const fetch = vi.fn(async (_key: string, value: string) => [value + "!"]);
+    const fetch = vi.fn(async (_key: string, value: string) => [`${value}!`]);
     const applied: [string, string[]][] = [];
     const source = new CompletionSource(fetch, (k, v) => applied.push([k, v]), 100);
     source.request("name", "a");

@@ -26,7 +26,8 @@ import { parseToolResult } from "../results/result.model";
 import { ServersStore } from "../servers/servers.store";
 import { parseRaw, readiness, toArguments, toRawText } from "./playground.model";
 import { SchemaForm } from "./schema-form";
-import { JsonSchema, defaultValue } from "./schema-form.model";
+import type { JsonSchema } from "./schema-form.model";
+import { defaultValue } from "./schema-form.model";
 import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
 
 /** Call one tool: fill the generated form (or edit raw JSON), run it, inspect the result. */

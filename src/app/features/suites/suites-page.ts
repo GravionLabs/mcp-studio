@@ -1,7 +1,7 @@
+import type { OnInit } from "@angular/core";
 import {
   ChangeDetectionStrategy,
   Component,
-  OnInit,
   computed,
   effect,
   inject,
@@ -14,17 +14,8 @@ import { ToastService } from "../../core/toast.service";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
 import { ExplorerStore } from "../explorer/explorer.store";
 import { ServersStore } from "../servers/servers.store";
-import {
-  CaseDraft,
-  ExpectationKind,
-  SuiteDraft,
-  describeExpectation,
-  draftOf,
-  newCase,
-  newSuite,
-  problems,
-  toInput,
-} from "./suites.model";
+import type { CaseDraft, ExpectationKind, SuiteDraft } from "./suites.model";
+import { describeExpectation, draftOf, newCase, newSuite, problems, toInput } from "./suites.model";
 
 /** Test suites of a server: inputs with the tool or answer a model should give. */
 @Component({

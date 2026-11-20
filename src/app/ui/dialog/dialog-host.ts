@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  ElementRef,
-  effect,
-  inject,
-  viewChild,
-} from "@angular/core";
+import type { ElementRef } from "@angular/core";
+import { ChangeDetectionStrategy, Component, effect, inject, viewChild } from "@angular/core";
 import { DialogService } from "../../core/dialog.service";
 
 /** Renders the dialog requested through {@link DialogService}. */

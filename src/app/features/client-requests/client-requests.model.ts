@@ -1,5 +1,6 @@
 import type { ClientRequest } from "../../core/bindings";
-import { JsonSchema, validate } from "../playground/schema-form.model";
+import type { JsonSchema } from "../playground/schema-form.model";
+import { validate } from "../playground/schema-form.model";
 
 export interface SamplingMessageView {
   role: string;

@@ -1,9 +1,7 @@
+import type { ElementRef, OnDestroy, TemplateRef } from "@angular/core";
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
-  OnDestroy,
-  TemplateRef,
   afterNextRender,
   computed,
   contentChild,
