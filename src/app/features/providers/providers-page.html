@@ -24,7 +24,7 @@
       </label>
       <button type="button" class="primary" (click)="saveKey('anthropic')">Save</button>
       @if (hasAnthropicKey()) {
-      <button type="button" class="ghost" (click)="removeKey('anthropic')">Remove key</button>
+        <button type="button" class="ghost" (click)="removeKey('anthropic')">Remove key</button>
       }
     </div>
     <div class="row">
@@ -82,7 +82,7 @@
       </label>
       <button type="button" class="primary" (click)="saveKey('openai')">Save</button>
       @if (hasOpenaiKey()) {
-      <button type="button" class="ghost" (click)="removeKey('openai')">Remove key</button>
+        <button type="button" class="ghost" (click)="removeKey('openai')">Remove key</button>
       }
     </div>
     <div class="row">
@@ -120,18 +120,18 @@
       <div class="field">
         <span>Model to test</span>
         @if (ollamaModels().length > 0) {
-        <select aria-label="Ollama model to test" (change)="setModel('ollama', text($event))">
-          @for (name of ollamaModels(); track name) {
-          <option [value]="name" [selected]="name === model().ollama">{{ name }}</option>
-          }
-        </select>
+          <select aria-label="Ollama model to test" (change)="setModel('ollama', text($event))">
+            @for (name of ollamaModels(); track name) {
+              <option [value]="name" [selected]="name === model().ollama">{{ name }}</option>
+            }
+          </select>
         } @else {
-        <input
-          aria-label="Ollama model to test"
-          placeholder="llama3.1:8b"
-          [value]="model().ollama"
-          (input)="setModel('ollama', text($event))"
-        />
+          <input
+            aria-label="Ollama model to test"
+            placeholder="llama3.1:8b"
+            [value]="model().ollama"
+            (input)="setModel('ollama', text($event))"
+          />
         }
       </div>
       <button type="button" [disabled]="testing() === 'ollama'" (click)="test('ollama')">

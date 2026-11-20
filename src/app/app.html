@@ -18,14 +18,14 @@
     </main>
 
     @if (layout.inspectorOpen()) {
-    <div
-      [appResizeHandle]="layout.inspectorWidth()"
-      edge="left"
-      (resized)="layout.setInspectorWidth($event)"
-    ></div>
-    <aside class="inspector" [style.width.px]="layout.inspectorWidth()">
-      <app-inspector-panel />
-    </aside>
+      <div
+        [appResizeHandle]="layout.inspectorWidth()"
+        edge="left"
+        (resized)="layout.setInspectorWidth($event)"
+      ></div>
+      <aside class="inspector" [style.width.px]="layout.inspectorWidth()">
+        <app-inspector-panel />
+      </aside>
     }
   </div>
   <app-status-bar />

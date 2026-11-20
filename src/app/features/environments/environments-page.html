@@ -3,18 +3,19 @@
     <button type="button" (click)="select(null)">+ New environment</button>
     <ul>
       @for (environment of store.environments(); track environment.id) {
-      <li>
-        <button
-          type="button"
-          class="ghost item"
-          [class.selected]="environment.id === selectedId()"
-          (click)="select(environment.id)"
-        >
-          {{ environment.name }} @if (environment.id === store.activeId()) {
-          <span class="badge">active</span>
-          }
-        </button>
-      </li>
+        <li>
+          <button
+            type="button"
+            class="ghost item"
+            [class.selected]="environment.id === selectedId()"
+            (click)="select(environment.id)"
+          >
+            {{ environment.name }}
+            @if (environment.id === store.activeId()) {
+              <span class="badge">active</span>
+            }
+          </button>
+        </li>
       }
     </ul>
   </aside>
@@ -35,11 +36,12 @@
     <div class="actions">
       <button type="submit" class="primary">Save</button>
       @if (selectedId(); as id) {
-      <button type="button" (click)="store.setActive(id === store.activeId() ? null : id)">
-        {{ id === store.activeId() ? "Deactivate" : "Make active" }}
-      </button>
-      } @if (canDelete()) {
-      <button type="button" class="danger" (click)="remove()">Delete</button>
+        <button type="button" (click)="store.setActive(id === store.activeId() ? null : id)">
+          {{ id === store.activeId() ? "Deactivate" : "Make active" }}
+        </button>
+      }
+      @if (canDelete()) {
+        <button type="button" class="danger" (click)="remove()">Delete</button>
       }
     </div>
   </form>
