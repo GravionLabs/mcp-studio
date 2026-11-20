@@ -14,8 +14,8 @@
     "bundle": "pnpm run sidecars && tauri build --config src-tauri/tauri.bundle.conf.json",
     "bindings": "UPDATE_BINDINGS=1 cargo test -p mcp-studio-core --test bindings",
     "lint": "eslint .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "changelog": "git-cliff -c cliff.toml -o CHANGELOG.md",
     "changelog:release": "git-cliff -c cliff.toml -o CHANGELOG.md --unreleased -t"
   },
@@ -53,7 +53,7 @@
     "@tauri-apps/cli": "^2",
     "angular-eslint": "^22.5.0",
     "eslint": "^10.11.0",
-    "prettier": "^3.9.9",
+    "oxfmt": "0.78.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",
     "vitest": "^4.1.11"

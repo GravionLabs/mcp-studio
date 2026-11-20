@@ -10,10 +10,10 @@
     <button type="button" [disabled]="busy()" (click)="copy()">Copy Markdown</button>
     <button type="button" class="primary" [disabled]="busy()" (click)="save()">Save as .md…</button>
     @if (markdown() !== null) {
-    <button type="button" class="ghost" (click)="hide()">Hide preview</button>
+      <button type="button" class="ghost" (click)="hide()">Hide preview</button>
     }
   </div>
   @if (markdown(); as text) {
-  <pre class="preview mono" aria-label="Markdown preview">{{ text }}</pre>
+    <pre class="preview mono" aria-label="Markdown preview">{{ text }}</pre>
   }
 </section>

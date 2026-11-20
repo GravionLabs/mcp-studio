@@ -18,26 +18,26 @@
   <app-flow-generate (saved)="refresh()" />
 
   @if (flows().length === 0) {
-  <p class="muted">No flows yet. Create one or import a YAML file.</p>
+    <p class="muted">No flows yet. Create one or import a YAML file.</p>
   }
   <ul class="list">
     @for (record of flows(); track record.id) {
-    <li class="item">
-      <span class="name">{{ record.flow.name }}</span>
-      <span class="muted">{{ describe(record.flow) }}</span>
-      <span class="spacer"></span>
-      <a class="button" [routerLink]="['/flows', record.id, 'edit']">Edit</a>
-      <button type="button" (click)="toggleRun(record)">
-        {{ running()?.id === record.id ? "Hide run" : "Run…" }}
-      </button>
-      <button type="button" class="ghost" (click)="exportFile(record)">Export YAML…</button>
-      <button type="button" class="ghost" (click)="remove(record)">Delete</button>
-    </li>
+      <li class="item">
+        <span class="name">{{ record.flow.name }}</span>
+        <span class="muted">{{ describe(record.flow) }}</span>
+        <span class="spacer"></span>
+        <a class="button" [routerLink]="['/flows', record.id, 'edit']">Edit</a>
+        <button type="button" (click)="toggleRun(record)">
+          {{ running()?.id === record.id ? "Hide run" : "Run…" }}
+        </button>
+        <button type="button" class="ghost" (click)="exportFile(record)">Export YAML…</button>
+        <button type="button" class="ghost" (click)="remove(record)">Delete</button>
+      </li>
     }
   </ul>
 
   @if (running(); as record) {
-  <app-flow-run [record]="record" />
+    <app-flow-run [record]="record" />
   }
 
   <h3>Tools that run without asking</h3>
@@ -48,10 +48,10 @@
   </p>
   <ul class="allowed">
     @for (entry of policy().allow ?? []; track entry) {
-    <li>
-      <span class="mono">{{ entry }}</span>
-      <button type="button" class="ghost" (click)="removeEntry(entry)">Remove</button>
-    </li>
+      <li>
+        <span class="mono">{{ entry }}</span>
+        <button type="button" class="ghost" (click)="removeEntry(entry)">Remove</button>
+      </li>
     }
   </ul>
   <form class="toolbar" (submit)="$event.preventDefault(); allowEntry()">

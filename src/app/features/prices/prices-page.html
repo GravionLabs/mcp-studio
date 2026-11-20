@@ -11,7 +11,7 @@
         <th>Use</th>
         <th>Model</th>
         @for (field of fields; track field.key) {
-        <th>{{ field.label }}</th>
+          <th>{{ field.label }}</th>
         }
         <th>Currency</th>
         <th></th>
@@ -19,57 +19,57 @@
     </thead>
     <tbody>
       @for (draft of drafts(); track $index; let index = $index) {
-      <tr>
-        <td>
-          <input
-            type="radio"
-            name="active-model"
-            [aria-label]="'Use ' + draft.model"
-            [disabled]="draft.isNew"
-            [checked]="!draft.isNew && draft.model === store.activeModel()"
-            (change)="store.setActive(draft.model)"
-          />
-        </td>
-        <td>
-          <input
-            class="model"
-            aria-label="Model"
-            placeholder="model name"
-            [value]="draft.model"
-            [readOnly]="!draft.isNew"
-            (input)="edit(index, { model: text($event) })"
-          />
-        </td>
-        @for (field of fields; track field.key) {
-        <td>
-          <input
-            class="number"
-            inputmode="decimal"
-            [attr.aria-label]="field.label + ' price of ' + (draft.model || 'new model')"
-            [placeholder]="field.key === 'input' || field.key === 'output' ? '0' : 'optional'"
-            [value]="draft[field.key]"
-            (input)="editField(index, field.key, $event)"
-          />
-        </td>
-        }
-        <td>
-          <input
-            class="currency"
-            aria-label="Currency"
-            maxlength="3"
-            [value]="draft.currency"
-            (input)="edit(index, { currency: text($event) })"
-          />
-        </td>
-        <td class="actions">
-          <button type="button" class="primary" (click)="save(index)">
-            {{ draft.isNew ? "Add" : "Save" }}
-          </button>
-          <button type="button" class="ghost" (click)="remove(index)">
-            {{ draft.isNew ? "Clear" : "Delete" }}
-          </button>
-        </td>
-      </tr>
+        <tr>
+          <td>
+            <input
+              type="radio"
+              name="active-model"
+              [aria-label]="'Use ' + draft.model"
+              [disabled]="draft.isNew"
+              [checked]="!draft.isNew && draft.model === store.activeModel()"
+              (change)="store.setActive(draft.model)"
+            />
+          </td>
+          <td>
+            <input
+              class="model"
+              aria-label="Model"
+              placeholder="model name"
+              [value]="draft.model"
+              [readOnly]="!draft.isNew"
+              (input)="edit(index, { model: text($event) })"
+            />
+          </td>
+          @for (field of fields; track field.key) {
+            <td>
+              <input
+                class="number"
+                inputmode="decimal"
+                [attr.aria-label]="field.label + ' price of ' + (draft.model || 'new model')"
+                [placeholder]="field.key === 'input' || field.key === 'output' ? '0' : 'optional'"
+                [value]="draft[field.key]"
+                (input)="editField(index, field.key, $event)"
+              />
+            </td>
+          }
+          <td>
+            <input
+              class="currency"
+              aria-label="Currency"
+              maxlength="3"
+              [value]="draft.currency"
+              (input)="edit(index, { currency: text($event) })"
+            />
+          </td>
+          <td class="actions">
+            <button type="button" class="primary" (click)="save(index)">
+              {{ draft.isNew ? "Add" : "Save" }}
+            </button>
+            <button type="button" class="ghost" (click)="remove(index)">
+              {{ draft.isNew ? "Clear" : "Delete" }}
+            </button>
+          </td>
+        </tr>
       }
     </tbody>
   </table>
@@ -79,8 +79,12 @@
     Token counts are estimates by default. With an Anthropic API key you can replace the estimate of
     a message with the exact count: use <strong>Count exactly</strong> in the inspector. That sends
     the message's content (secrets masked) to Anthropic's token counting endpoint, only when you
-    click. @if (hasKey()) { An Anthropic API key is stored. } @else { Add an Anthropic API key on
-    the <a routerLink="/providers">Providers</a> page first. }
+    click.
+    @if (hasKey()) {
+      An Anthropic API key is stored.
+    } @else {
+      Add an Anthropic API key on the <a routerLink="/providers">Providers</a> page first.
+    }
   </p>
   <div class="counting">
     <label>
