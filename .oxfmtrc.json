@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "trailingComma": "all",
+  "sortPackageJson": false,
+  "associations": [{ "files": ["src/app/**/*.html"], "language": "angular-html" }],
+  "ignorePatterns": [
+    "**/dist",
+    "**/coverage",
+    "**/node_modules",
+    ".angular",
+    "out-tsc",
+    "target",
+    "src-tauri/gen",
+    "src-tauri/icons",
+    "pnpm-lock.yaml",
+    "Cargo.lock",
+    "**/*.toml",
+    "CHANGELOG.md",
+    "src/app/core/bindings.ts",
+    "skills-lock.json",
+    ".claude/**",
+    ".agents/**",
+    "apm.lock.yaml",
+    ".worktrees"
+  ]
+}
