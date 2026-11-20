@@ -1,7 +1,12 @@
-import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import angular from "angular-eslint";
 
+/**
+ * ESLint lints the Angular templates only: oxlint cannot parse them (its JS plugins take no custom
+ * parser). TypeScript, including the Angular class rules, is linted by oxlint (`.oxlintrc.json`).
+ * Every component template is a `.html` file (`mcp-studio/no-inline-template`), so no
+ * inline-template processor is needed. ADR 0006 of GravionLabs/skills, #321.
+ */
 export default tseslint.config(
   {
     ignores: [
@@ -14,26 +19,9 @@ export default tseslint.config(
       "crates/**",
       "target/**",
       ".worktrees/**",
+      // The lint probe holds deliberate violations; src/testing/lint-probe.spec.ts lints it.
+      "src/testing/lint-probe/**",
     ],
-  },
-  {
-    files: ["**/*.ts"],
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.recommended,
-      ...angular.configs.tsRecommended,
-    ],
-    processor: angular.processInlineTemplates,
-    rules: {
-      "@angular-eslint/directive-selector": [
-        "error",
-        { type: "attribute", prefix: "app", style: "camelCase" },
-      ],
-      "@angular-eslint/component-selector": [
-        "error",
-        { type: "element", prefix: "app", style: "kebab-case" },
-      ],
-    },
   },
   {
     files: ["**/*.html"],
