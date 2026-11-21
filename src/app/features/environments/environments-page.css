@@ -49,10 +49,11 @@ label,
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
 
-  > span {
-    color: var(--text-muted);
-  }
+label > span,
+.group > span {
+  color: var(--text-muted);
 }
 
 .actions {

@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import { Router } from "@angular/router";
 import type { HistoryEntry } from "../../core/bindings";
 import { DialogService } from "../../core/dialog.service";
@@ -26,7 +20,7 @@ import { HistoryStore } from "./history.store";
   imports: [ResultView, JsonView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./history-page.html",
-  styleUrl: "./history-page.scss",
+  styleUrl: "./history-page.css",
 })
 export class HistoryPage implements OnInit {
   protected readonly history = inject(HistoryStore);

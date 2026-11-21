@@ -22,8 +22,8 @@
           "options": {
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
-            "inlineStyleLanguage": "scss",
-            "styles": ["src/styles.scss", "node_modules/@foblex/flow/styles/default.scss"]
+            "inlineStyleLanguage": "css",
+            "styles": ["src/styles.css", "node_modules/@foblex/flow/styles/default.scss"]
           },
           "configurations": {
             "production": {

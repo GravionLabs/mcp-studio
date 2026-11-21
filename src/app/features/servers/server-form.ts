@@ -13,9 +13,9 @@ import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { KeyValueEditor } from "../../ui/key-value-editor/key-value-editor";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
+import type { ServerFormState } from "./server-form.model";
 import {
   AZURE_DEVOPS_URL,
-  ServerFormState,
   emptyForm,
   formToInputWithSecrets,
   inputToForm,
@@ -29,7 +29,7 @@ import { ServersStore } from "./servers.store";
   imports: [KeyValueEditor],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./server-form.html",
-  styleUrl: "./server-form.scss",
+  styleUrl: "./server-form.css",
 })
 export class ServerForm {
   /** Route parameter; absent when creating. */

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from "@angular/core";
-import { FieldKind, JsonSchema, defaultValue, kindOf, resolve } from "./schema-form.model";
+import type { FieldKind, JsonSchema } from "./schema-form.model";
+import { defaultValue, kindOf, resolve } from "./schema-form.model";
 
 /**
  * Renders a form for a JSON Schema value. Recursive: objects and arrays render this component for
@@ -9,7 +10,7 @@ import { FieldKind, JsonSchema, defaultValue, kindOf, resolve } from "./schema-f
   selector: "app-schema-form",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./schema-form.html",
-  styleUrl: "./schema-form.scss",
+  styleUrl: "./schema-form.css",
 })
 export class SchemaForm {
   readonly schema = input.required<JsonSchema>();

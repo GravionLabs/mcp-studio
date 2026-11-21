@@ -13,9 +13,10 @@
     "sidecars": "node scripts/build-sidecars.mjs",
     "bundle": "pnpm run sidecars && tauri build --config src-tauri/tauri.bundle.conf.json",
     "bindings": "UPDATE_BINDINGS=1 cargo test -p mcp-studio-core --test bindings",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "lint": "oxlint --ignore-pattern \"src/testing/lint-probe/**\" && eslint \"**/*.html\"",
+    "lint:fix": "oxlint --fix --ignore-pattern \"src/testing/lint-probe/**\" && eslint --fix \"**/*.html\"",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "changelog": "git-cliff -c cliff.toml -o CHANGELOG.md",
     "changelog:release": "git-cliff -c cliff.toml -o CHANGELOG.md --unreleased -t"
   },
@@ -46,14 +47,16 @@
     "tslib": "^2.8.1"
   },
   "devDependencies": {
+    "@angular-eslint/eslint-plugin": "22.5.0",
     "@angular/build": "^22.2.1",
     "@angular/cli": "^22.2.1",
     "@angular/compiler-cli": "^22.2.1",
-    "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2",
     "angular-eslint": "^22.5.0",
     "eslint": "^10.11.0",
-    "prettier": "^3.9.9",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2007",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",
     "vitest": "^4.1.11"

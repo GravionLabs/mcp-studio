@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, inject, signal } from "@angular/core";
+import type { OnDestroy } from "@angular/core";
+import { ChangeDetectionStrategy, Component, inject, signal } from "@angular/core";
 import type { ConfirmEvent, Decision, RunEvent } from "../../core/bindings";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
@@ -12,7 +13,7 @@ import { describeArguments, describeCall } from "./run.model";
   selector: "app-flow-confirmations",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flow-confirmations.html",
-  styleUrl: "./flow-confirmations.scss",
+  styleUrl: "./flow-confirmations.css",
 })
 export class FlowConfirmations implements OnDestroy {
   private readonly ipc = inject(TauriIpcService);

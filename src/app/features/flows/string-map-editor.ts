@@ -4,34 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from "@an
 @Component({
   selector: "app-string-map-editor",
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    @for (row of rows(); track row.index) {
-      <div class="row">
-        <input
-          [attr.aria-label]="keyLabel() + ' name'"
-          [placeholder]="keyLabel()"
-          [value]="row.key"
-          (change)="rename(row.key, text($event))"
-        />
-        <input
-          class="wide"
-          [attr.aria-label]="'Value of ' + row.key"
-          [placeholder]="valuePlaceholder()"
-          [value]="row.value"
-          (change)="setValue(row.key, text($event))"
-        />
-        <button
-          type="button"
-          class="ghost"
-          [attr.aria-label]="'Remove ' + row.key"
-          (click)="remove(row.key)"
-        >
-          ✕
-        </button>
-      </div>
-    }
-    <button type="button" class="ghost" (click)="add()">+ Add {{ keyLabel() }}</button>
-  `,
+  templateUrl: "./string-map-editor.html",
   styles: `
     .row {
       display: flex;

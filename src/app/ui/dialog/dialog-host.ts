@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  ElementRef,
-  effect,
-  inject,
-  viewChild,
-} from "@angular/core";
+import type { ElementRef } from "@angular/core";
+import { ChangeDetectionStrategy, Component, effect, inject, viewChild } from "@angular/core";
 import { DialogService } from "../../core/dialog.service";
 
 /** Renders the dialog requested through {@link DialogService}. */
@@ -13,7 +7,7 @@ import { DialogService } from "../../core/dialog.service";
   selector: "app-dialog-host",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./dialog-host.html",
-  styleUrl: "./dialog-host.scss",
+  styleUrl: "./dialog-host.css",
 })
 export class DialogHost {
   protected readonly dialogs = inject(DialogService);

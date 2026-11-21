@@ -1,15 +1,17 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, inject, signal } from "@angular/core";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
-import { GITHUB_MODELS_URL, ProviderId, describeTest, qualifiedModel } from "./providers.model";
+import type { ProviderId } from "./providers.model";
+import { GITHUB_MODELS_URL, describeTest, qualifiedModel } from "./providers.model";
 
 /** Where flows get their models: Anthropic, an OpenAI-compatible endpoint, and local Ollama. */
 @Component({
   selector: "app-providers-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./providers-page.html",
-  styleUrl: "./providers-page.scss",
+  styleUrl: "./providers-page.css",
 })
 export class ProvidersPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

@@ -18,16 +18,16 @@
   <fieldset class="servers">
     <legend>Servers whose tools it may use</legend>
     @for (server of servers.servers(); track server.id) {
-    <label>
-      <input
-        type="checkbox"
-        [checked]="serverIds().includes(server.id)"
-        (change)="toggle(server.id)"
-      />
-      {{ server.name }}
-    </label>
+      <label>
+        <input
+          type="checkbox"
+          [checked]="serverIds().includes(server.id)"
+          (change)="toggle(server.id)"
+        />
+        {{ server.name }}
+      </label>
     } @empty {
-    <span class="muted">No servers registered.</span>
+      <span class="muted">No servers registered.</span>
     }
   </fieldset>
   <label class="field">
@@ -44,23 +44,23 @@
       {{ busy() ? "Generating…" : "Generate" }}
     </button>
     @if (blocked(); as why) {
-    <span class="muted">{{ why }}</span>
+      <span class="muted">{{ why }}</span>
     }
   </div>
   @if (failed(); as f) {
-  <div class="failed" role="alert">
-    <strong>{{ summary() }}</strong>
-    <ul>
-      @for (line of lines(); track $index) {
-      <li>{{ line }}</li>
+    <div class="failed" role="alert">
+      <strong>{{ summary() }}</strong>
+      <ul>
+        @for (line of lines(); track $index) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+      @if (f.yaml) {
+        <details>
+          <summary>What the model wrote</summary>
+          <pre>{{ f.yaml }}</pre>
+        </details>
       }
-    </ul>
-    @if (f.yaml) {
-    <details>
-      <summary>What the model wrote</summary>
-      <pre>{{ f.yaml }}</pre>
-    </details>
-    }
-  </div>
+    </div>
   }
 </details>

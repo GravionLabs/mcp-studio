@@ -17,9 +17,13 @@
         Try a demo server
       </button>
       <span class="muted">
-        @if (demoNeedsNode()) { The MCP reference server with sample tools, resources and prompts.
-        Needs Node.js, because it runs with <code>npx</code>. } @else { The test server that ships
-        with MCP Studio, with tools such as <code>echo</code> and <code>add</code>. }
+        @if (demoNeedsNode()) {
+          The MCP reference server with sample tools, resources and prompts. Needs Node.js, because
+          it runs with <code>npx</code>.
+        } @else {
+          The test server that ships with MCP Studio, with tools such as <code>echo</code> and
+          <code>add</code>.
+        }
       </span>
     </li>
   </ol>
@@ -28,15 +32,18 @@
   <ul class="steps">
     <li>
       @if (firstServer(); as server) {
-      <a class="action" [routerLink]="['/servers', server.id]" [queryParams]="{ tab: 'client' }"
-        >Record a real client</a
-      >
+        <a class="action" [routerLink]="['/servers', server.id]" [queryParams]="{ tab: 'client' }"
+          >Record a real client</a
+        >
       } @else {
-      <a class="action" routerLink="/servers/new">Record a real client</a>
+        <a class="action" routerLink="/servers/new">Record a real client</a>
       }
       <span class="muted">
         Route Claude Desktop or another client through MCP Studio and watch its traffic in the
-        inspector. @if (!hasServers()) {Add a server first.}
+        inspector.
+        @if (!hasServers()) {
+          Add a server first.
+        }
       </span>
     </li>
     <li>
@@ -53,14 +60,16 @@
   </ul>
 
   @if (loaded() && hasServers()) {
-  <h2>Recent servers</h2>
-  <ul class="recent">
-    @for (server of recent(); track server.id) {
-    <li>
-      <a [routerLink]="['/servers', server.id]">{{ server.name }}</a>
-      <span class="muted">{{ server.transport === "stdio" ? "stdio" : "Streamable HTTP" }}</span>
-    </li>
-    }
-  </ul>
+    <h2>Recent servers</h2>
+    <ul class="recent">
+      @for (server of recent(); track server.id) {
+        <li>
+          <a [routerLink]="['/servers', server.id]">{{ server.name }}</a>
+          <span class="muted">{{
+            server.transport === "stdio" ? "stdio" : "Streamable HTTP"
+          }}</span>
+        </li>
+      }
+    </ul>
   }
 </section>

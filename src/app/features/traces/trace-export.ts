@@ -1,17 +1,12 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import type { ExportStatus } from "../../core/bindings";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { KeyValueEditor } from "../../ui/key-value-editor/key-value-editor";
 import type { KeyValueRow } from "../../ui/key-value-editor/key-value-row";
-import { SecretWrite, recordToRows, rowsToRecord } from "../../ui/key-value-editor/key-value-rows";
+import type { SecretWrite } from "../../ui/key-value-editor/key-value-rows";
+import { recordToRows, rowsToRecord } from "../../ui/key-value-editor/key-value-rows";
 import { describeExport } from "./trace-export.model";
 
 const NO_STATUS: ExportStatus = {
@@ -27,7 +22,7 @@ const NO_STATUS: ExportStatus = {
   imports: [KeyValueEditor],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./trace-export.html",
-  styleUrl: "./trace-export.scss",
+  styleUrl: "./trace-export.css",
 })
 export class TraceExport implements OnInit {
   private readonly ipc = inject(TauriIpcService);

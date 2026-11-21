@@ -11,16 +11,18 @@ label,
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
 
-  > span {
-    color: var(--text-muted);
-  }
+label > span,
+.group > span {
+  color: var(--text-muted);
+}
 
-  &.inline {
-    flex-direction: row;
-    align-items: center;
-    gap: 6px;
-  }
+label.inline,
+.group.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
 }
 
 .transport {

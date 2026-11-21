@@ -1,7 +1,8 @@
 import { Injector, runInInjectionContext } from "@angular/core";
 import { describe, expect, it, vi } from "vitest";
 import { IpcError } from "./ipc-error";
-import { IPC_INVOKE, IPC_LISTEN, InvokeFn, ListenFn } from "./ipc.tokens";
+import type { InvokeFn, ListenFn } from "./ipc.tokens";
+import { IPC_INVOKE, IPC_LISTEN } from "./ipc.tokens";
 import { TauriIpcService } from "./tauri-ipc.service";
 
 function create(invoke: InvokeFn, listen: ListenFn = async () => () => {}): TauriIpcService {

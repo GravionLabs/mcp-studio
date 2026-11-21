@@ -1,6 +1,12 @@
 /** The sections of a server's page, shown as tabs. */
 export type ServerTab =
-  "explorer" | "context" | "quality" | "docs" | "settings" | "client" | "logs";
+  | "explorer"
+  | "context"
+  | "quality"
+  | "docs"
+  | "settings"
+  | "client"
+  | "logs";
 
 export interface ServerTabInfo {
   id: ServerTab;

@@ -8,7 +8,7 @@ import { WorkspaceTabsService } from "./workspace-tabs.service";
   imports: [TabList, Tab],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./tabs.html",
-  styleUrl: "./tabs.scss",
+  styleUrl: "./tabs.css",
 })
 export class Tabs {
   protected readonly tabs = inject(WorkspaceTabsService);

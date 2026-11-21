@@ -1,7 +1,8 @@
 import { Injectable, computed, inject, signal } from "@angular/core";
 import type { MessageFilter, MessageRecord } from "../../core/bindings";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
-import { MessageFilterState, NO_FILTER, matchesFilter } from "./inspector.model";
+import type { MessageFilterState } from "./inspector.model";
+import { NO_FILTER, matchesFilter } from "./inspector.model";
 
 /** Newest messages kept in memory; older ones stay in the database. */
 export const MAX_MESSAGES = 5000;

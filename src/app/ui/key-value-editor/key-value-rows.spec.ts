@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { recordToRows, rowsToRecord, SecretWrite } from "./key-value-rows";
+import type { SecretWrite } from "./key-value-rows";
+import { recordToRows, rowsToRecord } from "./key-value-rows";
 
 describe("rowsToRecord", () => {
   it("skips blank names and keeps plain values", () => {

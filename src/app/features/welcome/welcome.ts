@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
@@ -18,7 +12,7 @@ import { demoServerInput, findDemoServer, recentServers } from "./welcome.model"
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./welcome.html",
-  styleUrl: "./welcome.scss",
+  styleUrl: "./welcome.css",
 })
 export class Welcome implements OnInit {
   private readonly store = inject(ServersStore);
