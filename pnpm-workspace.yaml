@@ -5,3 +5,6 @@ allowBuilds:
   msgpackr-extract: true
 # 7 days, in minutes: a younger release reaches neither the lockfile nor an install (GravionLabs/ci#239).
 minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  # Renovate security update: pnpm@11.11.0
+  - pnpm@11.11.0
