@@ -1,0 +1,14 @@
+# Place next to the workspace Cargo.toml (or in the crate directory, e.g. src-tauri/clippy.toml).
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-indexing-slicing-in-tests = true
+
+# Example: forbid calls and types the project replaces with its own wrappers.
+# disallowed-methods = [
+#   { path = "std::env::set_var", reason = "not thread-safe; pass configuration explicitly" },
+#   { path = "std::process::Command::new", reason = "use the project's spawn helper" },
+# ]
+# disallowed-types = [
+#   { path = "std::collections::HashMap", reason = "use indexmap::IndexMap for stable order" },
+# ]

@@ -43,3 +43,15 @@ Load only when `detect-techstack` reports `frameworks: ["tauri"]`. Default is Ta
 - Tauri 1: `allowlist` in `tauri.conf.json` toggles API groups; `tauri::api` module; config under `tauri`
 - Tauri 2: allowlist is replaced by capabilities and permissions; core APIs moved into plugins; config uses `app` and `bundle` keys
 - When migrating, review the resulting capability files by hand
+
+## cargo-deny ignores (GTK 3)
+
+Tauri 2 on Linux uses the unmaintained gtk-rs GTK 3 bindings, so `cargo deny check` reports `RUSTSEC-2024-0411` to `RUSTSEC-2024-0420`. Add them to `[advisories] ignore` of `templates/deny.toml` only while the dependency is there; each needs `reason` and `expiry` (`references/deny.md`):
+
+```toml
+# { id = "RUSTSEC-2024-0415", reason = "gtk (GTK 3 bindings) unmaintained; pulled in by tao/wry, no GTK 4 release yet. Exit: when Tauri moves to GTK 4", expiry = "2027-06-30" },
+# { id = "RUSTSEC-2024-0416", reason = "atk-sys (GTK 3) unmaintained; transitive via gtk. Exit: when Tauri moves to GTK 4", expiry = "2027-06-30" },
+# { id = "RUSTSEC-2024-0419", reason = "gtk3-macros unmaintained; transitive via gtk. Exit: when Tauri moves to GTK 4", expiry = "2027-06-30" },
+```
+
+Repeat the pattern for the other `RUSTSEC-2024-04xx` entries cargo-deny prints (`gdk`, `gdk-sys`, `gdkwayland-sys`, `gdkx11`, `gtk-sys`, …). Remove them all when Tauri moves to GTK 4.

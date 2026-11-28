@@ -1,0 +1,16 @@
+# Common Clippy lint set for all Rust repositories.
+# Copy into the root Cargo.toml; members opt in with:
+#   [lints]
+#   workspace = true
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+
+[workspace.lints.rust]
+# Keep the repository's own entries here.
+unsafe_code = "forbid"
