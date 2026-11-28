@@ -9,7 +9,7 @@ import { PaneLayoutService } from "../pane-layout.service";
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./toolbar.html",
-  styleUrl: "./toolbar.scss",
+  styleUrl: "./toolbar.css",
 })
 export class Toolbar {
   protected readonly theme = inject(ThemeService);

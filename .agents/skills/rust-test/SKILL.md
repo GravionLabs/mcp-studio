@@ -10,6 +10,8 @@ description: 'Write and run Rust tests: unit and tests/ integration, cargo test,
 
 ## Test Runner
 
+The project's test command: the `test` key of `.agents/config.json`, run by `implementation`'s `scripts/Invoke-Tests.ps1`; the list below is the default.
+
 - **Run all**: `cargo test --all-features`
 - **Single test**: `cargo test <name_filter>`; one integration file: `cargo test --test <file>`
 - **Targeted run** (per commit): `cargo test <name>` for the changed module or `cargo test --test <file>`; unknown mapping: `cargo test --lib`
@@ -29,6 +31,7 @@ description: 'Write and run Rust tests: unit and tests/ integration, cargo test,
 - Only when `detect-techstack` reports `frameworks: ["tauri"]`: keep command logic in pure functions and test those; `tauri::test` (mock runtime) is optional for the command wiring; delegate the frontend to `ts-test`
 
 Reference files (load when needed):
+
 - `references/mocking-and-properties.md` - `mockall` traits, async tests, `proptest`
 
 ## Gotchas

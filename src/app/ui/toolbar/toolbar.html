@@ -6,9 +6,9 @@
     <select [value]="environments.activeId() ?? ''" (change)="select($event)">
       <option value="">None</option>
       @for (environment of environments.environments(); track environment.id) {
-      <option [value]="environment.id" [selected]="environment.id === environments.activeId()">
-        {{ environment.name }}
-      </option>
+        <option [value]="environment.id" [selected]="environment.id === environments.activeId()">
+          {{ environment.name }}
+        </option>
       }
     </select>
   </label>

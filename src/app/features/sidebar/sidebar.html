@@ -14,24 +14,24 @@
   </header>
 
   @if (store.servers().length === 0 && store.loaded()) {
-  <p class="empty muted">
-    No servers yet. <a routerLink="/servers/new">Add one</a> or
-    <a routerLink="/servers/import">import from Claude</a>.
-  </p>
+    <p class="empty muted">
+      No servers yet. <a routerLink="/servers/new">Add one</a> or
+      <a routerLink="/servers/import">import from Claude</a>.
+    </p>
   }
 
   <ul>
     @for (server of store.servers(); track server.id) {
-    <li>
-      <a [routerLink]="['/servers', server.id]" routerLinkActive="active">
-        <span
-          class="dot"
-          [class]="status.stateOf(server.id)"
-          [title]="status.stateOf(server.id)"
-        ></span>
-        <span class="name">{{ server.name }}</span>
-      </a>
-    </li>
+      <li>
+        <a [routerLink]="['/servers', server.id]" routerLinkActive="active">
+          <span
+            class="dot"
+            [class]="status.stateOf(server.id)"
+            [title]="status.stateOf(server.id)"
+          ></span>
+          <span class="name">{{ server.name }}</span>
+        </a>
+      </li>
     }
   </ul>
 
@@ -61,9 +61,9 @@
 
   <ul class="tree">
     @for (folder of collections.roots(); track folder.node.id) {
-    <app-collection-folder [folder]="folder" />
+      <app-collection-folder [folder]="folder" />
     } @empty {
-    <li class="empty muted">No collections yet.</li>
+      <li class="empty muted">No collections yet.</li>
     }
   </ul>
 </nav>

@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from "@angular/co
 @Component({
   selector: "app-json-view",
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<pre class="json mono">{{ text() }}</pre>`,
+  templateUrl: "./json-view.html",
   styles: `
     .json {
       margin: 0;

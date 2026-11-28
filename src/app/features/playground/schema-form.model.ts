@@ -27,7 +27,14 @@ export interface JsonSchema {
 }
 
 export type FieldKind =
-  "string" | "number" | "integer" | "boolean" | "enum" | "array" | "object" | "json";
+  | "string"
+  | "number"
+  | "integer"
+  | "boolean"
+  | "enum"
+  | "array"
+  | "object"
+  | "json";
 
 /** Resolves local `$ref`s (`#/$defs/x`, `#/definitions/x`) and unwraps nullable `anyOf`/`oneOf`. */
 export function resolve(schema: JsonSchema, root: JsonSchema, depth = 0): JsonSchema {

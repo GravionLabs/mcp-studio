@@ -1,0 +1,39 @@
+# cargo-deny 0.22 config. Place next to the workspace Cargo.toml (e.g. src-tauri/deny.toml in a Tauri app).
+# Run: cargo deny check (needs the network for the RustSec database).
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+# Every ignore is an entry with `id`, `reason` and `expiry` (YYYY-MM-DD, or a
+# duration like "P90D" counted from the advisory's publish date). After the
+# expiry the advisory is reported again.
+ignore = [
+  # { id = "RUSTSEC-0000-0000", reason = "not reachable: we do not call the affected API; upstream fix pending", expiry = "2027-06-30" },
+]
+
+[licenses]
+version = 2
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Zlib",
+  "CC0-1.0",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

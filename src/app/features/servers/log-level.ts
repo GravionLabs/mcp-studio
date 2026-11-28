@@ -22,7 +22,7 @@ export const LOG_LEVELS = [
   selector: "app-log-level",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./log-level.html",
-  styleUrl: "./log-level.scss",
+  styleUrl: "./log-level.css",
 })
 export class LogLevel {
   readonly serverId = input.required<string>();

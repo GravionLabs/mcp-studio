@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from "@angular/core";
 import { JsonView } from "../../ui/json-view/json-view";
-import { ParsedResult, ResultBlock, prettyJson } from "./result.model";
+import type { ParsedResult, ResultBlock } from "./result.model";
+import { prettyJson } from "./result.model";
 
 /** Renders tool results and other MCP content: text, JSON, images, audio, resources, and links. */
 @Component({
@@ -8,7 +9,7 @@ import { ParsedResult, ResultBlock, prettyJson } from "./result.model";
   imports: [JsonView],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./result-view.html",
-  styleUrl: "./result-view.scss",
+  styleUrl: "./result-view.css",
 })
 export class ResultView {
   readonly result = input.required<ParsedResult>();

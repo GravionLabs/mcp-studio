@@ -1,4 +1,5 @@
-import { JsonSchema, prune, validate } from "./schema-form.model";
+import type { JsonSchema } from "./schema-form.model";
+import { prune, validate } from "./schema-form.model";
 
 /** Pretty JSON for the raw editor; `undefined` becomes an empty object. */
 export function toRawText(value: unknown): string {

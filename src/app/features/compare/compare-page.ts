@@ -1,7 +1,7 @@
+import type { OnDestroy } from "@angular/core";
 import {
   ChangeDetectionStrategy,
   Component,
-  OnDestroy,
   computed,
   effect,
   inject,
@@ -28,7 +28,7 @@ import {
   selector: "app-compare-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./compare-page.html",
-  styleUrl: "./compare-page.scss",
+  styleUrl: "./compare-page.css",
 })
 export class ComparePage implements OnDestroy {
   private readonly ipc = inject(TauriIpcService);

@@ -7,7 +7,7 @@ import type { KeyValueRow } from "./key-value-row";
   selector: "app-key-value-editor",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./key-value-editor.html",
-  styleUrl: "./key-value-editor.scss",
+  styleUrl: "./key-value-editor.css",
 })
 export class KeyValueEditor {
   readonly rows = input.required<KeyValueRow[]>();

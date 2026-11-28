@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import type { Span } from "../../core/bindings";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
@@ -21,7 +15,7 @@ import { buildWaterfall, formatDuration } from "./waterfall.model";
   imports: [JsonView, TraceExport],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./traces-page.html",
-  styleUrl: "./traces-page.scss",
+  styleUrl: "./traces-page.css",
 })
 export class TracesPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

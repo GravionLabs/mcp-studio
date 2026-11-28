@@ -50,7 +50,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyMkRGQUE1MzM2QjBGNTAKUldSUUQyc3pwZm90WWlPOGtyeTZPZ3lVbjh6TjVVSkFtR25QNHJaN1ZPUXZCalkzL0h3UUE3bFIK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzQTgwMEMzNzRGRUNFMDgKUldRSXp2NTB3d0NvZzFlLzdyczFzcWtMQWJocDVKRHRxaEFnWkVtV2pEZUh2ajlGOFNORk42cGIK",
       "endpoints": [
         "https://github.com/GravionLabs/mcp-studio/releases/latest/download/latest.json"
       ]

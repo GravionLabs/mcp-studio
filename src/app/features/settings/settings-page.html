@@ -27,11 +27,11 @@
       />
     </label>
     @if (submitted() && problems().length > 0) {
-    <ul class="problems" role="alert">
-      @for (problem of problems(); track problem) {
-      <li>{{ problem }}</li>
-      }
-    </ul>
+      <ul class="problems" role="alert">
+        @for (problem of problems(); track problem) {
+          <li>{{ problem }}</li>
+        }
+      </ul>
     }
     <div class="actions">
       <button type="submit" class="primary" [disabled]="busy()">Save</button>
@@ -60,55 +60,63 @@
       <button type="button" [disabled]="busy()" (click)="chooseImport()">Import workspace…</button>
     </div>
     @if (pending(); as pending) {
-    <div class="preview" role="region" aria-label="Import preview">
-      @if (hasChanges(pending.changes)) {
-      <p>Importing adds and replaces the following. Nothing is deleted.</p>
-      } @else {
-      <p>Everything in this file is already in your workspace.</p>
-      } @for (table of tablesWithRows(pending.changes); track table.label) {
-      <div>
-        <strong>{{ table.label }}</strong>: {{ describeTable(table) }} @if (table.replacedCount > 0)
-        {
-        <div class="muted">
-          Replaced: {{ table.replaced.join(", ") }} {{ moreNames(table.replacedCount,
-          table.replaced.length) }}
-        </div>
-        } @if (table.addedCount > 0) {
-        <div class="muted">
-          New: {{ table.added.join(", ") }} {{ moreNames(table.addedCount, table.added.length) }}
-        </div>
+      <div class="preview" role="region" aria-label="Import preview">
+        @if (hasChanges(pending.changes)) {
+          <p>Importing adds and replaces the following. Nothing is deleted.</p>
+        } @else {
+          <p>Everything in this file is already in your workspace.</p>
         }
+        @for (table of tablesWithRows(pending.changes); track table.label) {
+          <div>
+            <strong>{{ table.label }}</strong
+            >: {{ describeTable(table) }}
+            @if (table.replacedCount > 0) {
+              <div class="muted">
+                Replaced: {{ table.replaced.join(", ") }}
+                {{ moreNames(table.replacedCount, table.replaced.length) }}
+              </div>
+            }
+            @if (table.addedCount > 0) {
+              <div class="muted">
+                New: {{ table.added.join(", ") }}
+                {{ moreNames(table.addedCount, table.added.length) }}
+              </div>
+            }
+          </div>
+        }
+        @if (pending.changes.missingSecrets.length > 0) {
+          <p>These secrets are not on this computer and must be entered again after the import:</p>
+          <ul>
+            @for (secret of pending.changes.missingSecrets; track secret.name) {
+              <li>{{ describeSecret(secret) }}</li>
+            }
+          </ul>
+        }
+        <div class="actions">
+          <button
+            type="button"
+            class="primary"
+            [disabled]="busy() || !hasChanges(pending.changes)"
+            (click)="applyImport()"
+          >
+            Import
+          </button>
+          <button type="button" (click)="cancelImport()">Cancel</button>
+        </div>
       </div>
-      } @if (pending.changes.missingSecrets.length > 0) {
-      <p>These secrets are not on this computer and must be entered again after the import:</p>
-      <ul>
-        @for (secret of pending.changes.missingSecrets; track secret.name) {
-        <li>{{ describeSecret(secret) }}</li>
-        }
-      </ul>
+    }
+    @if (imported(); as done) {
+      @if (done.missingSecrets.length > 0) {
+        <div class="preview" role="status">
+          <p>Imported. Open these servers and environments and enter the missing secrets again:</p>
+          <ul>
+            @for (secret of done.missingSecrets; track secret.name) {
+              <li>{{ describeSecret(secret) }}</li>
+            }
+          </ul>
+        </div>
       }
-      <div class="actions">
-        <button
-          type="button"
-          class="primary"
-          [disabled]="busy() || !hasChanges(pending.changes)"
-          (click)="applyImport()"
-        >
-          Import
-        </button>
-        <button type="button" (click)="cancelImport()">Cancel</button>
-      </div>
-    </div>
-    } @if (imported(); as done) { @if (done.missingSecrets.length > 0) {
-    <div class="preview" role="status">
-      <p>Imported. Open these servers and environments and enter the missing secrets again:</p>
-      <ul>
-        @for (secret of done.missingSecrets; track secret.name) {
-        <li>{{ describeSecret(secret) }}</li>
-        }
-      </ul>
-    </div>
-    } }
+    }
   </div>
 
   <div class="group">

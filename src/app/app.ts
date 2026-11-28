@@ -33,7 +33,7 @@ import { InspectorPanel } from "./features/inspector/inspector-panel";
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./app.html",
-  styleUrl: "./app.scss",
+  styleUrl: "./app.css",
 })
 export class App {
   protected readonly layout = inject(PaneLayoutService);

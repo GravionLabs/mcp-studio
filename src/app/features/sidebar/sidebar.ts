@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
 import { DialogService } from "../../core/dialog.service";
 import { FileDialogService } from "../../core/file-dialog.service";
@@ -16,7 +17,7 @@ import { ServersStore } from "../servers/servers.store";
   imports: [RouterLink, RouterLinkActive, CollectionFolder],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./sidebar.html",
-  styleUrl: "./sidebar.scss",
+  styleUrl: "./sidebar.css",
 })
 export class Sidebar implements OnInit {
   protected readonly store = inject(ServersStore);
@@ -58,8 +59,7 @@ export class Sidebar implements OnInit {
       const report = await this.collections.importFile(path, null);
       const skipped = report.skipped.length;
       this.toasts.success(
-        `Imported ${report.requestsCreated} request(s)` +
-          (skipped > 0 ? `, skipped ${skipped}` : ""),
+        `Imported ${report.requestsCreated} request(s)${skipped > 0 ? `, skipped ${skipped}` : ""}`,
       );
       if (skipped > 0) this.toasts.error("Some requests were skipped", report.skipped.join("\n"));
     } catch (error) {

@@ -1,7 +1,7 @@
+import type { OnDestroy } from "@angular/core";
 import {
   ChangeDetectionStrategy,
   Component,
-  OnDestroy,
   computed,
   effect,
   inject,
@@ -33,7 +33,7 @@ import {
   imports: [SchemaForm],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./client-requests.html",
-  styleUrl: "./client-requests.scss",
+  styleUrl: "./client-requests.css",
 })
 export class ClientRequests implements OnDestroy {
   private readonly ipc = inject(TauriIpcService);

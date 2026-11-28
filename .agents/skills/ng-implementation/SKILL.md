@@ -21,11 +21,22 @@ The official `angular-developer` skill (dependency `angular/skills`) covers the 
 - Forms: Reactive Forms by default; Signal Forms (`@angular/forms/signals`) only when requested or already used in the codebase
 - Subscriptions cleaned up via `DestroyRef` / `takeUntilDestroyed`
 - Upgrades: one major at a time with `ng update`; `ng generate @angular/core:control-flow` migrates legacy templates
-- Formatting: Angular stays on Prettier + angular-eslint (Biome lacks Angular template support and SCSS formatting); no `biome.json`
+- Styles: plain CSS (`.css` files, `inlineStyleLanguage` and the schematic `style` are `css`; nesting is native, tokens are custom properties). SCSS is the exception: one file that needs a Sass feature CSS lacks (`meta.load-css`), with the reason in a comment at its top; never for nesting, variables or a mixin alone. Under a selector list write nested rules out (native nesting wraps the list in `:is()` and changes the specificity)
+- Formatting and lint: oxfmt + oxlint with `@angular-eslint/eslint-plugin` as a JS plugin, ESLint only for `.html` templates (`setup-oxc-husky`, ADR 0006 of GravionLabs/skills); projects not yet migrated keep Prettier + angular-eslint; never Biome
+- Templates live in `.html` files (`templateUrl`); no inline `template:` outside spec files, so ESLint never reads `.ts`
 
 ## File naming
 
-Match the project's existing convention. New Angular 20+ projects follow the CLI default: no `.component` / `.service` suffix (`header.ts`, class `Header`); projects that still use `*.component.ts` keep it. Never mix both in one project.
+The convention is the one `angular.json` declares in `schematics` (workspace root; `projects.<name>.schematics` overrides it), not the one the existing files happen to use. It decides what `ng generate` writes; each schematic counts on its own.
+
+- No `type` (CLI default since Angular 20): no role suffix (`editor.ts`, class `Editor`; services and directives likewise)
+- `"type"` of `@schematics/angular:component` (`"component"`), `:directive` (`"directive"`), `:service` (`"service"`): suffixes on purpose (`editor.component.ts`, class `EditorComponent`; with `"addTypeToClassName": false` the suffix is in the file name only, class `Editor`)
+- `"typeSeparator": "."` of `@schematics/angular:guard`, `:interceptor`, `:module`, `:pipe`, `:resolver`: `auth.guard.ts`; without it `auth-guard.ts`
+- `ng update` to v20 writes all eight settings into a project that keeps the old style
+- Drift (suffixed files, no declared `type`): follow an ADR of the project that decides it; without one add no suffixed file, report the drift once and ask. No renames in passing.
+- Without suffixes, a name that collides with another class of the project or shadows a DOM/JS global (`Document`, `History`, `Location`, `Storage`, …) is named by intent (`DocumentStore`, `NavHistory`)
+- One Angular class per file (a directive does not live in a component file)
+- A rename between the two conventions is its own refactor, never part of a feature change
 
 ## Libraries
 
@@ -40,15 +51,20 @@ Match the project's existing convention. New Angular 20+ projects follow the CLI
 - Format: `npx --no-install prettier --write {files}` then `npx --no-install eslint --fix {files}`
 - Check (read-only): `npx --no-install prettier --check {files}` and `npx --no-install eslint {files}`
 - Biome project (`biome.json[c]`): `npx biome check --write --no-errors-on-unmatched {files}` / check `npx biome check --no-errors-on-unmatched {files}`
+- oxc project (`.oxfmtrc.json[c]` / `.oxlintrc.json`): `npx --no-install oxfmt --no-error-on-unmatched-pattern {files}`, `npx --no-install oxlint --fix --no-error-on-unmatched-pattern {files}`, then `npx --no-install eslint --fix {files}` on `.html` only / check `npx --no-install oxfmt --check --no-error-on-unmatched-pattern {files}`, `npx --no-install oxlint --no-error-on-unmatched-pattern {files}` and `npx --no-install eslint {files}`; oxfmt also formats `.md .yml .yaml`
 - Run after green tests, before the commit: `pwsh <implementation dir>/scripts/Format-Changed.ps1 -Language ng` (`-Check` for the check commands; not-configured, override: references/format.md of `implementation`)
 
 ## Tests
 
 Load `ng-test` for TestBed setup, signal testing, mocking and async patterns.
 
+## Gate
+
+Run `pnpm check:changed` once when the work is done (the gate of this stack; `implementation` runs it through `Invoke-Gate.ps1`): `../../shared/implementation/references/gate.md`.
+
 ## Review rules
 
-- 🔴 Lint run (`Format-Changed.ps1 -Lint -Language ng`, ESLint) exits non-zero: error-level findings; 🟡 warning-level findings
+- 🔴 Lint run (`Format-Changed.ps1 -Lint -Language ng`, oxlint + ESLint on `.html`, or ESLint) exits non-zero: error-level findings; 🟡 warning-level findings
 - `OnPush`; signals for state, `computed()` for derived values
 - `effect()` only for side effects, never for state updates (use `computed` or `linkedSignal`)
 - `@if` / `@for` (with `track`) / `@switch`; `input()` / `output()`
@@ -56,12 +72,15 @@ Load `ng-test` for TestBed setup, signal testing, mocking and async patterns.
 - Subscriptions cleaned up via `DestroyRef` / `takeUntilDestroyed`
 - No complex template expressions; ARIA labels and `alt` text on interactive elements and images
 - Library code exported only through `public-api.ts`
+- 🟡 A new file or class named differently from what `angular.json` or the ADR of a drift case declares (File naming), or a class name that shadows a DOM/JS global
 - New or changed behavior has tests per `ng-test`
+- If the project depends on `@gravionlabs/helix-ui` → read `references/helix.md` before writing or reviewing templates and component CSS (Helix primitives, no raw controls)
 
 ## Scaffolding
 
 - New standalone component → read `references/component.md`
 - New NgRx Signal Store for feature state → read `references/signal-store.md`
+- Enforce style tokens (no raw colors or font sizes) with Stylelint → read `references/style-lint.md`
 
 ## Related Skills
 

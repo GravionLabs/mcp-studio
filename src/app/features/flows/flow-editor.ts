@@ -1,8 +1,7 @@
+import type { OnDestroy, OnInit } from "@angular/core";
 import {
   ChangeDetectionStrategy,
   Component,
-  OnDestroy,
-  OnInit,
   computed,
   inject,
   input,
@@ -15,9 +14,8 @@ import type { Flow, FlowIssue, FlowValidation, Step } from "../../core/bindings"
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
+import type { Branch, StepType } from "./editor.model";
 import {
-  Branch,
-  StepType,
   addStep,
   connectJump,
   connectionsOf,
@@ -43,7 +41,7 @@ import { Tab, TabList, TabPanel } from "../../ui/tablist/tablist";
   imports: [FFlowModule, RouterLink, StringMapEditor, TabList, Tab, TabPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./flow-editor.html",
-  styleUrl: "./flow-editor.scss",
+  styleUrl: "./flow-editor.css",
 })
 export class FlowEditor implements OnInit, OnDestroy {
   /** The flow in the library, from the route. */

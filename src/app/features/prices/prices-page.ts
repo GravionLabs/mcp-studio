@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, inject, signal } from "@angular/core";
 import { DialogService } from "../../core/dialog.service";
 import { TauriIpcService } from "../../core/tauri-ipc.service";
 import { ToastService } from "../../core/toast.service";
 import { RouterLink } from "@angular/router";
 import { WorkspaceTabsService } from "../../ui/tabs/workspace-tabs.service";
-import { PriceDraft, draftToPrice, emptyDraft, toDraft } from "./prices.model";
+import type { PriceDraft } from "./prices.model";
+import { draftToPrice, emptyDraft, toDraft } from "./prices.model";
 import { PricesStore } from "./prices.store";
 
 type NumberField = "input" | "output" | "cacheRead" | "cacheWrite";
@@ -15,7 +17,7 @@ type NumberField = "input" | "output" | "cacheRead" | "cacheWrite";
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./prices-page.html",
-  styleUrl: "./prices-page.scss",
+  styleUrl: "./prices-page.css",
 })
 export class PricesPage implements OnInit {
   protected readonly store = inject(PricesStore);

@@ -53,6 +53,21 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+The frontend is formatted by [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html)
+(`.oxfmtrc.json`, `pnpm format`) and linted by two tools (ADR 0006 of GravionLabs/skills):
+
+- **oxlint** (`.oxlintrc.json`) lints every `.ts` and `.js` file, with type-aware rules
+  (`oxlint-tsgolint`) and the Angular class rules (`@angular-eslint/eslint-plugin` as a JS plugin).
+  `pnpm lint:fix` applies the safe fixes.
+- **ESLint** (`eslint.config.mjs`) lints only the Angular templates (`**/*.html`), because oxlint
+  cannot parse them. So every component keeps its template in a `.html` file next to it; an inline
+  `template:` outside a spec file fails `mcp-studio/no-inline-template`.
+- A rule that is turned off or lowered carries its reason as a comment in `.oxlintrc.json`.
+- `src/testing/lint-probe/` breaks known rules on purpose and is left out of `pnpm lint`;
+  `src/testing/lint-probe.spec.ts` fails when oxlint or ESLint stops reporting one of them, for
+  example after an update. oxlint, oxfmt and oxlint-tsgolint are pinned to exact versions: raise
+  them together and only with a green probe.
+
 Types that cross the IPC boundary derive `specta::Type`. After changing them, run `pnpm bindings`
 to regenerate `src/app/core/bindings.ts` (a test fails when it is stale).
 
@@ -100,6 +115,9 @@ The app updates itself from the latest release (`latest.json`, checked only when
   update again and a new public key needs a manual reinstall
 
 To make a new key: `pnpm tauri signer generate -w <file>`, then update the public key and both secrets.
+
+The key was replaced once after the earlier private key was lost. Installs made with the earlier key
+cannot verify updates signed with the new one and must be reinstalled by hand once.
 Linux `.deb` and `.rpm` installs are updated through the package manager; the in-app updater
 replaces AppImage, Windows, and macOS installs.
 

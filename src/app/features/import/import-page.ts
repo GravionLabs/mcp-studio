@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import { Router } from "@angular/router";
 import type { ConfigSource, ImportCandidate } from "../../core/bindings";
 import { FileDialogService } from "../../core/file-dialog.service";
@@ -26,7 +20,7 @@ import {
   selector: "app-import-page",
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./import-page.html",
-  styleUrl: "./import-page.scss",
+  styleUrl: "./import-page.css",
 })
 export class ImportPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

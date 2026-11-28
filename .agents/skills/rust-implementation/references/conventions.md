@@ -28,7 +28,8 @@ pub enum ConfigError {
 
 - `cargo clippy --all-targets --all-features -- -D warnings` must pass before commit
 - `cargo fmt --all` before commit; configure through `rustfmt.toml` only when needed
-- Crate-wide lint policy belongs in `[lints]` of `Cargo.toml`; a local `#[allow]` needs a comment
+- Crate-wide lint policy belongs in `[lints]` of `Cargo.toml`; a local suppression is `#[expect(lint, reason = "…")]`, never `#[allow]`
+- The common lint set, `clippy.toml` and the `#[expect]` rule: `lints.md`
 
 ## unsafe
 

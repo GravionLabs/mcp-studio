@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from "@angular/core";
+import type { OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import type { ClientEntry, RoutePreview, UnreadableFile } from "../../core/bindings";
 import { DialogService } from "../../core/dialog.service";
@@ -27,7 +21,7 @@ interface PendingRoute {
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./clients-page.html",
-  styleUrl: "./clients-page.scss",
+  styleUrl: "./clients-page.css",
 })
 export class ClientsPage implements OnInit {
   private readonly ipc = inject(TauriIpcService);

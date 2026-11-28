@@ -1,4 +1,4 @@
-import { Routes } from "@angular/router";
+import type { Routes } from "@angular/router";
 import { EnvironmentsPage } from "./features/environments/environments-page";
 import { ToolPlayground } from "./features/playground/tool-playground";
 import { HistoryPage } from "./features/history/history-page";
